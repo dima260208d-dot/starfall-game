@@ -483,7 +483,14 @@ export class Brawler {
     }
   }
 
-  render(ctx: CanvasRenderingContext2D, camX: number, camY: number, spriteLoaded: boolean, viewerTeam?: string): void {
+  render(
+    ctx: CanvasRenderingContext2D,
+    camX: number,
+    camY: number,
+    spriteLoaded: boolean,
+    viewerTeam?: string,
+    friendlies?: { x: number; y: number }[]
+  ): void {
     if (!this.alive && this.deathAnim > 1) return;
     
     const sx = this.x - camX;
@@ -492,13 +499,31 @@ export class Brawler {
     if (sx < -this.radius * 2 || sx > 1200 + this.radius * 2) return;
     if (sy < -this.radius * 2 || sy > 800 + this.radius * 2) return;
     
+    // Hide enemies in bushes completely until a friendly is close enough
+    const isEnemyToViewer = viewerTeam !== undefined && !this.isPlayer && this.team !== viewerTeam;
+    if (this.alive && this.inBush && isEnemyToViewer) {
+      const REVEAL_RADIUS = 140;
+      let revealed = false;
+      if (friendlies) {
+        for (const f of friendlies) {
+          const ddx = f.x - this.x;
+          const ddy = f.y - this.y;
+          if (ddx * ddx + ddy * ddy <= REVEAL_RADIUS * REVEAL_RADIUS) {
+            revealed = true;
+            break;
+          }
+        }
+      }
+      if (!revealed) return;
+    }
+    
     let alpha = 1;
     if (!this.alive) {
       alpha = Math.max(0, 1 - this.deathAnim);
-    } else if (this.inBush && !this.isPlayer) {
-      alpha = 0.1;
-    } else if (this.inBush) {
+    } else if (this.inBush && this.isPlayer) {
       alpha = 0.6;
+    } else if (this.inBush) {
+      alpha = 0.85;
     }
     
     // Team relation indicator ring at feet

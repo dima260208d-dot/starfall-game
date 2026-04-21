@@ -304,8 +304,9 @@ export class ClashShowdown {
     this.renderGas(ctx);
     
     const allBrawlers = [this.player, ...this.bots];
+    const friendlies = [{ x: this.player.x, y: this.player.y }];
     for (const b of allBrawlers) {
-      b.render(ctx, this.camera.x, this.camera.y, this.spriteLoaded, this.player.team);
+      b.render(ctx, this.camera.x, this.camera.y, this.spriteLoaded, this.player.team, friendlies);
     }
     
     renderProjectiles(ctx, this.projectiles, this.camera.x, this.camera.y, this.frame);

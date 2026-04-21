@@ -325,8 +325,9 @@ export class ClashCrystals {
     this.renderCrystals(ctx);
     
     const allBrawlers = [this.player, ...this.allies, ...this.enemies];
+    const _friendlies = [this.player, ...this.allies].filter(b => b.alive).map(b => ({ x: b.x, y: b.y }));
     for (const b of allBrawlers) {
-      b.render(ctx, this.camera.x, this.camera.y, this.spriteLoaded, this.player.team);
+      b.render(ctx, this.camera.x, this.camera.y, this.spriteLoaded, this.player.team, _friendlies);
     }
     
     renderProjectiles(ctx, this.projectiles, this.camera.x, this.camera.y, this.frame);

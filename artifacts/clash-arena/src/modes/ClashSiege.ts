@@ -203,7 +203,8 @@ export class ClashSiege {
     ctx.restore();
 
     const all = [this.player, ...this.enemies];
-    for (const b of all) b.render(ctx, this.camera.x, this.camera.y, this.spriteLoaded, this.player.team);
+    const _friendlies = this.player.alive ? [{ x: this.player.x, y: this.player.y }] : [];
+    for (const b of all) b.render(ctx, this.camera.x, this.camera.y, this.spriteLoaded, this.player.team, _friendlies);
     renderProjectiles(ctx, this.projectiles, this.camera.x, this.camera.y, this.frame);
     renderDamageNumbers(ctx, this.camera.x, this.camera.y);
     this.renderHUD(ctx);
