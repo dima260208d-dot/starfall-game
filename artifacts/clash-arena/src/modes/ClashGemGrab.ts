@@ -234,7 +234,7 @@ export class ClashGemGrab {
       ctx.restore();
     }
     const all = [this.player, ...this.allies, ...this.enemies];
-    for (const b of all) b.render(ctx, this.camera.x, this.camera.y, this.spriteLoaded);
+    for (const b of all) b.render(ctx, this.camera.x, this.camera.y, this.spriteLoaded, this.player.team);
     renderProjectiles(ctx, this.projectiles, this.camera.x, this.camera.y, this.frame);
     renderDamageNumbers(ctx, this.camera.x, this.camera.y);
     this.renderHUD(ctx);

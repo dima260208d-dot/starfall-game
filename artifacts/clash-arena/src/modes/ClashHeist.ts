@@ -193,7 +193,7 @@ export class ClashHeist {
     renderMap(ctx, this.map, this.camera.x, this.camera.y, 1200, 800);
     this.renderSafes(ctx);
     const allBrawlers = [this.player, ...this.allies, ...this.enemies];
-    for (const b of allBrawlers) b.render(ctx, this.camera.x, this.camera.y, this.spriteLoaded);
+    for (const b of allBrawlers) b.render(ctx, this.camera.x, this.camera.y, this.spriteLoaded, this.player.team);
     renderProjectiles(ctx, this.projectiles, this.camera.x, this.camera.y, this.frame);
     renderDamageNumbers(ctx, this.camera.x, this.camera.y);
     this.renderHUD(ctx);

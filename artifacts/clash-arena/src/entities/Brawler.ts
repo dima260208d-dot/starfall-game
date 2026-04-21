@@ -59,6 +59,8 @@ export class Brawler {
   
   turret: Brawler | null = null;
   
+  powerCubes = 0;
+  
   constructor(stats: BrawlerStats, level: number, x: number, y: number, team: Team, isPlayer = false) {
     this.id = `brawler_${Math.random().toString(36).slice(2)}`;
     this.stats = stats;
@@ -78,7 +80,14 @@ export class Brawler {
   }
 
   get scaledDamage(): number {
-    return getScaledStats(this.stats, this.level).attackDamage;
+    return getScaledStats(this.stats, this.level).attackDamage * (1 + this.powerCubes * 0.1);
+  }
+  
+  collectPowerCube(): void {
+    this.powerCubes++;
+    const baseHp = getScaledStats(this.stats, this.level).hp;
+    this.maxHp = Math.floor(baseHp * (1 + this.powerCubes * 0.1));
+    this.hp = Math.min(this.maxHp, this.hp + Math.floor(baseHp * 0.1));
   }
 
   update(dt: number, map: GameMap): void {
@@ -474,7 +483,7 @@ export class Brawler {
     }
   }
 
-  render(ctx: CanvasRenderingContext2D, camX: number, camY: number, spriteLoaded: boolean): void {
+  render(ctx: CanvasRenderingContext2D, camX: number, camY: number, spriteLoaded: boolean, viewerTeam?: string): void {
     if (!this.alive && this.deathAnim > 1) return;
     
     const sx = this.x - camX;
@@ -490,6 +499,30 @@ export class Brawler {
       alpha = 0.1;
     } else if (this.inBush) {
       alpha = 0.6;
+    }
+    
+    // Team relation indicator ring at feet
+    if (this.alive && viewerTeam !== undefined) {
+      let ringColor: string;
+      if (this.isPlayer) ringColor = "#4CAF50";
+      else if (this.team === viewerTeam) ringColor = "#2196F3";
+      else ringColor = "#F44336";
+      ctx.save();
+      ctx.globalAlpha = alpha * 0.85;
+      ctx.strokeStyle = ringColor;
+      ctx.lineWidth = 4;
+      ctx.shadowColor = ringColor;
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.ellipse(sx, sy + this.radius - 2, this.radius * 1.15, this.radius * 0.45, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = alpha * 0.35;
+      ctx.fillStyle = ringColor;
+      ctx.beginPath();
+      ctx.ellipse(sx, sy + this.radius - 2, this.radius * 1.15, this.radius * 0.45, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
     }
     
     if (this.hitFlash > 0) {
@@ -574,28 +607,56 @@ export class Brawler {
     }
 
     if (this.alive) {
-      this.renderHPBar(ctx, sx, sy);
+      this.renderHPBar(ctx, sx, sy, viewerTeam);
     }
     
     if (this.alive && this.isPlayer) {
       this.renderSuperBar(ctx, sx, sy);
     }
+    
+    if (this.alive && this.powerCubes > 0) {
+      ctx.save();
+      ctx.fillStyle = "#FFD700";
+      ctx.font = "bold 11px Arial";
+      ctx.textAlign = "center";
+      ctx.shadowColor = "rgba(0,0,0,0.8)";
+      ctx.shadowBlur = 3;
+      ctx.fillText(`◆${this.powerCubes}`, sx, sy - this.radius - 30);
+      ctx.restore();
+    }
   }
 
-  private renderHPBar(ctx: CanvasRenderingContext2D, sx: number, sy: number): void {
-    const bw = this.radius * 2.5;
-    const bh = 5;
+  private renderHPBar(ctx: CanvasRenderingContext2D, sx: number, sy: number, viewerTeam?: string): void {
+    const bw = this.radius * 2.6;
+    const bh = 7;
     const bx = sx - bw / 2;
-    const by = sy - this.radius - 18;
-    const ratio = this.hp / this.maxHp;
+    const by = sy - this.radius - 20;
+    const ratio = Math.max(0, Math.min(1, this.hp / this.maxHp));
     
-    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.save();
+    ctx.fillStyle = "rgba(0,0,0,0.65)";
     ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
     
-    const r = Math.floor(255 * (1 - ratio));
-    const g = Math.floor(255 * ratio);
-    ctx.fillStyle = `rgb(${r},${g},0)`;
+    let barColor = "#4CAF50";
+    if (viewerTeam !== undefined) {
+      if (this.isPlayer || this.team === viewerTeam) barColor = "#4CAF50";
+      else barColor = "#F44336";
+    } else {
+      const r = Math.floor(255 * (1 - ratio));
+      const g = Math.floor(255 * ratio);
+      barColor = `rgb(${r},${g},0)`;
+    }
+    ctx.fillStyle = barColor;
     ctx.fillRect(bx, by, bw * ratio, bh);
+    
+    ctx.fillStyle = "#FFFFFF";
+    ctx.font = "bold 10px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.shadowColor = "rgba(0,0,0,0.9)";
+    ctx.shadowBlur = 3;
+    ctx.fillText(`${Math.ceil(this.hp)} / ${this.maxHp}`, sx, by + bh / 2 + 0.5);
+    ctx.restore();
   }
 
   private renderSuperBar(ctx: CanvasRenderingContext2D, sx: number, sy: number): void {

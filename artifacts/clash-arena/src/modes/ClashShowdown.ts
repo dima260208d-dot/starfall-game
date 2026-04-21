@@ -13,7 +13,7 @@ import { recordGameResult } from "../utils/localStorageAPI";
 export interface DropItem {
   x: number;
   y: number;
-  type: "health" | "coins";
+  type: "health" | "coins" | "powerup";
   radius: number;
 }
 
@@ -60,8 +60,9 @@ export class ClashShowdown {
     this.player = new Brawler(playerStats, playerLevel, 2500, 2500, "ffa-player", true);
     
     const usedPositions = [{ x: 2500, y: 2500 }];
-    const spawnPadding = 400;
+    const spawnPadding = 350;
     
+    // Spawn bots in a ring around the player so they're encounterable
     for (let i = 0; i < 7; i++) {
       const allStats = BRAWLERS.filter(b => b.id !== playerBrawlerId);
       const botStats = allStats[i % allStats.length];
@@ -70,8 +71,12 @@ export class ClashShowdown {
       let bx: number, by: number;
       let attempts = 0;
       do {
-        bx = randomInt(200, this.map.width - 200);
-        by = randomInt(200, this.map.height - 200);
+        const ringAngle = (i / 7) * Math.PI * 2 + Math.random() * 0.6;
+        const ringDist = 900 + Math.random() * 1100;
+        bx = Math.round(2500 + Math.cos(ringAngle) * ringDist);
+        by = Math.round(2500 + Math.sin(ringAngle) * ringDist);
+        bx = Math.max(200, Math.min(this.map.width - 200, bx));
+        by = Math.max(200, Math.min(this.map.height - 200, by));
         attempts++;
       } while (
         usedPositions.some(p => Math.abs(p.x - bx) < spawnPadding && Math.abs(p.y - by) < spawnPadding) && 
@@ -142,9 +147,24 @@ export class ClashShowdown {
     this.player.update(dt, this.map);
     
     for (const bot of this.bots) {
+      const wasAlive = bot.alive;
       if (bot.alive) {
         bot.update(dt, this.map);
         bot.updateAI(dt, allBrawlers, this.map, this.projectiles);
+      }
+      if (wasAlive && !bot.alive) {
+        // Drop power cubes equal to (bot's cubes + 1)
+        const cubeCount = bot.powerCubes + 1;
+        for (let i = 0; i < cubeCount; i++) {
+          const a = Math.random() * Math.PI * 2;
+          const r = 20 + Math.random() * 40;
+          this.drops.push({
+            x: bot.x + Math.cos(a) * r,
+            y: bot.y + Math.sin(a) * r,
+            type: "powerup",
+            radius: 14,
+          });
+        }
       }
     }
     
@@ -245,7 +265,10 @@ export class ClashShowdown {
           if (!proj.piercing) proj.active = false;
           if (crate.hp <= 0) {
             crate.destroyed = true;
-            if (Math.random() < 0.5) {
+            const roll = Math.random();
+            if (roll < 0.55) {
+              this.drops.push({ x: crate.x + 20, y: crate.y + 20, type: "powerup", radius: 14 });
+            } else if (roll < 0.85) {
               this.drops.push({ x: crate.x + 20, y: crate.y + 20, type: "health", radius: 15 });
             } else {
               this.drops.push({ x: crate.x + 20, y: crate.y + 20, type: "coins", radius: 12 });
@@ -264,6 +287,8 @@ export class ClashShowdown {
       if (d < drop.radius + this.player.radius) {
         if (drop.type === "health") {
           this.player.heal(300);
+        } else if (drop.type === "powerup") {
+          this.player.collectPowerCube();
         }
         this.drops.splice(i, 1);
       }
@@ -280,7 +305,7 @@ export class ClashShowdown {
     
     const allBrawlers = [this.player, ...this.bots];
     for (const b of allBrawlers) {
-      b.render(ctx, this.camera.x, this.camera.y, this.spriteLoaded);
+      b.render(ctx, this.camera.x, this.camera.y, this.spriteLoaded, this.player.team);
     }
     
     renderProjectiles(ctx, this.projectiles, this.camera.x, this.camera.y, this.frame);
@@ -294,14 +319,20 @@ export class ClashShowdown {
       const sx = drop.x - this.camera.x;
       const sy = drop.y - this.camera.y;
       ctx.save();
+      let label = "$";
       if (drop.type === "health") {
         ctx.fillStyle = "#4CAF50";
         ctx.shadowColor = "#4CAF50";
+        label = "+";
+      } else if (drop.type === "powerup") {
+        ctx.fillStyle = "#9C27B0";
+        ctx.shadowColor = "#E040FB";
+        label = "◆";
       } else {
         ctx.fillStyle = "#FFD700";
         ctx.shadowColor = "#FFD700";
       }
-      ctx.shadowBlur = 10;
+      ctx.shadowBlur = drop.type === "powerup" ? 18 : 10;
       ctx.beginPath();
       ctx.arc(sx, sy, drop.radius, 0, Math.PI * 2);
       ctx.fill();
@@ -309,7 +340,7 @@ export class ClashShowdown {
       ctx.font = `bold ${drop.radius}px Arial`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(drop.type === "health" ? "+" : "$", sx, sy);
+      ctx.fillText(label, sx, sy);
       ctx.restore();
     }
   }
