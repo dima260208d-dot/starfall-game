@@ -7,6 +7,8 @@ import {
   buyXp,
   MAX_CLASHPASS_LEVEL,
 } from "../utils/localStorageAPI";
+import QuestsModal from "../components/QuestsModal";
+import ChestVisual from "../components/ChestVisual";
 
 interface Props {
   onBack: () => void;
@@ -21,6 +23,7 @@ const XP_BUNDLES = [
 export default function ClashPassPage({ onBack }: Props) {
   const [profile, setProfile] = useState(getCurrentProfile());
   const [msg, setMsg] = useState<string | null>(null);
+  const [showQuests, setShowQuests] = useState(false);
   const refresh = () => setProfile(getCurrentProfile());
   if (!profile) return null;
 
@@ -46,6 +49,19 @@ export default function ClashPassPage({ onBack }: Props) {
   return (
     <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #050020 0%, #0a0040 100%)", padding: "30px 20px", color: "white", fontFamily: "'Segoe UI', Arial, sans-serif" }}>
       <button onClick={onBack} style={backBtn}>← Назад</button>
+      <button
+        onClick={() => setShowQuests(true)}
+        style={{
+          position: "absolute", top: 20, right: 20,
+          background: "linear-gradient(135deg, #FFD700, #FF8A00)",
+          border: "none", borderRadius: 12, padding: "9px 18px",
+          color: "#1a0a3a", cursor: "pointer", fontSize: 14, fontWeight: 900,
+          letterSpacing: 1.5, boxShadow: "0 4px 18px rgba(255,215,0,0.4)",
+          display: "flex", alignItems: "center", gap: 8,
+        }}
+      >
+        📋 КВЕСТЫ
+      </button>
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
         <h1 style={{
           fontSize: 36, fontWeight: 900, margin: 0, textAlign: "center",
@@ -124,18 +140,27 @@ export default function ClashPassPage({ onBack }: Props) {
             const reward = clashPassRewardForLevel(lvl);
             const reached = profile.clashPassLevel >= lvl;
             const claimed = profile.clashPassClaimed.includes(lvl);
-            const tierIcon = reward.type === "gems" ? "💎" : reward.type === "powerPoints" ? "✨" : "🪙";
-            const tierColor = reward.type === "gems" ? "#40C4FF" : reward.type === "powerPoints" ? "#CE93D8" : "#FFD700";
+            const tierIcon = reward.type === "gems" ? "💎" : reward.type === "powerPoints" ? "✨" : reward.type === "chest" ? "🗝️" : "🪙";
+            const tierColor = reward.type === "gems" ? "#40C4FF" : reward.type === "powerPoints" ? "#CE93D8" : reward.type === "chest" ? "#FF7043" : "#FFD700";
             return (
               <div key={lvl} style={{
                 background: reached ? `${tierColor}18` : "rgba(255,255,255,0.03)",
-                border: `1px solid ${reached ? tierColor + "55" : "rgba(255,255,255,0.08)"}`,
+                border: `1.5px solid ${reached ? tierColor + (reward.type === "chest" ? "AA" : "55") : "rgba(255,255,255,0.08)"}`,
                 borderRadius: 14, padding: 12, textAlign: "center",
                 opacity: reached ? 1 : 0.55,
+                boxShadow: reward.type === "chest" && reached ? `0 0 20px ${tierColor}55` : undefined,
               }}>
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", letterSpacing: 1 }}>УР. {lvl}</div>
-                <div style={{ fontSize: 32, marginTop: 4 }}>{tierIcon}</div>
-                <div style={{ fontSize: 14, color: tierColor, fontWeight: 800 }}>{reward.amount}</div>
+                {reward.type === "chest" && reward.chestRarity ? (
+                  <div style={{ height: 64, marginTop: 4, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <ChestVisual rarity={reward.chestRarity} size={56} animated={reached} />
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 32, marginTop: 4 }}>{tierIcon}</div>
+                )}
+                <div style={{ fontSize: 13, color: tierColor, fontWeight: 800, lineHeight: 1.2 }}>
+                  {reward.type === "chest" ? reward.label : reward.amount}
+                </div>
                 <button
                   onClick={() => handleClaim(lvl)}
                   disabled={!reached || claimed}
@@ -155,6 +180,7 @@ export default function ClashPassPage({ onBack }: Props) {
           })}
         </div>
       </div>
+      {showQuests && <QuestsModal onClose={() => { setShowQuests(false); refresh(); }} />}
     </div>
   );
 }

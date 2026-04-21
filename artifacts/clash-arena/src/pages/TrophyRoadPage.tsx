@@ -5,6 +5,8 @@ import {
   claimTrophyRoadReward,
   MAX_TROPHIES,
 } from "../utils/localStorageAPI";
+import ChestVisual from "../components/ChestVisual";
+import { CHESTS } from "../utils/chests";
 
 interface Props {
   onBack: () => void;
@@ -46,24 +48,31 @@ export default function TrophyRoadPage({ onBack }: Props) {
           {TROPHY_ROAD.map((reward, idx) => {
             const reached = profile.trophies >= reward.trophies;
             const claimed = profile.trophyRoadClaimed.includes(reward.trophies);
-            const tierIcon = reward.type === "gems" ? "💎" : reward.type === "powerPoints" ? "✨" : "🪙";
-            const tierColor = reward.type === "gems" ? "#40C4FF" : reward.type === "powerPoints" ? "#CE93D8" : "#FFD700";
+            const isChest = reward.type === "chest" && reward.chestRarity;
+            const chestColor = isChest ? CHESTS[reward.chestRarity!].color : "#FFD700";
+            const tierIcon = reward.type === "gems" ? "💎" : reward.type === "powerPoints" ? "✨" : reward.type === "chest" ? "🗝️" : "🪙";
+            const tierColor = reward.type === "gems" ? "#40C4FF" : reward.type === "powerPoints" ? "#CE93D8" : reward.type === "chest" ? chestColor : "#FFD700";
             const progress = Math.min(100, Math.round((profile.trophies / reward.trophies) * 100));
             return (
               <div key={idx} style={{
-                background: "rgba(255,255,255,0.05)",
-                border: `1px solid ${reached ? tierColor + "55" : "rgba(255,255,255,0.08)"}`,
+                background: isChest ? `${chestColor}11` : "rgba(255,255,255,0.05)",
+                border: `1.5px solid ${reached ? tierColor + (isChest ? "AA" : "55") : "rgba(255,255,255,0.08)"}`,
                 borderRadius: 14, padding: 16,
                 display: "grid", gridTemplateColumns: "100px 1fr 160px", gap: 16, alignItems: "center",
                 opacity: reached ? 1 : 0.7,
+                boxShadow: isChest && reached ? `0 0 25px ${chestColor}55` : undefined,
               }}>
                 <div style={{ textAlign: "center" }}>
                   <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>🏆</div>
                   <div style={{ fontSize: 22, fontWeight: 800, color: "#FFD700" }}>{reward.trophies}</div>
                 </div>
-                <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                  {isChest && (
+                    <ChestVisual rarity={reward.chestRarity!} size={56} animated={reached} />
+                  )}
+                  <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 16, fontWeight: 700, color: tierColor }}>
-                    {tierIcon} {reward.label}
+                    {!isChest && tierIcon} {reward.label}
                   </div>
                   <div style={{
                     marginTop: 8, height: 8, borderRadius: 4,
@@ -73,6 +82,7 @@ export default function TrophyRoadPage({ onBack }: Props) {
                       height: "100%", width: `${progress}%`,
                       background: `linear-gradient(90deg, ${tierColor}, #FFD700)`,
                     }} />
+                  </div>
                   </div>
                 </div>
                 <button

@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
-import { getCurrentProfile, openBox, addGems, claimDailyBonus } from "../utils/localStorageAPI";
+import { getCurrentProfile, openBox, addGems, claimDailyBonus, buyChest, openChest, canClaimDailyLadder } from "../utils/localStorageAPI";
+import { CHESTS, CHEST_RARITY_ORDER, type ChestRarity, type ChestRoll } from "../utils/chests";
+import ChestVisual from "../components/ChestVisual";
+import ChestOpenModal from "../components/ChestOpenModal";
 
 interface ShopPageProps {
   onBack: () => void;
@@ -10,6 +13,25 @@ export default function ShopPage({ onBack }: ShopPageProps) {
   const [boxResult, setBoxResult] = useState<{ type: string; amount: number } | null>(null);
   const [isOpening, setIsOpening] = useState(false);
   const [msg, setMsg] = useState("");
+  const [chestOpening, setChestOpening] = useState<{ rarity: ChestRarity; rolls: ChestRoll[] } | null>(null);
+
+  const handleBuyChest = (rarity: ChestRarity, currency: "coins" | "gems") => {
+    const r = buyChest(rarity, currency);
+    setMsg(r.success ? `Куплен ${CHESTS[rarity].name}` : (r.error || "Ошибка"));
+    setProfile(getCurrentProfile());
+    setTimeout(() => setMsg(""), 2000);
+  };
+
+  const handleOpenChestRarity = (rarity: ChestRarity) => {
+    const r = openChest(rarity);
+    if (!r.success) {
+      setMsg(r.error || "Ошибка");
+      setTimeout(() => setMsg(""), 2000);
+      return;
+    }
+    setChestOpening({ rarity, rolls: r.rolls! });
+    setProfile(getCurrentProfile());
+  };
 
   useEffect(() => {
     const interval = setInterval(() => setProfile(getCurrentProfile()), 500);
@@ -47,7 +69,7 @@ setMsg("+100 кристаллов добавлено!");
     setTimeout(() => setMsg(""), 3000);
   };
 
-  const canClaimDaily = profile && Date.now() - profile.lastDailyBonus >= 24 * 60 * 60 * 1000;
+  const canClaimDaily = !!profile && canClaimDailyLadder(profile);
 
   const boxTypeLabel: Record<string, string> = {
     coins: "монет",
@@ -107,7 +129,83 @@ setMsg("+100 кристаллов добавлено!");
         </div>
       </div>
 
-      <div style={{ flex: 1, padding: "40px 24px", maxWidth: 800, margin: "0 auto", width: "100%" }}>
+      <div style={{ flex: 1, padding: "40px 24px", maxWidth: 1100, margin: "0 auto", width: "100%" }}>
+        {/* CHESTS SECTION */}
+        <div style={{ marginBottom: 28 }}>
+          <div style={{
+            fontSize: 11, color: "rgba(255,255,255,0.5)", letterSpacing: 3, fontWeight: 800,
+            marginBottom: 10, paddingLeft: 4,
+          }}>СУНДУКИ С НАГРАДАМИ</div>
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+            gap: 14,
+          }}>
+            {CHEST_RARITY_ORDER.map(rarity => {
+              const def = CHESTS[rarity];
+              const owned = profile?.chestInventory?.[rarity] || 0;
+              const canCoin = !!profile && profile.coins >= def.priceCoins;
+              const canGem  = !!profile && profile.gems >= def.priceGems;
+              return (
+                <div key={rarity} style={{
+                  background: `linear-gradient(180deg, ${def.color}1A 0%, rgba(0,0,0,0.4) 100%)`,
+                  border: `1.5px solid ${def.borderColor}55`,
+                  borderRadius: 16, padding: 12,
+                  display: "flex", flexDirection: "column", alignItems: "center",
+                  boxShadow: `0 0 16px ${def.color}22`,
+                }}>
+                  <div style={{ height: 90, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <ChestVisual rarity={rarity} size={80} animated />
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 900, color: def.color, marginTop: 4, textAlign: "center" }}>
+                    {def.name}
+                  </div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", textAlign: "center", marginTop: 2 }}>
+                    {def.drops.rolls} наград · ★{def.tier}
+                  </div>
+                  <div style={{ marginTop: 6, fontSize: 11, color: def.color, fontWeight: 800 }}>
+                    В инвентаре: {owned}
+                  </div>
+                  <button
+                    onClick={() => handleOpenChestRarity(rarity)}
+                    disabled={owned < 1}
+                    style={{
+                      marginTop: 8, width: "100%",
+                      background: owned > 0 ? `linear-gradient(135deg, ${def.color}, ${def.secondaryColor})` : "rgba(255,255,255,0.05)",
+                      border: "none", borderRadius: 8, padding: "7px 0",
+                      color: owned > 0 ? "white" : "rgba(255,255,255,0.4)",
+                      fontWeight: 900, fontSize: 11, letterSpacing: 1,
+                      cursor: owned > 0 ? "pointer" : "default",
+                    }}
+                  >ОТКРЫТЬ</button>
+                  <div style={{ marginTop: 6, width: "100%", display: "flex", gap: 6 }}>
+                    <button
+                      onClick={() => handleBuyChest(rarity, "coins")}
+                      disabled={!canCoin}
+                      style={{
+                        flex: 1, background: canCoin ? "linear-gradient(135deg, #F9A825, #FFD700)" : "rgba(255,255,255,0.05)",
+                        border: "none", borderRadius: 7, padding: "6px 0",
+                        color: canCoin ? "#000" : "rgba(255,255,255,0.4)",
+                        fontWeight: 800, fontSize: 11, cursor: canCoin ? "pointer" : "default",
+                      }}
+                    >🪙 {def.priceCoins}</button>
+                    <button
+                      onClick={() => handleBuyChest(rarity, "gems")}
+                      disabled={!canGem}
+                      style={{
+                        flex: 1, background: canGem ? "linear-gradient(135deg, #0288D1, #40C4FF)" : "rgba(255,255,255,0.05)",
+                        border: "none", borderRadius: 7, padding: "6px 0",
+                        color: canGem ? "white" : "rgba(255,255,255,0.4)",
+                        fontWeight: 800, fontSize: 11, cursor: canGem ? "pointer" : "default",
+                      }}
+                    >💎 {def.priceGems}</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 24 }}>
           <div
             style={{
@@ -251,6 +349,14 @@ setMsg("+100 кристаллов добавлено!");
           </div>
         )}
       </div>
+
+      {chestOpening && (
+        <ChestOpenModal
+          rarity={chestOpening.rarity}
+          rolls={chestOpening.rolls}
+          onClose={() => setChestOpening(null)}
+        />
+      )}
     </div>
   );
 }

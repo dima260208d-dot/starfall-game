@@ -11,6 +11,7 @@ import SettingsPage from "./pages/SettingsPage";
 import ProfilePage from "./pages/ProfilePage";
 import ClashPassPage from "./pages/ClashPassPage";
 import TrophyRoadPage from "./pages/TrophyRoadPage";
+import ChestsPage from "./pages/ChestsPage";
 import LoadingScreen from "./pages/LoadingScreen";
 
 type Screen =
@@ -24,7 +25,8 @@ type Screen =
   | "settings"
   | "profile"
   | "clashpass"
-  | "trophyroad";
+  | "trophyroad"
+  | "chests";
 
 export type GameMode = "showdown" | "crystals" | "siege" | "heist" | "gemgrab" | "training";
 
@@ -99,6 +101,7 @@ export default function App() {
         onProfile={() => go("profile")}
         onClashPass={() => go("clashpass")}
         onTrophyRoad={() => go("trophyroad")}
+        onChests={() => go("chests")}
         onModeSelect={() => go("modeSelect")}
         onBrawlerSelect={() => go("characterSelect")}
         onLogout={() => { logout(); go("auth"); }}
@@ -139,6 +142,9 @@ export default function App() {
   }
   if (screen === "trophyroad") {
     return <TrophyRoadPage onBack={() => go("menu")} />;
+  }
+  if (screen === "chests") {
+    return <ChestsPage onBack={() => go("menu")} />;
   }
 
   if (screen === "game") {

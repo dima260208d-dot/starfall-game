@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
-import { getCurrentProfile, claimDailyBonus, MAX_TROPHIES, clashPassXpForLevel, MAX_CLASHPASS_LEVEL } from "../utils/localStorageAPI";
+import { getCurrentProfile, MAX_TROPHIES, clashPassXpForLevel, MAX_CLASHPASS_LEVEL, canClaimDailyLadder, getOrRollDailyQuests } from "../utils/localStorageAPI";
 import { BRAWLERS } from "../entities/BrawlerData";
 import { getModeInfo } from "../data/modes";
+import DailyRewardModal from "../components/DailyRewardModal";
+import QuestsModal from "../components/QuestsModal";
 
 interface MainMenuProps {
   onPlay: () => void;
@@ -11,6 +13,7 @@ interface MainMenuProps {
   onProfile: () => void;
   onClashPass: () => void;
   onTrophyRoad: () => void;
+  onChests: () => void;
   onModeSelect: () => void;
   onBrawlerSelect: () => void;
   onLogout: () => void;
@@ -19,18 +22,22 @@ interface MainMenuProps {
 export default function MainMenu(props: MainMenuProps) {
   const {
     onPlay, onCollection, onShop, onSettings,
-    onProfile, onClashPass, onTrophyRoad,
+    onProfile, onClashPass, onTrophyRoad, onChests,
     onModeSelect, onBrawlerSelect, onLogout,
   } = props;
 
   const [profile, setProfile] = useState(getCurrentProfile());
-  const [dailyMsg, setDailyMsg] = useState("");
   const [notif, setNotif] = useState<string | null>(null);
+  const [showDaily, setShowDaily] = useState(false);
+  const [showQuests, setShowQuests] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => setProfile(getCurrentProfile()), 500);
     return () => clearInterval(interval);
   }, []);
+
+  // Ensure today's quests are rolled the first time the lobby opens each day.
+  useEffect(() => { getOrRollDailyQuests(); }, []);
 
   if (!profile) return null;
 
@@ -42,14 +49,10 @@ export default function MainMenu(props: MainMenuProps) {
   const passPct = passLevel >= MAX_CLASHPASS_LEVEL
     ? 100
     : Math.min(100, Math.round((profile.xp / passNeed) * 100));
-  const canClaimDaily = (Date.now() - profile.lastDailyBonus) >= 24 * 60 * 60 * 1000;
-
-  const handleDaily = () => {
-    const r = claimDailyBonus();
-    setDailyMsg(r.success ? `+${r.coins} монет!` : "Возвращайтесь завтра!");
-    setProfile(getCurrentProfile());
-    setTimeout(() => setDailyMsg(""), 2500);
-  };
+  const canClaimDaily = canClaimDailyLadder(profile);
+  const hasUnclaimedQuest = !!profile.dailyQuests?.quests.some(
+    q => !q.claimed && q.progress >= q.target,
+  );
 
   const handleSoonNotice = (text: string) => {
     setNotif(text);
@@ -232,23 +235,41 @@ export default function MainMenu(props: MainMenuProps) {
         display: "flex", flexDirection: "column", gap: 12, zIndex: 4,
       }}>
         <SideButton icon="🦸" label="Персонаж" onClick={onBrawlerSelect} color="#CE93D8" />
-        {canClaimDaily ? (
-          <SideButton icon="🎁" label="Бонус" onClick={handleDaily} color="#FFD700" pulse />
-        ) : (
-          <SideButton icon="🎁" label="Получено" onClick={handleDaily} color="#666" />
-        )}
-        {dailyMsg && (
-          <div style={{
-            background: "rgba(255,215,0,0.15)", color: "#FFD700",
-            border: "1px solid rgba(255,215,0,0.4)",
-            borderRadius: 10, padding: "6px 10px",
-            fontSize: 12, fontWeight: 700, textAlign: "center",
-            maxWidth: 130,
-          }}>{dailyMsg}</div>
-        )}
+        <SideButton
+          icon="🎁"
+          label={canClaimDaily ? "Бонус дня" : "Бонус дня"}
+          onClick={() => setShowDaily(true)}
+          color={canClaimDaily ? "#FFD700" : "#888"}
+          pulse={canClaimDaily}
+        />
+        <SideButton icon="🗝️" label="Сундуки" onClick={onChests} color="#FF7043" />
       </div>
 
-      {/* BOTTOM-LEFT: Clash Pass */}
+      {/* BOTTOM-LEFT: Quests button + Clash Pass card */}
+      <button
+        onClick={() => setShowQuests(true)}
+        style={{
+          position: "absolute", bottom: 16, left: 266, zIndex: 5,
+          background: hasUnclaimedQuest
+            ? "linear-gradient(135deg, rgba(255,215,0,0.3), rgba(255,138,0,0.3))"
+            : "linear-gradient(135deg, rgba(74,20,140,0.5), rgba(206,147,216,0.3))",
+          border: `1.5px solid ${hasUnclaimedQuest ? "#FFD700" : "rgba(206,147,216,0.5)"}`,
+          borderRadius: 14, padding: "10px 14px",
+          color: "white", cursor: "pointer",
+          backdropFilter: "blur(10px)",
+          display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+          minWidth: 84,
+          animation: hasUnclaimedQuest ? "pulse 1.6s ease-in-out infinite" : undefined,
+          boxShadow: hasUnclaimedQuest ? "0 0 20px rgba(255,215,0,0.55)" : undefined,
+        }}
+        title="Ежедневные квесты"
+      >
+        <span style={{ fontSize: 22, lineHeight: 1 }}>📋</span>
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, color: hasUnclaimedQuest ? "#FFD700" : "#CE93D8" }}>
+          КВЕСТЫ
+        </span>
+      </button>
+
       <button
         onClick={onClashPass}
         style={{
@@ -322,6 +343,9 @@ export default function MainMenu(props: MainMenuProps) {
           ИГРАТЬ
         </button>
       </div>
+
+      {showDaily && <DailyRewardModal onClose={() => { setShowDaily(false); setProfile(getCurrentProfile()); }} />}
+      {showQuests && <QuestsModal onClose={() => { setShowQuests(false); setProfile(getCurrentProfile()); }} />}
 
       {notif && (
         <div style={{

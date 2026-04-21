@@ -1,3 +1,8 @@
+import type { ChestRarity } from "./chests";
+import { CHESTS, rollChestRewards, type ChestRoll } from "./chests";
+import { DAILY_LADDER, getRewardForDay } from "./dailyLadder";
+import { generateDailyQuests, isQuestsExpired, type DailyQuestsState, type QuestKind } from "./quests";
+
 export interface UserProfile {
   username: string;
   passwordHash: string;
@@ -21,6 +26,16 @@ export interface UserProfile {
   selectedMode: string;
   lastResult?: { place: number; trophyDelta: number; xpGained: number; mode: string; won: boolean };
   createdAt: number;
+
+  // Daily ladder (rotating 30-day rewards)
+  dailyLadderDay: number;            // current day (1..30, then loops back to 1)
+  dailyLadderLastClaim: number;      // unix ms of last claim
+
+  // Daily quests (refresh every 24h)
+  dailyQuests?: DailyQuestsState;
+
+  // Chest inventory: how many of each rarity the player owns (unopened)
+  chestInventory: Record<ChestRarity, number>;
 }
 
 export const MAX_TROPHIES = 10000;
@@ -36,9 +51,10 @@ export function clashPassXpForLevel(level: number): number {
 
 export interface TrophyRoadReward {
   trophies: number;
-  type: "coins" | "gems" | "powerPoints" | "brawler";
+  type: "coins" | "gems" | "powerPoints" | "brawler" | "chest";
   amount: number;
   label: string;
+  chestRarity?: ChestRarity;
 }
 
 function buildTrophyRoad(): TrophyRoadReward[] {
@@ -49,11 +65,22 @@ function buildTrophyRoad(): TrophyRoadReward[] {
   for (let t = 5400; t <= 10000; t += 400) thresholds.push(t);
 
   return thresholds.map((trophies, i): TrophyRoadReward => {
+    // Mythic chest at the very top
+    if (trophies === 10000) return { trophies, type: "chest", amount: 1, chestRarity: "mythic", label: "Мифический сундук" };
     // Big gem milestones at major thresholds
-    if (trophies === 10000) return { trophies, type: "gems", amount: 500, label: "500 кристаллов" };
-    if (trophies === 5000)  return { trophies, type: "gems", amount: 200, label: "200 кристаллов" };
-    if (trophies === 3000)  return { trophies, type: "gems", amount: 100, label: "100 кристаллов" };
-    if (trophies === 1000)  return { trophies, type: "gems", amount: 50,  label: "50 кристаллов"  };
+    if (trophies === 5000)  return { trophies, type: "chest", amount: 1, chestRarity: "legendary", label: "Легендарный сундук" };
+    if (trophies === 3000)  return { trophies, type: "chest", amount: 1, chestRarity: "mega", label: "Мега-сундук" };
+    if (trophies === 1000)  return { trophies, type: "chest", amount: 1, chestRarity: "epic", label: "Эпический сундук" };
+
+    // Periodic chest drops every ~10 tiers in addition to the big milestones
+    if (i > 0 && i % 12 === 0) {
+      const rarity: ChestRarity = i >= 30 ? "epic" : i >= 18 ? "rare" : "common";
+      const labelMap: Record<ChestRarity, string> = {
+        common: "Обычный сундук", rare: "Редкий сундук", epic: "Эпический сундук",
+        mega: "Мега-сундук", legendary: "Легендарный сундук", mythic: "Мифический сундук",
+      };
+      return { trophies, type: "chest", amount: 1, chestRarity: rarity, label: labelMap[rarity] };
+    }
 
     // 5-tier rotation: coin, coin, pp, coin, gem
     const cycle = i % 5;
@@ -73,12 +100,20 @@ function buildTrophyRoad(): TrophyRoadReward[] {
 export const TROPHY_ROAD: TrophyRoadReward[] = buildTrophyRoad();
 
 export interface ClashPassReward {
-  type: "coins" | "gems" | "powerPoints";
+  type: "coins" | "gems" | "powerPoints" | "chest";
   amount: number;
   label: string;
+  chestRarity?: ChestRarity;
 }
 
 export function clashPassRewardForLevel(level: number): ClashPassReward {
+  // Special chest tiers
+  if (level === 50) return { type: "chest", amount: 1, chestRarity: "mythic", label: "Мифический сундук" };
+  if (level === 40) return { type: "chest", amount: 1, chestRarity: "legendary", label: "Легендарный сундук" };
+  if (level === 30) return { type: "chest", amount: 1, chestRarity: "mega", label: "Мега-сундук" };
+  if (level === 20) return { type: "chest", amount: 1, chestRarity: "epic", label: "Эпический сундук" };
+  if (level === 10) return { type: "chest", amount: 1, chestRarity: "rare", label: "Редкий сундук" };
+
   // Pattern of rewards: alternate coins, powerPoints, gems with scaling amounts
   const tier = Math.floor((level - 1) / 5); // 0..9
   const pos = (level - 1) % 5;
@@ -128,6 +163,10 @@ export function setCurrentUsername(username: string | null): void {
   }
 }
 
+function defaultChestInventory(): Record<ChestRarity, number> {
+  return { common: 0, rare: 0, epic: 0, mega: 0, legendary: 0, mythic: 0 };
+}
+
 function normalizeProfile(p: UserProfile): UserProfile {
   const defaultLevels = { miya: 1, kibo: 1, ronin: 1, yuki: 1, kenji: 1, hana: 1, goro: 1, sora: 1, rin: 1, taro: 1 };
   return {
@@ -158,6 +197,10 @@ function normalizeProfile(p: UserProfile): UserProfile {
     selectedMode: p.selectedMode || "showdown",
     lastResult: p.lastResult,
     createdAt: p.createdAt || Date.now(),
+    dailyLadderDay: p.dailyLadderDay ?? 1,
+    dailyLadderLastClaim: p.dailyLadderLastClaim ?? 0,
+    dailyQuests: p.dailyQuests,
+    chestInventory: { ...defaultChestInventory(), ...(p.chestInventory || {}) },
   };
 }
 
@@ -234,15 +277,12 @@ export function logout(): void {
 }
 
 export function claimDailyBonus(): { success: boolean; coins?: number } {
-  const profile = getCurrentProfile();
-  if (!profile) return { success: false };
-  const now = Date.now();
-  const oneDayMs = 24 * 60 * 60 * 1000;
-  if (now - profile.lastDailyBonus < oneDayMs) {
-    return { success: false };
-  }
-  updateProfile({ coins: profile.coins + 50, lastDailyBonus: now });
-  return { success: true, coins: 50 };
+  // Legacy entry point — re-routed through the new daily ladder so existing
+  // callers (e.g. ShopPage's "+50 monet" daily bonus card) keep working.
+  const r = claimDailyLadderReward();
+  if (!r.success) return { success: false };
+  if (r.reward?.type === "coins") return { success: true, coins: r.reward.amount };
+  return { success: true, coins: 0 };
 }
 
 export function openBox(): { type: string; amount: number } {
@@ -287,6 +327,7 @@ export function upgradeBrawler(id: string): { success: boolean; error?: string }
     powerPoints: profile.powerPoints - costPP,
     brawlerLevels: newLevels,
   });
+  trackQuestProgress("upgrade_brawler", 1);
   return { success: true };
 }
 
@@ -374,6 +415,18 @@ export function recordGameResult(opts: {
     modeStats: newModeStats,
     lastResult: { place, trophyDelta: actualDelta, xpGained, mode, won },
   });
+
+  // Track quest progress
+  trackQuestProgress("play_games", 1);
+  if (won) trackQuestProgress("win_games", 1);
+  if (mode === "showdown") {
+    trackQuestProgress("play_showdown", 1);
+    if (place <= 3) trackQuestProgress("place_top3", 1);
+  } else if (mode !== "training") {
+    trackQuestProgress("play_team", 1);
+  }
+  if (actualDelta > 0) trackQuestProgress("earn_trophies", actualDelta);
+
   return { trophyDelta: actualDelta, xpGained, coinsEarned, place, clashPassUp };
   void totalPlayers;
 }
@@ -426,6 +479,12 @@ export function claimTrophyRoadReward(idx: number): { success: boolean; reward?:
   if (reward.type === "coins") updates.coins = profile.coins + reward.amount;
   else if (reward.type === "gems") updates.gems = profile.gems + reward.amount;
   else if (reward.type === "powerPoints") updates.powerPoints = profile.powerPoints + reward.amount;
+  else if (reward.type === "chest" && reward.chestRarity) {
+    updates.chestInventory = {
+      ...profile.chestInventory,
+      [reward.chestRarity]: (profile.chestInventory[reward.chestRarity] || 0) + reward.amount,
+    };
+  }
   updateProfile(updates);
   return { success: true, reward };
 }
@@ -443,6 +502,12 @@ export function claimClashPassReward(level: number): { success: boolean; reward?
   if (reward.type === "coins") updates.coins = profile.coins + reward.amount;
   else if (reward.type === "gems") updates.gems = profile.gems + reward.amount;
   else if (reward.type === "powerPoints") updates.powerPoints = profile.powerPoints + reward.amount;
+  else if (reward.type === "chest" && reward.chestRarity) {
+    updates.chestInventory = {
+      ...profile.chestInventory,
+      [reward.chestRarity]: (profile.chestInventory[reward.chestRarity] || 0) + reward.amount,
+    };
+  }
   updateProfile(updates);
   return { success: true, reward };
 }
@@ -460,4 +525,188 @@ export function buyXp(xpAmount: number, gemCost: number): { success: boolean; er
   if (newLevel >= MAX_CLASHPASS_LEVEL) newXp = 0;
   updateProfile({ gems: profile.gems - gemCost, xp: newXp, clashPassLevel: newLevel });
   return { success: true };
+}
+
+// =========================================================================
+// CHESTS — buy, grant, open, with rolled rewards
+// =========================================================================
+
+export function buyChest(rarity: ChestRarity, currency: "coins" | "gems"): { success: boolean; error?: string } {
+  const profile = getCurrentProfile();
+  if (!profile) return { success: false, error: "Not logged in" };
+  const def = CHESTS[rarity];
+  if (currency === "coins") {
+    if (profile.coins < def.priceCoins) return { success: false, error: "Недостаточно монет" };
+    updateProfile({
+      coins: profile.coins - def.priceCoins,
+      chestInventory: { ...profile.chestInventory, [rarity]: (profile.chestInventory[rarity] || 0) + 1 },
+    });
+  } else {
+    if (profile.gems < def.priceGems) return { success: false, error: "Недостаточно кристаллов" };
+    updateProfile({
+      gems: profile.gems - def.priceGems,
+      chestInventory: { ...profile.chestInventory, [rarity]: (profile.chestInventory[rarity] || 0) + 1 },
+    });
+  }
+  return { success: true };
+}
+
+export function grantChest(rarity: ChestRarity, count = 1): void {
+  const profile = getCurrentProfile();
+  if (!profile) return;
+  updateProfile({
+    chestInventory: {
+      ...profile.chestInventory,
+      [rarity]: (profile.chestInventory[rarity] || 0) + count,
+    },
+  });
+}
+
+export function openChest(rarity: ChestRarity): { success: boolean; rolls?: ChestRoll[]; error?: string } {
+  const profile = getCurrentProfile();
+  if (!profile) return { success: false, error: "Not logged in" };
+  if ((profile.chestInventory[rarity] || 0) < 1) return { success: false, error: "Нет такого сундука" };
+  const rolls = rollChestRewards(rarity);
+  let coinsGain = 0, gemsGain = 0, ppGain = 0;
+  for (const r of rolls) {
+    if (r.type === "coins") coinsGain += r.amount;
+    else if (r.type === "gems") gemsGain += r.amount;
+    else if (r.type === "powerPoints") ppGain += r.amount;
+  }
+  updateProfile({
+    coins: profile.coins + coinsGain,
+    gems: profile.gems + gemsGain,
+    powerPoints: profile.powerPoints + ppGain,
+    chestInventory: {
+      ...profile.chestInventory,
+      [rarity]: profile.chestInventory[rarity] - 1,
+    },
+  });
+  trackQuestProgress("open_chests", 1);
+  return { success: true, rolls };
+}
+
+// =========================================================================
+// DAILY LADDER (rotating 30-day rewards)
+// =========================================================================
+
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+export function canClaimDailyLadder(profile: UserProfile | null): boolean {
+  if (!profile) return false;
+  return Date.now() - profile.dailyLadderLastClaim >= ONE_DAY_MS;
+}
+
+export function dailyLadderTimeLeft(profile: UserProfile | null): number {
+  if (!profile) return 0;
+  return Math.max(0, ONE_DAY_MS - (Date.now() - profile.dailyLadderLastClaim));
+}
+
+export function claimDailyLadderReward(): { success: boolean; reward?: ReturnType<typeof getRewardForDay>; error?: string } {
+  const profile = getCurrentProfile();
+  if (!profile) return { success: false, error: "Not logged in" };
+  if (!canClaimDailyLadder(profile)) return { success: false, error: "Награда уже получена" };
+  const reward = getRewardForDay(profile.dailyLadderDay);
+  applyReward(profile, reward.type, reward.amount, reward.chestRarity);
+  // Read profile again because applyReward mutated coins/etc
+  const updated = getCurrentProfile();
+  if (!updated) return { success: false, error: "Profile gone" };
+  updateProfile({
+    dailyLadderLastClaim: Date.now(),
+    dailyLadderDay: (updated.dailyLadderDay % DAILY_LADDER.length) + 1,
+  });
+  return { success: true, reward };
+}
+
+function applyReward(
+  profile: UserProfile,
+  type: "coins" | "gems" | "powerPoints" | "chest" | "xp",
+  amount: number,
+  chestRarity?: ChestRarity,
+): void {
+  if (type === "coins") {
+    updateProfile({ coins: profile.coins + amount });
+  } else if (type === "gems") {
+    updateProfile({ gems: profile.gems + amount });
+  } else if (type === "powerPoints") {
+    updateProfile({ powerPoints: profile.powerPoints + amount });
+  } else if (type === "chest" && chestRarity) {
+    updateProfile({
+      chestInventory: {
+        ...profile.chestInventory,
+        [chestRarity]: (profile.chestInventory[chestRarity] || 0) + amount,
+      },
+    });
+  } else if (type === "xp") {
+    let newXp = profile.xp + amount;
+    let newLevel = profile.clashPassLevel;
+    while (newLevel < MAX_CLASHPASS_LEVEL && newXp >= clashPassXpForLevel(newLevel)) {
+      newXp -= clashPassXpForLevel(newLevel);
+      newLevel++;
+    }
+    if (newLevel >= MAX_CLASHPASS_LEVEL) newXp = 0;
+    updateProfile({ xp: newXp, clashPassLevel: newLevel });
+  }
+}
+
+// =========================================================================
+// DAILY QUESTS
+// =========================================================================
+
+export function getOrRollDailyQuests(): DailyQuestsState {
+  const profile = getCurrentProfile();
+  if (!profile) return generateDailyQuests();
+  if (isQuestsExpired(profile.dailyQuests)) {
+    const fresh = generateDailyQuests();
+    updateProfile({ dailyQuests: fresh });
+    return fresh;
+  }
+  return profile.dailyQuests!;
+}
+
+export function trackQuestProgress(kind: QuestKind, amount: number): void {
+  const profile = getCurrentProfile();
+  if (!profile || amount <= 0) return;
+  let dq = profile.dailyQuests;
+  if (isQuestsExpired(dq)) {
+    dq = generateDailyQuests();
+  }
+  if (!dq) return;
+  let changed = false;
+  const updated: DailyQuestsState = {
+    ...dq,
+    quests: dq.quests.map(q => {
+      if (q.kind !== kind || q.claimed) return q;
+      const newProgress = Math.min(q.target, q.progress + amount);
+      if (newProgress !== q.progress) changed = true;
+      return { ...q, progress: newProgress };
+    }),
+  };
+  if (changed || dq !== profile.dailyQuests) {
+    updateProfile({ dailyQuests: updated });
+  }
+}
+
+export function claimQuestReward(questId: string): { success: boolean; error?: string; rewardLabel?: string } {
+  const profile = getCurrentProfile();
+  if (!profile || !profile.dailyQuests) return { success: false, error: "Нет квестов" };
+  const q = profile.dailyQuests.quests.find(x => x.id === questId);
+  if (!q) return { success: false, error: "Квест не найден" };
+  if (q.claimed) return { success: false, error: "Уже получено" };
+  if (q.progress < q.target) return { success: false, error: "Цель не достигнута" };
+
+  applyReward(profile, q.reward.type, q.reward.amount, q.reward.chestRarity);
+
+  // Re-read profile after applyReward
+  const updated = getCurrentProfile();
+  if (!updated || !updated.dailyQuests) return { success: false };
+  updateProfile({
+    dailyQuests: {
+      ...updated.dailyQuests,
+      quests: updated.dailyQuests.quests.map(x =>
+        x.id === questId ? { ...x, claimed: true } : x,
+      ),
+    },
+  });
+  return { success: true, rewardLabel: q.reward.label };
 }
