@@ -18,10 +18,10 @@ interface Props {
 export default function MenuBackground({ variant = "menu" }: Props) {
   const stars = useMemo(
     () =>
-      Array.from({ length: 35 }).map(() => ({
+      Array.from({ length: 60 }).map(() => ({
         left: Math.random() * 100,
         top: Math.random() * 100,
-        size: Math.random() * 1.6 + 0.6,
+        size: Math.random() * 2.5 + 1,
         delay: Math.random() * 4,
         duration: 2.5 + Math.random() * 3,
         color: ["#CE93D8", "#40C4FF", "#FFD700", "#FF80AB"][Math.floor(Math.random() * 4)],
@@ -71,26 +71,26 @@ export default function MenuBackground({ variant = "menu" }: Props) {
         }
       `}</style>
 
-      {/* Three slow-drifting colored blobs (kept very subtle so UI stays readable) */}
+      {/* Three slow-drifting colored blobs */}
       <div style={{
-        position: "absolute", left: "8%", top: "10%",
-        width: 360, height: 360, borderRadius: "50%",
-        background: "radial-gradient(circle, rgba(206,147,216,0.18) 0%, transparent 65%)",
-        filter: "blur(60px)",
+        position: "absolute", left: "12%", top: "18%",
+        width: 420, height: 420, borderRadius: "50%",
+        background: "radial-gradient(circle, rgba(206,147,216,0.55) 0%, transparent 65%)",
+        filter: "blur(40px)",
         animation: "mb_drift1 16s ease-in-out infinite",
       }} />
       <div style={{
-        position: "absolute", right: "6%", top: "60%",
-        width: 420, height: 420, borderRadius: "50%",
-        background: "radial-gradient(circle, rgba(64,196,255,0.16) 0%, transparent 65%)",
-        filter: "blur(70px)",
+        position: "absolute", right: "10%", top: "55%",
+        width: 480, height: 480, borderRadius: "50%",
+        background: "radial-gradient(circle, rgba(64,196,255,0.45) 0%, transparent 65%)",
+        filter: "blur(50px)",
         animation: "mb_drift2 22s ease-in-out infinite",
       }} />
       <div style={{
-        position: "absolute", left: "60%", top: "4%",
-        width: 320, height: 320, borderRadius: "50%",
-        background: "radial-gradient(circle, rgba(255,215,0,0.10) 0%, transparent 65%)",
-        filter: "blur(60px)",
+        position: "absolute", left: "55%", top: "8%",
+        width: 360, height: 360, borderRadius: "50%",
+        background: "radial-gradient(circle, rgba(255,215,0,0.32) 0%, transparent 65%)",
+        filter: "blur(45px)",
         animation: "mb_drift3 20s ease-in-out infinite",
       }} />
 
@@ -115,32 +115,46 @@ export default function MenuBackground({ variant = "menu" }: Props) {
           <div style={{
             position: "absolute",
             left: "50%", top: "62%",
-            width: 380, height: 380, borderRadius: "50%",
+            width: 460, height: 460, borderRadius: "50%",
             background:
               "conic-gradient(from 0deg, rgba(206,147,216,0) 0deg," +
-              " rgba(206,147,216,0.22) 60deg," +
-              " rgba(64,196,255,0.18) 120deg," +
-              " rgba(255,215,0,0.18) 200deg," +
+              " rgba(206,147,216,0.55) 60deg," +
+              " rgba(64,196,255,0.45) 120deg," +
+              " rgba(255,215,0,0.45) 200deg," +
               " rgba(206,147,216,0) 360deg)",
-            filter: "blur(34px)",
-            opacity: 0.5,
+            filter: "blur(28px)",
+            opacity: 0.7,
             animation: "mb_platSweep 18s linear infinite",
           }} />
           {/* Inner platform disc (perspective squish) */}
           <div style={{
             position: "absolute",
             left: "50%", top: "70%",
-            width: 300, height: 80,
+            width: 360, height: 110,
             borderRadius: "50%",
             background:
               "radial-gradient(ellipse at center," +
-              " rgba(206,147,216,0.35) 0%," +
-              " rgba(123,47,190,0.22) 35%," +
+              " rgba(255,255,255,0.85) 0%," +
+              " rgba(206,147,216,0.7) 18%," +
+              " rgba(123,47,190,0.55) 38%," +
               " rgba(0,0,0,0) 70%)",
             boxShadow:
-              "0 0 60px rgba(206,147,216,0.25)," +
-              " 0 0 120px rgba(64,196,255,0.15)",
+              "0 0 80px rgba(206,147,216,0.6)," +
+              " 0 0 160px rgba(64,196,255,0.35)",
             animation: "mb_platPulse 3.5s ease-in-out infinite",
+          }} />
+          {/* Hard rim under the brawler's feet */}
+          <div style={{
+            position: "absolute",
+            left: "50%", top: "70%",
+            width: 280, height: 30,
+            borderRadius: "50%",
+            background:
+              "radial-gradient(ellipse at center," +
+              " rgba(255,255,255,0.55) 0%," +
+              " rgba(255,255,255,0.0) 70%)",
+            transform: "translate(-50%, -50%)",
+            filter: "blur(2px)",
           }} />
         </>
       )}
