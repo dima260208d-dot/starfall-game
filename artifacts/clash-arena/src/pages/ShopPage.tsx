@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { getCurrentProfile, openBox, addGems, claimDailyBonus, buyChest, openChest, canClaimDailyLadder } from "../utils/localStorageAPI";
+import { getCurrentProfile, openBox, addGems, claimDailyBonus, buyChest, openChest, canClaimDailyLadder, unlockBrawlerWithGems } from "../utils/localStorageAPI";
 import { CHESTS, CHEST_RARITY_ORDER, type ChestRarity, type ChestRoll } from "../utils/chests";
+import { BRAWLERS, BRAWLER_GEM_COST, BRAWLER_RARITY_LABEL } from "../entities/BrawlerData";
 import ChestVisual from "../components/ChestVisual";
 import ChestOpenModal from "../components/ChestOpenModal";
 
@@ -14,6 +15,14 @@ export default function ShopPage({ onBack }: ShopPageProps) {
   const [isOpening, setIsOpening] = useState(false);
   const [msg, setMsg] = useState("");
   const [chestOpening, setChestOpening] = useState<{ rarity: ChestRarity; rolls: ChestRoll[] } | null>(null);
+
+  const handleUnlockBrawler = (brawlerId: string) => {
+    const r = unlockBrawlerWithGems(brawlerId);
+    const b = BRAWLERS.find(x => x.id === brawlerId);
+    setMsg(r.success ? `${b?.name ?? "Боец"} разблокирован!` : (r.error || "Ошибка"));
+    setProfile(getCurrentProfile());
+    setTimeout(() => setMsg(""), 2200);
+  };
 
   const handleBuyChest = (rarity: ChestRarity, currency: "coins" | "gems") => {
     const r = buyChest(rarity, currency);
@@ -130,6 +139,93 @@ setMsg("+100 кристаллов добавлено!");
       </div>
 
       <div style={{ flex: 1, padding: "40px 24px", maxWidth: 1100, margin: "0 auto", width: "100%" }}>
+        {/* BRAWLERS UNLOCK SECTION */}
+        {(() => {
+          if (!profile) return null;
+          const locked = BRAWLERS.filter(b => !profile.unlockedBrawlers.includes(b.id));
+          if (locked.length === 0) return null;
+          return (
+            <div style={{ marginBottom: 28 }}>
+              <div style={{
+                fontSize: 11, color: "rgba(255,255,255,0.5)", letterSpacing: 3, fontWeight: 800,
+                marginBottom: 10, paddingLeft: 4,
+              }}>БОЙЦЫ — РАЗБЛОКИРОВКА ЗА КРИСТАЛЛЫ</div>
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))",
+                gap: 14,
+              }}>
+                {locked.map(b => {
+                  const cost = BRAWLER_GEM_COST[b.rarity];
+                  const rarityColor = CHESTS[b.rarity].borderColor;
+                  const canAfford = profile.gems >= cost;
+                  return (
+                    <div key={b.id} style={{
+                      background: `linear-gradient(180deg, ${rarityColor}22 0%, rgba(0,0,0,0.45) 100%)`,
+                      border: `1.5px solid ${rarityColor}66`,
+                      borderRadius: 16, padding: 12,
+                      display: "flex", flexDirection: "column", alignItems: "center",
+                      boxShadow: `0 0 14px ${rarityColor}33`,
+                      position: "relative",
+                    }}>
+                      <div style={{
+                        position: "absolute", top: 8, left: 10,
+                        background: rarityColor, color: "white",
+                        fontSize: 9, fontWeight: 900, letterSpacing: 1,
+                        borderRadius: 6, padding: "2px 7px",
+                        textShadow: "0 1px 2px rgba(0,0,0,0.5)",
+                      }}>{BRAWLER_RARITY_LABEL[b.rarity]}</div>
+                      <div style={{
+                        width: 90, height: 90, marginTop: 14,
+                        background: `radial-gradient(circle at 50% 60%, ${rarityColor}55, transparent 70%)`,
+                        borderRadius: 12,
+                        display: "flex", alignItems: "flex-end", justifyContent: "center",
+                        position: "relative",
+                      }}>
+                        <img
+                          src={`${import.meta.env.BASE_URL}brawlers/${b.id}_front.png`}
+                          alt={b.name}
+                          style={{
+                            maxWidth: "100%", maxHeight: "100%",
+                            filter: "grayscale(0.85) brightness(0.6) drop-shadow(0 2px 6px rgba(0,0,0,0.6))",
+                          }}
+                        />
+                        <div style={{
+                          position: "absolute", inset: 0,
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          fontSize: 36, textShadow: "0 2px 6px rgba(0,0,0,0.8)",
+                          pointerEvents: "none",
+                        }}>🔒</div>
+                      </div>
+                      <div style={{ fontSize: 14, fontWeight: 900, color: b.color, marginTop: 8, letterSpacing: 1 }}>
+                        {b.name}
+                      </div>
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 1, fontWeight: 600, letterSpacing: 1 }}>
+                        {b.role.toUpperCase()}
+                      </div>
+                      <button
+                        onClick={() => handleUnlockBrawler(b.id)}
+                        disabled={!canAfford}
+                        style={{
+                          marginTop: 10, width: "100%",
+                          background: canAfford
+                            ? "linear-gradient(135deg, #0288D1, #40C4FF)"
+                            : "rgba(255,255,255,0.05)",
+                          border: canAfford ? "none" : "1px solid rgba(255,255,255,0.08)",
+                          borderRadius: 8, padding: "8px 0",
+                          color: canAfford ? "white" : "rgba(255,255,255,0.4)",
+                          fontWeight: 900, fontSize: 12, letterSpacing: 1,
+                          cursor: canAfford ? "pointer" : "default",
+                        }}
+                      >💎 {cost}</button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* CHESTS SECTION */}
         <div style={{ marginBottom: 28 }}>
           <div style={{

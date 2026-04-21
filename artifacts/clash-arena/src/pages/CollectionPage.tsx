@@ -1,21 +1,69 @@
-import { useState, useEffect } from "react";
-import { BRAWLERS, getScaledStats } from "../entities/BrawlerData";
+import { useState, useEffect, useMemo } from "react";
+import { BRAWLERS, BRAWLER_RARITY_LABEL, getScaledStats } from "../entities/BrawlerData";
+import { CHESTS } from "../utils/chests";
 import { getCurrentProfile, upgradeBrawler } from "../utils/localStorageAPI";
 import BrawlerViewer3D from "../components/BrawlerViewer3D";
+import { sortBrawlers, type BrawlerSortKey } from "./CharacterSelect";
 
 interface CollectionPageProps {
   onBack: () => void;
 }
 
+const COLLECTION_SORT_OPTIONS: { key: BrawlerSortKey; label: string }[] = [
+  { key: "rarity", label: "По редкости" },
+  { key: "level",  label: "По уровню" },
+  { key: "name",   label: "По имени" },
+  { key: "hp",     label: "По здоровью" },
+  { key: "damage", label: "По урону" },
+  { key: "speed",  label: "По скорости" },
+  { key: "range",  label: "По дальности" },
+];
+
 export default function CollectionPage({ onBack }: CollectionPageProps) {
   const [profile, setProfile] = useState(getCurrentProfile());
-  const [selected, setSelected] = useState(0);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<BrawlerSortKey>("rarity");
   const [msg, setMsg] = useState("");
 
   useEffect(() => {}, []);
 
+  const ownedSorted = useMemo(() => {
+    if (!profile) return [];
+    const owned = BRAWLERS.filter(b => profile.unlockedBrawlers.includes(b.id));
+    return sortBrawlers(owned, sortKey, profile.brawlerLevels);
+  }, [profile, sortKey]);
+
+  // Default selection: first in sorted list, or keep current if still owned.
+  const activeId = selectedId && ownedSorted.some(b => b.id === selectedId)
+    ? selectedId
+    : (ownedSorted[0]?.id ?? null);
+
+  if (!profile || ownedSorted.length === 0 || !activeId) {
+    return (
+      <div style={{
+        minHeight: "100vh",
+        background: "linear-gradient(135deg, #050020 0%, #0a0040 100%)",
+        color: "white", display: "flex", flexDirection: "column",
+        fontFamily: "'Segoe UI', Arial, sans-serif",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", padding: "16px 24px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+          <button onClick={onBack} style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, padding: "7px 16px", color: "rgba(255,255,255,0.7)", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>← Назад</button>
+          <h2 style={{ flex: 1, textAlign: "center", margin: 0, fontSize: 22, fontWeight: 800, color: "#CE93D8" }}>Коллекция</h2>
+        </div>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 14, padding: 40, textAlign: "center" }}>
+          <div style={{ fontSize: 72 }}>🔒</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "rgba(255,255,255,0.85)" }}>В коллекции пока никого нет</div>
+          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", maxWidth: 420 }}>
+            Открывайте сундуки и покупайте бойцов в магазине, чтобы пополнить коллекцию.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const brawler = BRAWLERS.find(b => b.id === activeId)!;
+
   const handleUpgrade = () => {
-    const brawler = BRAWLERS[selected];
     const result = upgradeBrawler(brawler.id);
     if (result.success) {
       setProfile(getCurrentProfile());
@@ -26,12 +74,11 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
     setTimeout(() => setMsg(""), 3000);
   };
 
-  const brawler = BRAWLERS[selected];
-  const level = profile?.brawlerLevels[brawler.id] || 1;
+  const level = profile.brawlerLevels[brawler.id] || 1;
   const scaled = getScaledStats(brawler, level);
   const nextScaled = level < 10 ? getScaledStats(brawler, level + 1) : null;
   const upgradeCost = { coins: 100 * level, pp: 5 * level };
-  const canUpgrade = level < 10 && (profile?.coins || 0) >= upgradeCost.coins && (profile?.powerPoints || 0) >= upgradeCost.pp;
+  const canUpgrade = level < 10 && profile.coins >= upgradeCost.coins && profile.powerPoints >= upgradeCost.pp;
 
   return (
     <div
@@ -62,48 +109,76 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
       </div>
 
       <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
-        <div style={{ width: 260, overflowY: "auto", padding: 16, borderRight: "1px solid rgba(255,255,255,0.06)", minHeight: 0 }}>
-          {BRAWLERS.map((b, i) => {
-            const lv = profile?.brawlerLevels[b.id] || 1;
-            const isSelected = i === selected;
-            return (
-              <div
-                key={b.id}
-                onClick={() => setSelected(i)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "10px 12px",
-                  borderRadius: 12,
-                  cursor: "pointer",
-                  marginBottom: 6,
-                  background: isSelected ? `${b.color}20` : "rgba(255,255,255,0.03)",
-                  border: `1px solid ${isSelected ? b.color + "60" : "rgba(255,255,255,0.05)"}`,
-                  transition: "all 0.2s",
-                }}
-              >
-                <img
-                  src={`${import.meta.env.BASE_URL}brawlers/${b.id}_front.png`}
-                  alt={b.name}
-                  width={48}
-                  height={48}
+        <div style={{ width: 280, display: "flex", flexDirection: "column", borderRight: "1px solid rgba(255,255,255,0.06)", minHeight: 0 }}>
+          <div style={{ padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+            <label style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", fontWeight: 700, letterSpacing: 2, display: "block", marginBottom: 5 }}>
+              СОРТИРОВКА ({ownedSorted.length})
+            </label>
+            <select
+              value={sortKey}
+              onChange={(e) => setSortKey(e.target.value as BrawlerSortKey)}
+              style={{
+                width: "100%", background: "rgba(0,0,0,0.5)",
+                border: "1px solid rgba(255,255,255,0.18)",
+                borderRadius: 8, padding: "7px 10px",
+                color: "white", fontSize: 12, fontWeight: 700, cursor: "pointer",
+              }}
+            >
+              {COLLECTION_SORT_OPTIONS.map(o => (
+                <option key={o.key} value={o.key} style={{ background: "#0a0040" }}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+          <div style={{ flex: 1, overflowY: "auto", padding: 14, minHeight: 0 }}>
+            {ownedSorted.map((b) => {
+              const lv = profile.brawlerLevels[b.id] || 1;
+              const isSelected = b.id === activeId;
+              const rarityColor = CHESTS[b.rarity].borderColor;
+              return (
+                <div
+                  key={b.id}
+                  onClick={() => setSelectedId(b.id)}
                   style={{
-                    borderRadius: 8,
-                    background: `radial-gradient(circle at 50% 60%, ${b.color}40, ${b.color}10 70%, transparent)`,
-                    objectFit: "contain",
-                    objectPosition: "center bottom",
-                    flexShrink: 0,
-                    filter: `drop-shadow(0 2px 4px ${b.color}80)`,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "10px 12px",
+                    borderRadius: 12,
+                    cursor: "pointer",
+                    marginBottom: 6,
+                    background: isSelected ? `${b.color}20` : "rgba(255,255,255,0.03)",
+                    border: `1px solid ${isSelected ? b.color + "60" : "rgba(255,255,255,0.05)"}`,
+                    transition: "all 0.2s",
                   }}
-                />
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: isSelected ? b.color : "white" }}>{b.name}</div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>УР {lv} {b.role}</div>
+                >
+                  <img
+                    src={`${import.meta.env.BASE_URL}brawlers/${b.id}_front.png`}
+                    alt={b.name}
+                    width={48}
+                    height={48}
+                    style={{
+                      borderRadius: 8,
+                      background: `radial-gradient(circle at 50% 60%, ${b.color}40, ${b.color}10 70%, transparent)`,
+                      objectFit: "contain",
+                      objectPosition: "center bottom",
+                      flexShrink: 0,
+                      filter: `drop-shadow(0 2px 4px ${b.color}80)`,
+                    }}
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: isSelected ? b.color : "white" }}>{b.name}</div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>УР {lv} • {b.role}</div>
+                  </div>
+                  <div style={{
+                    fontSize: 9, fontWeight: 800, letterSpacing: 1,
+                    background: rarityColor, color: "white",
+                    borderRadius: 6, padding: "2px 6px",
+                    textShadow: "0 1px 2px rgba(0,0,0,0.5)",
+                  }}>{BRAWLER_RARITY_LABEL[b.rarity]}</div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
 
         <div style={{ flex: 1, display: "flex", flexDirection: "row", alignItems: "stretch", padding: "24px 30px", overflowY: "auto", minHeight: 0, gap: 24 }}>

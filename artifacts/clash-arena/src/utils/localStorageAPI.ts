@@ -1,7 +1,8 @@
 import type { ChestRarity } from "./chests";
-import { CHESTS, rollChestRewards, type ChestRoll } from "./chests";
+import { CHESTS, CHEST_RARITY_ORDER, rollChestRewards, type ChestRoll } from "./chests";
 import { DAILY_LADDER, getRewardForDay } from "./dailyLadder";
 import { generateDailyQuests, isQuestsExpired, type DailyQuestsState, type QuestKind } from "./quests";
+import { BRAWLERS, BRAWLER_GEM_COST, CHEST_BRAWLER_DROP_CHANCE } from "../entities/BrawlerData";
 
 export interface UserProfile {
   username: string;
@@ -36,6 +37,10 @@ export interface UserProfile {
 
   // Chest inventory: how many of each rarity the player owns (unopened)
   chestInventory: Record<ChestRarity, number>;
+
+  // List of brawler IDs the player has unlocked. Locked brawlers can still
+  // be tried in Training mode but cannot be set as the active brawler.
+  unlockedBrawlers: string[];
 }
 
 export const MAX_TROPHIES = 10000;
@@ -169,6 +174,20 @@ function defaultChestInventory(): Record<ChestRarity, number> {
 
 function normalizeProfile(p: UserProfile): UserProfile {
   const defaultLevels = { miya: 1, kibo: 1, ronin: 1, yuki: 1, kenji: 1, hana: 1, goro: 1, sora: 1, rin: 1, taro: 1 };
+
+  // Resolve unlocked brawlers first, so selected/favorite IDs can be validated
+  // against the unlocked set and locked picks can never persist as the active
+  // pick (which would otherwise let players enter ranked matches with locked
+  // brawlers — see character-lock requirement).
+  const unlockedBrawlers = (() => {
+    const ids = new Set<string>(p.unlockedBrawlers || []);
+    ids.add("kibo"); // Always guarantee the starter brawler.
+    return Array.from(ids);
+  })();
+
+  const safeSelected = (id: string | undefined) =>
+    id && unlockedBrawlers.includes(id) ? id : "kibo";
+
   return {
     username: p.username,
     passwordHash: p.passwordHash || "",
@@ -192,8 +211,8 @@ function normalizeProfile(p: UserProfile): UserProfile {
       return (p.trophyRoadClaimed || []).filter((v: number) => validThresholds.has(v));
     })(),
     modeStats: p.modeStats || {},
-    favoriteBrawlerId: p.favoriteBrawlerId || "miya",
-    selectedBrawlerId: p.selectedBrawlerId || "miya",
+    favoriteBrawlerId: safeSelected(p.favoriteBrawlerId),
+    selectedBrawlerId: safeSelected(p.selectedBrawlerId),
     selectedMode: p.selectedMode || "showdown",
     lastResult: p.lastResult,
     createdAt: p.createdAt || Date.now(),
@@ -201,7 +220,13 @@ function normalizeProfile(p: UserProfile): UserProfile {
     dailyLadderLastClaim: p.dailyLadderLastClaim ?? 0,
     dailyQuests: p.dailyQuests,
     chestInventory: { ...defaultChestInventory(), ...(p.chestInventory || {}) },
+    unlockedBrawlers,
   };
+}
+
+export function isBrawlerUnlocked(profile: UserProfile | null, brawlerId: string): boolean {
+  if (!profile) return false;
+  return profile.unlockedBrawlers.includes(brawlerId);
 }
 
 export function getCurrentProfile(): UserProfile | null {
@@ -431,8 +456,55 @@ export function recordGameResult(opts: {
   void totalPlayers;
 }
 
-export function setSelectedBrawler(id: string): void {
+export function setSelectedBrawler(id: string): { success: boolean; error?: string } {
+  const profile = getCurrentProfile();
+  if (!profile) return { success: false, error: "Not logged in" };
+  if (!profile.unlockedBrawlers.includes(id)) {
+    return { success: false, error: "Боец заблокирован" };
+  }
   updateProfile({ selectedBrawlerId: id });
+  return { success: true };
+}
+
+// Unlock a brawler in the shop using gems.
+export function unlockBrawlerWithGems(brawlerId: string): { success: boolean; error?: string; cost?: number } {
+  const profile = getCurrentProfile();
+  if (!profile) return { success: false, error: "Не авторизован" };
+  const brawler = BRAWLERS.find(b => b.id === brawlerId);
+  if (!brawler) return { success: false, error: "Боец не найден" };
+  if (profile.unlockedBrawlers.includes(brawlerId)) {
+    return { success: false, error: "Уже разблокирован" };
+  }
+  const cost = BRAWLER_GEM_COST[brawler.rarity];
+  if (profile.gems < cost) {
+    return { success: false, error: `Нужно ${cost} кристаллов`, cost };
+  }
+  updateProfile({
+    gems: profile.gems - cost,
+    unlockedBrawlers: [...profile.unlockedBrawlers, brawlerId],
+  });
+  return { success: true, cost };
+}
+
+// Directly grant a brawler unlock (used by chest drops).
+export function grantBrawlerUnlock(brawlerId: string): { success: boolean } {
+  const profile = getCurrentProfile();
+  if (!profile) return { success: false };
+  if (profile.unlockedBrawlers.includes(brawlerId)) return { success: false };
+  updateProfile({ unlockedBrawlers: [...profile.unlockedBrawlers, brawlerId] });
+  return { success: true };
+}
+
+// Pick a random locked brawler from chest's rarity tier or higher.
+// Returns null if none available (player owns everything at that tier+).
+function pickLockedBrawlerForChest(profile: UserProfile, chestRarity: ChestRarity): string | null {
+  const minTier = CHEST_RARITY_ORDER.indexOf(chestRarity);
+  const lockedAtOrAbove = BRAWLERS.filter(b =>
+    !profile.unlockedBrawlers.includes(b.id) &&
+    CHEST_RARITY_ORDER.indexOf(b.rarity) >= minTier,
+  );
+  if (lockedAtOrAbove.length === 0) return null;
+  return lockedAtOrAbove[Math.floor(Math.random() * lockedAtOrAbove.length)].id;
 }
 
 export function setSelectedMode(mode: string): void {
@@ -566,12 +638,33 @@ export function openChest(rarity: ChestRarity): { success: boolean; rolls?: Ches
   const profile = getCurrentProfile();
   if (!profile) return { success: false, error: "Not logged in" };
   if ((profile.chestInventory[rarity] || 0) < 1) return { success: false, error: "Нет такого сундука" };
+
   const rolls = rollChestRewards(rarity);
+
+  // Brawler drop chance: per-chest. If it triggers AND there is at least one
+  // locked brawler at this tier or above, replace one random regular roll
+  // with the brawler reward. Otherwise the rolls remain currency-only.
+  const dropChance = CHEST_BRAWLER_DROP_CHANCE[rarity];
+  let brawlerUnlockId: string | null = null;
+  if (Math.random() < dropChance) {
+    brawlerUnlockId = pickLockedBrawlerForChest(profile, rarity);
+    if (brawlerUnlockId) {
+      // Replace the first non-bonus roll with the brawler reward so the user
+      // visibly sees a brawler card pop out.
+      const replaceIdx = Math.floor(Math.random() * rolls.length);
+      rolls[replaceIdx] = { type: "brawler", amount: 1, brawlerId: brawlerUnlockId };
+    }
+  }
+
   let coinsGain = 0, gemsGain = 0, ppGain = 0;
+  let unlockedBrawlers = profile.unlockedBrawlers;
   for (const r of rolls) {
     if (r.type === "coins") coinsGain += r.amount;
     else if (r.type === "gems") gemsGain += r.amount;
     else if (r.type === "powerPoints") ppGain += r.amount;
+    else if (r.type === "brawler" && r.brawlerId && !unlockedBrawlers.includes(r.brawlerId)) {
+      unlockedBrawlers = [...unlockedBrawlers, r.brawlerId];
+    }
   }
   updateProfile({
     coins: profile.coins + coinsGain,
@@ -581,6 +674,7 @@ export function openChest(rarity: ChestRarity): { success: boolean; rolls?: Ches
       ...profile.chestInventory,
       [rarity]: profile.chestInventory[rarity] - 1,
     },
+    unlockedBrawlers,
   });
   trackQuestProgress("open_chests", 1);
   return { success: true, rolls };

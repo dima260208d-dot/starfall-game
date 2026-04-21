@@ -1,7 +1,10 @@
+import type { ChestRarity } from "../utils/chests";
+
 export interface BrawlerStats {
   id: string;
   name: string;
   role: string;
+  rarity: ChestRarity;
   hp: number;
   speed: number;
   regenRate: number;
@@ -22,6 +25,38 @@ export interface BrawlerStats {
   spriteCol: number;
 }
 
+// Russian labels for the chest-style rarity tiers when used on a brawler.
+export const BRAWLER_RARITY_LABEL: Record<ChestRarity, string> = {
+  common:    "Обычный",
+  rare:      "Редкий",
+  epic:      "Эпический",
+  mega:      "Мега",
+  legendary: "Легендарный",
+  mythic:    "Мифический",
+};
+
+// Gem cost to unlock a brawler in the shop, scaled by rarity.
+export const BRAWLER_GEM_COST: Record<ChestRarity, number> = {
+  common:    20,
+  rare:      60,
+  epic:      150,
+  mega:      300,
+  legendary: 600,
+  mythic:    1200,
+};
+
+// Per-chest chance to drop a brawler (instead of a normal reward roll).
+// Higher rarity chests are rarer overall, so the chance is smaller —
+// but drops can yield brawlers of *equal or higher* rarity than the chest.
+export const CHEST_BRAWLER_DROP_CHANCE: Record<ChestRarity, number> = {
+  common:    0.05,   // 5%
+  rare:      0.04,
+  epic:      0.03,
+  mega:      0.02,
+  legendary: 0.01,
+  mythic:    0.005,  // 0.5%
+};
+
 // Backstory/lore for each brawler, shown on the character detail page.
 export const BRAWLER_LORE: Record<string, string> = {
   miya:  "Мия выросла в скрытой деревне теневых клинков. После того как враждебный клан уничтожил её дом, она поклялась вершить правосудие в одиночку. Её сюрикены не знают промаха, а тренировки в искусстве телепортации сделали её самым быстрым убийцей в Арене.",
@@ -41,6 +76,7 @@ export const BRAWLERS: BrawlerStats[] = [
     id: "miya",
     name: "Мия",
     role: "Ассасин",
+    rarity: "legendary",
     hp: 3600,
     speed: 5.2,
     regenRate: 60,
@@ -64,6 +100,7 @@ export const BRAWLERS: BrawlerStats[] = [
     id: "kibo",
     name: "Kibo",
     role: "Стрелок",
+    rarity: "common",
     hp: 3800,
     speed: 4.0,
     regenRate: 50,
@@ -87,6 +124,7 @@ export const BRAWLERS: BrawlerStats[] = [
     id: "ronin",
     name: "Ronin",
     role: "Танк",
+    rarity: "epic",
     hp: 5500,
     speed: 3.2,
     regenRate: 40,
@@ -110,6 +148,7 @@ export const BRAWLERS: BrawlerStats[] = [
     id: "yuki",
     name: "Yuki",
     role: "Поддержка",
+    rarity: "mega",
     hp: 3200,
     speed: 4.2,
     regenRate: 70,
@@ -133,6 +172,7 @@ export const BRAWLERS: BrawlerStats[] = [
     id: "kenji",
     name: "Kenji",
     role: "Контроллер",
+    rarity: "epic",
     hp: 4000,
     speed: 3.8,
     regenRate: 55,
@@ -156,6 +196,7 @@ export const BRAWLERS: BrawlerStats[] = [
     id: "hana",
     name: "Hana",
     role: "Хилер",
+    rarity: "rare",
     hp: 3000,
     speed: 4.5,
     regenRate: 80,
@@ -179,6 +220,7 @@ export const BRAWLERS: BrawlerStats[] = [
     id: "goro",
     name: "Goro",
     role: "Берсерк",
+    rarity: "mythic",
     hp: 6200,
     speed: 2.9,
     regenRate: 35,
@@ -202,6 +244,7 @@ export const BRAWLERS: BrawlerStats[] = [
     id: "sora",
     name: "Sora",
     role: "Маг",
+    rarity: "mega",
     hp: 3400,
     speed: 4.0,
     regenRate: 45,
@@ -225,6 +268,7 @@ export const BRAWLERS: BrawlerStats[] = [
     id: "rin",
     name: "Rin",
     role: "Отравитель",
+    rarity: "legendary",
     hp: 3300,
     speed: 5.0,
     regenRate: 50,
@@ -248,6 +292,7 @@ export const BRAWLERS: BrawlerStats[] = [
     id: "taro",
     name: "Taro",
     role: "Инженер",
+    rarity: "rare",
     hp: 3700,
     speed: 3.5,
     regenRate: 40,

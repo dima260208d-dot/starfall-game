@@ -1,12 +1,50 @@
 import { useEffect, useState } from "react";
-import { BRAWLERS, BRAWLER_LORE, getScaledStats } from "../entities/BrawlerData";
+import { BRAWLERS, BRAWLER_LORE, BRAWLER_GEM_COST, BRAWLER_RARITY_LABEL, getScaledStats } from "../entities/BrawlerData";
+import { CHESTS, CHEST_RARITY_ORDER } from "../utils/chests";
 import {
   getCurrentProfile,
   upgradeBrawler,
   upgradeBrawlerCost,
+  unlockBrawlerWithGems,
+  isBrawlerUnlocked,
   MAX_BRAWLER_LEVEL,
 } from "../utils/localStorageAPI";
 import BrawlerViewer3D from "../components/BrawlerViewer3D";
+
+export type BrawlerSortKey = "rarity" | "name" | "level" | "hp" | "damage" | "speed" | "range";
+
+const SORT_OPTIONS: { key: BrawlerSortKey; label: string }[] = [
+  { key: "rarity", label: "По редкости" },
+  { key: "name",   label: "По имени" },
+  { key: "level",  label: "По уровню" },
+  { key: "hp",     label: "По здоровью" },
+  { key: "damage", label: "По урону" },
+  { key: "speed",  label: "По скорости" },
+  { key: "range",  label: "По дальности" },
+];
+
+export function sortBrawlers(
+  list: typeof BRAWLERS,
+  key: BrawlerSortKey,
+  brawlerLevels: Record<string, number>,
+): typeof BRAWLERS {
+  const arr = [...list];
+  arr.sort((a, b) => {
+    switch (key) {
+      case "rarity": {
+        const da = CHEST_RARITY_ORDER.indexOf(b.rarity) - CHEST_RARITY_ORDER.indexOf(a.rarity);
+        return da !== 0 ? da : a.name.localeCompare(b.name);
+      }
+      case "name":   return a.name.localeCompare(b.name);
+      case "level":  return (brawlerLevels[b.id] || 1) - (brawlerLevels[a.id] || 1);
+      case "hp":     return b.hp - a.hp;
+      case "damage": return b.attackDamage - a.attackDamage;
+      case "speed":  return b.speed - a.speed;
+      case "range":  return b.attackRange - a.attackRange;
+    }
+  });
+  return arr;
+}
 
 interface CharacterSelectProps {
   onPickAsActive: (brawlerId: string) => void;
@@ -17,6 +55,7 @@ interface CharacterSelectProps {
 export default function CharacterSelect({ onPickAsActive, onTraining, onBack }: CharacterSelectProps) {
   const [profile, setProfile] = useState(getCurrentProfile());
   const [openId, setOpenId] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<BrawlerSortKey>("rarity");
 
   useEffect(() => {
     const t = setInterval(() => setProfile(getCurrentProfile()), 500);
@@ -35,6 +74,7 @@ export default function CharacterSelect({ onPickAsActive, onTraining, onBack }: 
       gems={profile.gems}
       powerPoints={profile.powerPoints}
       isActive={profile.selectedBrawlerId === detailBrawler.id}
+      isUnlocked={isBrawlerUnlocked(profile, detailBrawler.id)}
       onClose={() => setOpenId(null)}
       onHome={onBack}
       onPickAsActive={() => { onPickAsActive(detailBrawler.id); }}
@@ -44,10 +84,17 @@ export default function CharacterSelect({ onPickAsActive, onTraining, onBack }: 
         if (r.success) setProfile(getCurrentProfile());
         return r;
       }}
+      onUnlock={() => {
+        const r = unlockBrawlerWithGems(detailBrawler.id);
+        if (r.success) setProfile(getCurrentProfile());
+        return r;
+      }}
     />
   ) : (
     <CharacterGrid
       profile={profile}
+      sortKey={sortKey}
+      onChangeSort={setSortKey}
       onBack={onBack}
       onOpen={(id) => setOpenId(id)}
     />
@@ -60,13 +107,17 @@ export default function CharacterSelect({ onPickAsActive, onTraining, onBack }: 
 
 interface CharacterGridProps {
   profile: ReturnType<typeof getCurrentProfile>;
+  sortKey: BrawlerSortKey;
+  onChangeSort: (key: BrawlerSortKey) => void;
   onBack: () => void;
   onOpen: (id: string) => void;
 }
 
-function CharacterGrid({ profile, onBack, onOpen }: CharacterGridProps) {
+function CharacterGrid({ profile, sortKey, onChangeSort, onBack, onOpen }: CharacterGridProps) {
   if (!profile) return null;
   const base = (import.meta as any).env?.BASE_URL ?? "/";
+  const sorted = sortBrawlers(BRAWLERS, sortKey, profile.brawlerLevels);
+  const unlockedCount = BRAWLERS.filter(b => profile.unlockedBrawlers.includes(b.id)).length;
 
   return (
     <div style={{
@@ -78,36 +129,66 @@ function CharacterGrid({ profile, onBack, onOpen }: CharacterGridProps) {
     }}>
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "10px 20px 20px",
+        padding: "10px 20px 16px",
         borderBottom: "1px solid rgba(255,255,255,0.08)",
-        marginBottom: 24,
+        marginBottom: 18,
       }}>
         <button onClick={onBack} style={pillBtn}>← Назад</button>
-        <h2 style={{
-          margin: 0, fontSize: 26, fontWeight: 900,
-          background: "linear-gradient(135deg, #CE93D8, #FFD700)",
-          WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-          letterSpacing: 2,
-        }}>
-          КОЛЛЕКЦИЯ БОЙЦОВ
-        </h2>
+        <div style={{ textAlign: "center" }}>
+          <h2 style={{
+            margin: 0, fontSize: 26, fontWeight: 900,
+            background: "linear-gradient(135deg, #CE93D8, #FFD700)",
+            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+            letterSpacing: 2,
+          }}>
+            ПЕРСОНАЖИ
+          </h2>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 2, fontWeight: 700, letterSpacing: 2 }}>
+            ОТКРЫТО {unlockedCount} / {BRAWLERS.length}
+          </div>
+        </div>
         <ResourcesBar coins={profile.coins} gems={profile.gems} powerPoints={profile.powerPoints} />
+      </div>
+
+      <div style={{ maxWidth: 1100, margin: "0 auto 16px", display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8 }}>
+        <span style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", fontWeight: 700, letterSpacing: 1 }}>СОРТИРОВКА:</span>
+        <select
+          value={sortKey}
+          onChange={(e) => onChangeSort(e.target.value as BrawlerSortKey)}
+          style={{
+            background: "rgba(0,0,0,0.5)",
+            border: "1px solid rgba(255,255,255,0.18)",
+            borderRadius: 8, padding: "6px 10px",
+            color: "white", fontSize: 12, fontWeight: 700,
+            cursor: "pointer",
+          }}
+        >
+          {SORT_OPTIONS.map(o => (
+            <option key={o.key} value={o.key} style={{ background: "#0a0040" }}>{o.label}</option>
+          ))}
+        </select>
       </div>
 
       <div style={{
         maxWidth: 1100, margin: "0 auto",
         display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 18,
       }}>
-        {BRAWLERS.map((b) => {
+        {sorted.map((b) => {
           const lv = profile.brawlerLevels[b.id] || 1;
           const isActive = profile.selectedBrawlerId === b.id;
+          const unlocked = profile.unlockedBrawlers.includes(b.id);
+          const rarityColor = CHESTS[b.rarity].borderColor;
+          const borderColor = unlocked
+            ? (isActive ? b.color : rarityColor)
+            : "rgba(255,255,255,0.18)";
+
           return (
             <button
               key={b.id}
               onClick={() => onOpen(b.id)}
               style={{
-                background: `linear-gradient(180deg, ${b.color}26 0%, rgba(0,0,0,0.4) 80%)`,
-                border: `2px solid ${isActive ? b.color : b.color + "55"}`,
+                background: `linear-gradient(180deg, ${rarityColor}22 0%, rgba(0,0,0,0.5) 80%)`,
+                border: `2px solid ${borderColor}`,
                 borderRadius: 18,
                 padding: "18px 14px",
                 cursor: "pointer",
@@ -115,11 +196,24 @@ function CharacterGrid({ profile, onBack, onOpen }: CharacterGridProps) {
                 textAlign: "center",
                 position: "relative",
                 transition: "transform 0.15s, box-shadow 0.15s",
-                boxShadow: isActive ? `0 0 25px ${b.color}aa` : "none",
+                boxShadow: isActive
+                  ? `0 0 25px ${b.color}aa`
+                  : unlocked ? `0 0 14px ${rarityColor}55` : "none",
+                opacity: unlocked ? 1 : 0.85,
               }}
-              onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = `0 6px 25px ${b.color}cc`; }}
-              onMouseOut={(e) => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = isActive ? `0 0 25px ${b.color}aa` : "none"; }}
+              onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = `0 6px 25px ${rarityColor}cc`; }}
+              onMouseOut={(e) => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = isActive ? `0 0 25px ${b.color}aa` : (unlocked ? `0 0 14px ${rarityColor}55` : "none"); }}
             >
+              {/* Rarity badge top-left */}
+              <div style={{
+                position: "absolute", top: 8, left: 10,
+                background: rarityColor, color: "white",
+                fontSize: 9, fontWeight: 900,
+                borderRadius: 6, padding: "2px 7px",
+                letterSpacing: 1,
+                textShadow: "0 1px 2px rgba(0,0,0,0.5)",
+              }}>{BRAWLER_RARITY_LABEL[b.rarity]}</div>
+
               {isActive && (
                 <div style={{
                   position: "absolute", top: 8, right: 10,
@@ -129,22 +223,40 @@ function CharacterGrid({ profile, onBack, onOpen }: CharacterGridProps) {
                   letterSpacing: 1,
                 }}>ВЫБРАН</div>
               )}
+
               <div style={{
                 width: 130, height: 130, margin: "0 auto",
-                background: `radial-gradient(circle at 50% 60%, ${b.color}55, transparent 70%)`,
+                marginTop: 6,
+                background: `radial-gradient(circle at 50% 60%, ${unlocked ? b.color : rarityColor}55, transparent 70%)`,
                 borderRadius: 14,
                 display: "flex", alignItems: "flex-end", justifyContent: "center",
+                position: "relative",
               }}>
                 <img
                   src={`${base}brawlers/${b.id}_front.png`}
                   alt={b.name}
                   style={{
                     maxWidth: "100%", maxHeight: "100%",
-                    filter: `drop-shadow(0 4px 10px ${b.color})`,
+                    filter: unlocked
+                      ? `drop-shadow(0 4px 10px ${b.color})`
+                      : "grayscale(0.85) brightness(0.55) drop-shadow(0 4px 8px rgba(0,0,0,0.6))",
                   }}
                 />
+                {!unlocked && (
+                  <div style={{
+                    position: "absolute", inset: 0,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 50,
+                    textShadow: "0 2px 8px rgba(0,0,0,0.8)",
+                    pointerEvents: "none",
+                  }}>🔒</div>
+                )}
               </div>
-              <div style={{ marginTop: 10, fontSize: 18, fontWeight: 800, color: b.color, letterSpacing: 1 }}>
+              <div style={{
+                marginTop: 10, fontSize: 18, fontWeight: 800,
+                color: unlocked ? b.color : "rgba(255,255,255,0.7)",
+                letterSpacing: 1,
+              }}>
                 {b.name}
               </div>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginTop: 2, fontWeight: 600, letterSpacing: 1 }}>
@@ -153,13 +265,14 @@ function CharacterGrid({ profile, onBack, onOpen }: CharacterGridProps) {
               <div style={{
                 marginTop: 10,
                 display: "inline-block",
-                background: "rgba(0,0,0,0.45)",
-                border: `1px solid ${b.color}`,
+                background: "rgba(0,0,0,0.5)",
+                border: `1px solid ${unlocked ? b.color : "rgba(255,255,255,0.2)"}`,
                 borderRadius: 8, padding: "3px 12px",
-                fontSize: 12, fontWeight: 800, color: "#FFD700",
+                fontSize: 12, fontWeight: 800,
+                color: unlocked ? "#FFD700" : "rgba(255,255,255,0.5)",
                 letterSpacing: 1,
               }}>
-                УРОВЕНЬ {lv}
+                {unlocked ? `УРОВЕНЬ ${lv}` : `💎 ${BRAWLER_GEM_COST[b.rarity]}`}
               </div>
             </button>
           );
@@ -180,17 +293,22 @@ interface CharacterDetailProps {
   gems: number;
   powerPoints: number;
   isActive: boolean;
+  isUnlocked: boolean;
   onClose: () => void;
   onHome: () => void;
   onPickAsActive: () => void;
   onTraining: () => void;
   onUpgrade: () => { success: boolean; error?: string };
+  onUnlock: () => { success: boolean; error?: string };
 }
 
 function CharacterDetail({
-  brawler, level, coins, gems, powerPoints, isActive,
-  onClose, onHome, onPickAsActive, onTraining, onUpgrade,
+  brawler, level, coins, gems, powerPoints, isActive, isUnlocked,
+  onClose, onHome, onPickAsActive, onTraining, onUpgrade, onUnlock,
 }: CharacterDetailProps) {
+  const unlockCost = BRAWLER_GEM_COST[brawler.rarity];
+  const canAffordUnlock = gems >= unlockCost;
+  const rarityColor = CHESTS[brawler.rarity].borderColor;
   const lore = BRAWLER_LORE[brawler.id] || brawler.description;
   const scaled = getScaledStats(brawler, level);
   const isMax = level >= MAX_BRAWLER_LEVEL;
@@ -200,10 +318,16 @@ function CharacterDetail({
   const [showStatsModal, setShowStatsModal] = useState(false);
 
   const handleUpgrade = () => {
+    if (!isUnlocked) { flash("Сначала разблокируйте бойца"); return; }
     if (isMax) { flash("Максимальный уровень!"); return; }
     if (!canAfford) { flash("Недостаточно ресурсов"); return; }
     const r = onUpgrade();
     flash(r.success ? "Боец прокачан!" : (r.error || "Ошибка"));
+  };
+  const handleUnlock = () => {
+    if (!canAffordUnlock) { flash(`Нужно ${unlockCost} 💎`); return; }
+    const r = onUnlock();
+    flash(r.success ? `${brawler.name} разблокирован!` : (r.error || "Ошибка"));
   };
   function flash(text: string) {
     setMsg(text);
@@ -240,9 +364,38 @@ function CharacterDetail({
             {brawler.name.toUpperCase()}
           </div>
           <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 3, opacity: 0.9, marginTop: 4 }}>
-            {brawler.role.toUpperCase()} • УР {level}
+            {brawler.role.toUpperCase()} • {isUnlocked ? `УР ${level}` : "ЗАБЛОКИРОВАН"}
           </div>
         </div>
+
+        {/* Rarity badge */}
+        <div style={{
+          display: "inline-flex", alignItems: "center", gap: 6,
+          background: rarityColor, color: "white",
+          fontSize: 11, fontWeight: 900, letterSpacing: 2,
+          borderRadius: 10, padding: "5px 12px",
+          boxShadow: `0 2px 12px ${rarityColor}88`,
+          textShadow: "0 1px 2px rgba(0,0,0,0.5)",
+        }}>
+          ★ {BRAWLER_RARITY_LABEL[brawler.rarity]}
+        </div>
+
+        {!isUnlocked && (
+          <div style={{
+            background: "rgba(0,0,0,0.55)",
+            border: `1px solid ${rarityColor}`,
+            borderRadius: 12, padding: "10px 14px",
+            fontSize: 12, lineHeight: 1.5,
+            color: "rgba(255,255,255,0.9)",
+            backdropFilter: "blur(8px)",
+            maxWidth: 320,
+          }}>
+            <div style={{ fontSize: 10, color: rarityColor, fontWeight: 800, letterSpacing: 2, marginBottom: 6 }}>
+              🔒 КАК ОТКРЫТЬ
+            </div>
+            Купите за 💎 {unlockCost} в магазине, выбейте из сундуков «{BRAWLER_RARITY_LABEL[brawler.rarity]}» или выше, либо тренируйтесь без выбора в активный слот.
+          </div>
+        )}
 
         {/* Lore block */}
         <div style={{
@@ -339,22 +492,27 @@ function CharacterDetail({
 
         <button
           onClick={handleUpgrade}
-          disabled={isMax}
+          disabled={isMax || !isUnlocked}
           style={{
-            background: isMax
-              ? "rgba(255,255,255,0.06)"
-              : canAfford
-                ? "linear-gradient(135deg, #2E7D32, #69F0AE)"
-                : "rgba(255,82,82,0.15)",
-            border: isMax ? "1px solid rgba(255,255,255,0.1)" : `1px solid ${canAfford ? "#69F0AE" : "rgba(255,82,82,0.4)"}`,
+            background: !isUnlocked
+              ? "rgba(255,255,255,0.05)"
+              : isMax
+                ? "rgba(255,255,255,0.06)"
+                : canAfford
+                  ? "linear-gradient(135deg, #2E7D32, #69F0AE)"
+                  : "rgba(255,82,82,0.15)",
+            border: !isUnlocked
+              ? "1px solid rgba(255,255,255,0.08)"
+              : isMax ? "1px solid rgba(255,255,255,0.1)" : `1px solid ${canAfford ? "#69F0AE" : "rgba(255,82,82,0.4)"}`,
             borderRadius: 12, padding: "12px 14px",
-            color: "white", fontWeight: 800, fontSize: 14, letterSpacing: 1,
-            cursor: isMax ? "default" : "pointer",
+            color: !isUnlocked ? "rgba(255,255,255,0.35)" : "white",
+            fontWeight: 800, fontSize: 14, letterSpacing: 1,
+            cursor: (isMax || !isUnlocked) ? "default" : "pointer",
             display: "flex", flexDirection: "column", gap: 2,
           }}
         >
-          <span>{isMax ? "✓ МАКС. УРОВЕНЬ" : `▲ УЛУЧШИТЬ ДО УР. ${level + 1}`}</span>
-          {!isMax && (
+          <span>{!isUnlocked ? "🔒 НЕДОСТУПНО" : isMax ? "✓ МАКС. УРОВЕНЬ" : `▲ УЛУЧШИТЬ ДО УР. ${level + 1}`}</span>
+          {isUnlocked && !isMax && (
             <span style={{ fontSize: 11, opacity: 0.8, fontWeight: 700 }}>
               🪙 {cost.coins} • ✨ {cost.powerPoints}
             </span>
@@ -367,22 +525,42 @@ function CharacterDetail({
         position: "absolute", left: 18, bottom: 18, zIndex: 5,
         display: "flex", gap: 10,
       }}>
-        <button
-          onClick={onPickAsActive}
-          disabled={isActive}
-          style={{
-            background: isActive
-              ? "rgba(255,255,255,0.06)"
-              : `linear-gradient(135deg, ${brawler.color}, ${brawler.secondaryColor})`,
-            border: "none", borderRadius: 14,
-            padding: "14px 32px",
-            color: "white", fontWeight: 900, fontSize: 16, letterSpacing: 2,
-            cursor: isActive ? "default" : "pointer",
-            boxShadow: isActive ? "none" : `0 4px 25px ${brawler.color}aa`,
-          }}
-        >
-          {isActive ? "✓ УЖЕ ВЫБРАН" : "ВЫБРАТЬ"}
-        </button>
+        {isUnlocked ? (
+          <button
+            onClick={onPickAsActive}
+            disabled={isActive}
+            style={{
+              background: isActive
+                ? "rgba(255,255,255,0.06)"
+                : `linear-gradient(135deg, ${brawler.color}, ${brawler.secondaryColor})`,
+              border: "none", borderRadius: 14,
+              padding: "14px 32px",
+              color: "white", fontWeight: 900, fontSize: 16, letterSpacing: 2,
+              cursor: isActive ? "default" : "pointer",
+              boxShadow: isActive ? "none" : `0 4px 25px ${brawler.color}aa`,
+            }}
+          >
+            {isActive ? "✓ УЖЕ ВЫБРАН" : "ВЫБРАТЬ"}
+          </button>
+        ) : (
+          <button
+            onClick={handleUnlock}
+            disabled={!canAffordUnlock}
+            style={{
+              background: canAffordUnlock
+                ? `linear-gradient(135deg, #1976D2, #40C4FF)`
+                : "rgba(255,82,82,0.18)",
+              border: canAffordUnlock ? "none" : "1px solid rgba(255,82,82,0.45)",
+              borderRadius: 14, padding: "14px 28px",
+              color: "white", fontWeight: 900, fontSize: 16, letterSpacing: 2,
+              cursor: canAffordUnlock ? "pointer" : "default",
+              boxShadow: canAffordUnlock ? "0 4px 25px rgba(64,196,255,0.6)" : "none",
+              display: "flex", alignItems: "center", gap: 8,
+            }}
+          >
+            💎 РАЗБЛОКИРОВАТЬ • {unlockCost}
+          </button>
+        )}
         <button
           onClick={onTraining}
           style={{

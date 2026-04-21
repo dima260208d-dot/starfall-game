@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { CHESTS, type ChestRarity, type ChestRoll } from "../utils/chests";
+import { BRAWLERS } from "../entities/BrawlerData";
 import ChestVisual from "./ChestVisual";
 
 interface Props {
@@ -125,10 +126,57 @@ export default function ChestOpenModal({ rarity, rolls, onClose }: Props) {
 }
 
 function RewardCard({ roll }: { roll: ChestRoll }) {
+  const base = (import.meta as any).env?.BASE_URL ?? "/";
+
+  if (roll.type === "brawler" && roll.brawlerId) {
+    const brawler = BRAWLERS.find(b => b.id === roll.brawlerId);
+    if (!brawler) return null;
+    return (
+      <div style={{
+        background: `linear-gradient(180deg, ${brawler.color}33 0%, rgba(0,0,0,0.6) 100%)`,
+        border: `2px solid ${brawler.color}`,
+        borderRadius: 16,
+        padding: "14px 20px",
+        display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+        animation: "rewardPop 0.5s ease-out",
+        boxShadow: `0 0 35px ${brawler.color}aa`,
+        minWidth: 180,
+        position: "relative",
+      }}>
+        <div style={{
+          position: "absolute", top: -10, left: "50%", transform: "translateX(-50%)",
+          background: brawler.color, color: "white",
+          fontSize: 10, fontWeight: 900, letterSpacing: 2,
+          borderRadius: 8, padding: "3px 10px",
+          boxShadow: `0 2px 12px ${brawler.color}`,
+          whiteSpace: "nowrap",
+        }}>
+          🎉 НОВЫЙ БОЕЦ
+        </div>
+        <img
+          src={`${base}brawlers/${brawler.id}_front.png`}
+          alt={brawler.name}
+          style={{
+            width: 80, height: 80, objectFit: "contain",
+            filter: `drop-shadow(0 4px 14px ${brawler.color})`,
+            marginTop: 6,
+          }}
+        />
+        <div style={{ fontSize: 18, fontWeight: 900, color: brawler.color, marginTop: 2, letterSpacing: 1 }}>
+          {brawler.name}
+        </div>
+        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", fontWeight: 700, letterSpacing: 1 }}>
+          {brawler.role.toUpperCase()}
+        </div>
+      </div>
+    );
+  }
+
   const meta = {
     coins:        { icon: "🪙", color: "#FFD700", label: "монет" },
     gems:         { icon: "💎", color: "#40C4FF", label: "кристаллов" },
     powerPoints:  { icon: "✨", color: "#CE93D8", label: "ОП" },
+    brawler:      { icon: "🦸", color: "#CE93D8", label: "боец" },
   }[roll.type];
   return (
     <div style={{

@@ -36,15 +36,15 @@ export default function App() {
   });
   const initial = getCurrentProfile();
   const [selectedMode, setSelectedMode] = useState<GameMode>((initial?.selectedMode as GameMode) || "showdown");
-  const [selectedBrawler, setSelectedBrawler] = useState(initial?.selectedBrawlerId || "miya");
+  const [selectedBrawler, setSelectedBrawler] = useState(initial?.selectedBrawlerId || "kibo");
 
   // Always rehydrate selections from the active profile when entering the menu/game,
   // so a profile switch never carries stale picks across accounts.
   const hydrateFromProfile = () => {
     const p = getCurrentProfile();
-    if (!p) return { mode: "showdown" as GameMode, brawler: "miya" };
+    if (!p) return { mode: "showdown" as GameMode, brawler: "kibo" };
     const m = (p.selectedMode as GameMode) || "showdown";
-    const b = p.selectedBrawlerId || "miya";
+    const b = p.selectedBrawlerId || "kibo";
     setSelectedMode(m);
     setSelectedBrawler(b);
     return { mode: m, brawler: b };
@@ -121,10 +121,17 @@ export default function App() {
   if (screen === "characterSelect") {
     return (
       <CharacterSelect
-        onPickAsActive={(id) => { setSelectedBrawler(id); persistBrawler(id); }}
+        onPickAsActive={(id) => {
+          // persistBrawler is gated on unlocked status; if it fails, keep the
+          // currently active brawler as the menu selection.
+          const r = persistBrawler(id);
+          if (r.success) setSelectedBrawler(id);
+        }}
         onTraining={(id) => {
+          // For training we use the brawler locally without persisting it as
+          // the player's active pick — locked brawlers are testable but
+          // cannot become the lobby selection.
           setSelectedBrawler(id);
-          persistBrawler(id);
           setSelectedMode("training");
           persistMode("training");
           goWithLoad("game", "ВХОД В ТРЕНИРОВКУ");

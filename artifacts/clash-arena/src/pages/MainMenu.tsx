@@ -159,33 +159,46 @@ export default function MainMenu(props: MainMenuProps) {
         </div>
       </div>
 
-      {/* CENTER: brawler showcase + name (anchored higher) */}
+      {/* TOP-CENTER: title on a bright panel so it pops against the radial bg */}
+      <div style={{
+        position: "absolute", top: 14, left: "50%", transform: "translateX(-50%)",
+        zIndex: 5, pointerEvents: "none",
+        textAlign: "center",
+      }}>
+        <div style={{
+          display: "inline-flex", flexDirection: "column", alignItems: "center",
+          padding: "10px 32px 12px",
+          background: "linear-gradient(135deg, #CE93D8 0%, #FFD700 50%, #40C4FF 100%)",
+          backgroundSize: "200% auto", animation: "shimmer 4s linear infinite",
+          borderRadius: 18,
+          boxShadow: "0 0 50px rgba(206,147,216,0.55), 0 6px 22px rgba(0,0,0,0.5)",
+          border: "2px solid rgba(255,255,255,0.35)",
+        }}>
+          <div style={{
+            fontSize: 44, fontWeight: 900, color: "white",
+            letterSpacing: 8, lineHeight: 1,
+            textShadow: "0 2px 10px rgba(0,0,0,0.55), 0 0 18px rgba(255,255,255,0.4)",
+          }}>CLASH</div>
+          <div style={{
+            fontSize: 16, fontWeight: 800, color: "white",
+            letterSpacing: 12, marginTop: 2,
+            textShadow: "0 2px 8px rgba(0,0,0,0.55)",
+          }}>ARENA</div>
+        </div>
+      </div>
+
+      {/* CENTER: brawler showcase */}
       <div style={{
         position: "absolute", inset: 0,
         display: "flex", flexDirection: "column",
-        alignItems: "center",
-        pointerEvents: "none", paddingTop: 80,
+        alignItems: "center", justifyContent: "center",
+        pointerEvents: "none", paddingTop: 40,
       }}>
-        <div style={{
-          fontSize: 52, fontWeight: 900,
-          background: "linear-gradient(135deg, #CE93D8 0%, #FFD700 50%, #40C4FF 100%)",
-          WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-          backgroundSize: "200% auto", animation: "shimmer 4s linear infinite",
-          letterSpacing: 6, marginBottom: 4,
-          filter: "drop-shadow(0 0 30px rgba(206,147,216,0.5))",
-        }}>CLASH</div>
-        <div style={{
-          fontSize: 22, fontWeight: 700, color: "#CE93D8",
-          letterSpacing: 14, marginTop: -6,
-          textShadow: "0 0 20px rgba(206,147,216,0.5)",
-          marginBottom: 0,
-        }}>ARENA</div>
-
         <div
           onClick={onBrawlerSelect}
           style={{
             pointerEvents: "auto", cursor: "pointer",
-            position: "relative", marginTop: 0,
+            position: "relative",
             width: 300, height: 320,
             display: "flex", alignItems: "center", justifyContent: "center",
             animation: "floatY 3.5s ease-in-out infinite",
@@ -305,44 +318,47 @@ export default function MainMenu(props: MainMenuProps) {
         </div>
       </button>
 
-      {/* BOTTOM-CENTER: mode selector + PLAY */}
-      <div style={{
-        position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)",
-        zIndex: 5, display: "flex", flexDirection: "column", gap: 10, alignItems: "center",
-      }}>
-        <button
-          onClick={onModeSelect}
-          style={{
-            background: `linear-gradient(135deg, ${mode.color}33, rgba(0,0,0,0.4))`,
-            border: `1.5px solid ${mode.color}`,
-            borderRadius: 14, padding: "10px 22px",
-            color: "white", cursor: "pointer",
-            display: "flex", alignItems: "center", gap: 12,
-            backdropFilter: "blur(10px)",
-            minWidth: 320,
-          }}
-        >
-          <span style={{ fontSize: 28 }}>{mode.icon}</span>
-          <span style={{ flex: 1, textAlign: "left" }}>
-            <span style={{ display: "block", color: "rgba(255,255,255,0.5)", fontSize: 10, letterSpacing: 1 }}>РЕЖИМ</span>
-            <span style={{ display: "block", fontSize: 16, fontWeight: 800, color: mode.color }}>{mode.name}</span>
-          </span>
-          <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>► СМЕНИТЬ</span>
-        </button>
-        <button
-          onClick={onPlay}
-          style={{
-            background: "linear-gradient(135deg, #7B2FBE, #CE93D8)",
-            border: "none", borderRadius: 16,
-            padding: "16px 90px",
-            color: "white", fontWeight: 900, fontSize: 24, letterSpacing: 4,
-            cursor: "pointer",
-            boxShadow: "0 8px 35px rgba(123,47,190,0.6)",
-          }}
-        >
-          ИГРАТЬ
-        </button>
-      </div>
+      {/* BOTTOM-CENTER: mode selector pinned to the bottom edge */}
+      <button
+        onClick={onModeSelect}
+        style={{
+          position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)",
+          zIndex: 5,
+          background: `linear-gradient(135deg, ${mode.color}33, rgba(0,0,0,0.5))`,
+          border: `1.5px solid ${mode.color}`,
+          borderRadius: 14, padding: "10px 22px",
+          color: "white", cursor: "pointer",
+          display: "flex", alignItems: "center", gap: 12,
+          backdropFilter: "blur(10px)",
+          minWidth: 320,
+          boxShadow: `0 4px 22px ${mode.color}55`,
+        }}
+      >
+        <span style={{ fontSize: 28 }}>{mode.icon}</span>
+        <span style={{ flex: 1, textAlign: "left" }}>
+          <span style={{ display: "block", color: "rgba(255,255,255,0.55)", fontSize: 10, letterSpacing: 1 }}>РЕЖИМ</span>
+          <span style={{ display: "block", fontSize: 16, fontWeight: 800, color: mode.color }}>{mode.name}</span>
+        </span>
+        <span style={{ color: "rgba(255,255,255,0.45)", fontSize: 12 }}>► СМЕНИТЬ</span>
+      </button>
+
+      {/* BOTTOM-RIGHT: massive PLAY button anchored in the corner */}
+      <button
+        onClick={onPlay}
+        style={{
+          position: "absolute", bottom: 24, right: 24,
+          zIndex: 6,
+          background: "linear-gradient(135deg, #7B2FBE, #CE93D8)",
+          border: "none", borderRadius: 22,
+          padding: "22px 56px",
+          color: "white", fontWeight: 900, fontSize: 28, letterSpacing: 5,
+          cursor: "pointer",
+          boxShadow: "0 10px 40px rgba(123,47,190,0.75), 0 0 30px rgba(206,147,216,0.5)",
+          animation: "pulse 2.4s ease-in-out infinite",
+        }}
+      >
+        ▶ ИГРАТЬ
+      </button>
 
       {showDaily && <DailyRewardModal onClose={() => { setShowDaily(false); setProfile(getCurrentProfile()); }} />}
       {showQuests && <QuestsModal onClose={() => { setShowQuests(false); setProfile(getCurrentProfile()); }} />}
