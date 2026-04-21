@@ -1,5 +1,9 @@
 import { useState, useEffect } from "react";
-import { getCurrentProfile, MAX_TROPHIES, clashPassXpForLevel, MAX_CLASHPASS_LEVEL, canClaimDailyLadder, getOrRollDailyQuests } from "../utils/localStorageAPI";
+import {
+  getCurrentProfile, MAX_TROPHIES, clashPassXpForLevel, MAX_CLASHPASS_LEVEL,
+  canClaimDailyLadder, getOrRollDailyQuests,
+  getUnclaimedTrophyRoadCount, getUnclaimedClashPassCount, getUnopenedChestCount,
+} from "../utils/localStorageAPI";
 import { BRAWLERS } from "../entities/BrawlerData";
 import { getModeInfo } from "../data/modes";
 import DailyRewardModal from "../components/DailyRewardModal";
@@ -53,6 +57,10 @@ export default function MainMenu(props: MainMenuProps) {
   const hasUnclaimedQuest = !!profile.dailyQuests?.quests.some(
     q => !q.claimed && q.progress >= q.target,
   );
+  const trophyRoadBadge = getUnclaimedTrophyRoadCount(profile);
+  const clashPassBadge = getUnclaimedClashPassCount(profile);
+  const chestsBadge = getUnopenedChestCount(profile);
+  const questsBadge = profile.dailyQuests?.quests.filter(q => !q.claimed && q.progress >= q.target).length ?? 0;
 
   const handleSoonNotice = (text: string) => {
     setNotif(text);
@@ -131,6 +139,7 @@ export default function MainMenu(props: MainMenuProps) {
         <button
           onClick={onTrophyRoad}
           style={{
+            position: "relative",
             display: "flex", alignItems: "center", gap: 8,
             background: "linear-gradient(135deg, rgba(255,215,0,0.18), rgba(255,171,64,0.18))",
             border: "1.5px solid rgba(255,215,0,0.5)",
@@ -143,6 +152,7 @@ export default function MainMenu(props: MainMenuProps) {
           <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: 600, marginLeft: 4 }}>
             / {MAX_TROPHIES}
           </span>
+          <NotificationBadge count={trophyRoadBadge} />
         </button>
       </div>
 
@@ -255,7 +265,7 @@ export default function MainMenu(props: MainMenuProps) {
           color={canClaimDaily ? "#FFD700" : "#888"}
           pulse={canClaimDaily}
         />
-        <SideButton icon="🗝️" label="Сундуки" onClick={onChests} color="#FF7043" />
+        <SideButton icon="🗝️" label="Сундуки" onClick={onChests} color="#FF7043" badge={chestsBadge} />
       </div>
 
       {/* BOTTOM-LEFT: Quests button + Clash Pass card */}
@@ -277,6 +287,7 @@ export default function MainMenu(props: MainMenuProps) {
         }}
         title="Ежедневные квесты"
       >
+        <NotificationBadge count={questsBadge} />
         <span style={{ fontSize: 22, lineHeight: 1 }}>📋</span>
         <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, color: hasUnclaimedQuest ? "#FFD700" : "#CE93D8" }}>
           КВЕСТЫ
@@ -295,6 +306,7 @@ export default function MainMenu(props: MainMenuProps) {
           animation: "glow 3s ease-in-out infinite",
         }}
       >
+        <NotificationBadge count={clashPassBadge} />
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
           <div style={{ fontWeight: 900, letterSpacing: 1, fontSize: 14, color: "#FFD700" }}>
             🎟️ CLASH PASS
@@ -389,8 +401,8 @@ function Resource({ icon, value, color }: { icon: string; value: number; color: 
 }
 
 function SideButton({
-  icon, label, onClick, color, pulse,
-}: { icon: string; label: string; onClick: () => void; color: string; pulse?: boolean }) {
+  icon, label, onClick, color, pulse, badge,
+}: { icon: string; label: string; onClick: () => void; color: string; pulse?: boolean; badge?: number }) {
   const [hovered, setHovered] = useState(false);
   return (
     <button
@@ -398,6 +410,7 @@ function SideButton({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
+        position: "relative",
         display: "flex", alignItems: "center", gap: 10,
         background: hovered ? `${color}26` : "rgba(0,0,0,0.4)",
         border: `1.5px solid ${hovered ? color : "rgba(255,255,255,0.1)"}`,
@@ -412,6 +425,37 @@ function SideButton({
     >
       <span style={{ fontSize: 20 }}>{icon}</span>
       <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: 1 }}>{label}</span>
+      <NotificationBadge count={badge ?? 0} />
     </button>
+  );
+}
+
+// Small red circular indicator showing the number of unclaimed/unread items.
+// Positioned in the top-right corner of any `position: relative` container.
+// Renders nothing when count is 0 so it disappears once everything is claimed.
+function NotificationBadge({ count }: { count: number }) {
+  if (!count || count <= 0) return null;
+  const display = count > 99 ? "99+" : String(count);
+  return (
+    <span
+      style={{
+        position: "absolute", top: -6, right: -6,
+        minWidth: 20, height: 20,
+        padding: "0 6px",
+        borderRadius: 10,
+        background: "linear-gradient(135deg, #FF1744, #D50000)",
+        border: "2px solid #160048",
+        color: "white",
+        fontSize: 11, fontWeight: 900, letterSpacing: 0,
+        display: "inline-flex", alignItems: "center", justifyContent: "center",
+        boxShadow: "0 0 10px rgba(255,23,68,0.7)",
+        animation: "pulse 1.4s ease-in-out infinite",
+        pointerEvents: "none",
+        zIndex: 10,
+        lineHeight: 1,
+      }}
+    >
+      {display}
+    </span>
   );
 }

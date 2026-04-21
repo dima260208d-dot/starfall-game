@@ -224,6 +224,39 @@ function normalizeProfile(p: UserProfile): UserProfile {
   };
 }
 
+// ─── Notification badges ────────────────────────────────────────────────────
+// Helpers that return the number of *unclaimed* / *unread* items in each
+// reward source so the lobby can show a red "1" badge on the corresponding
+// menu entry.
+
+export function getUnclaimedTrophyRoadCount(profile: UserProfile | null): number {
+  if (!profile) return 0;
+  const claimed = new Set(profile.trophyRoadClaimed);
+  let count = 0;
+  for (const r of TROPHY_ROAD) {
+    if (r.trophies <= profile.trophies && !claimed.has(r.trophies)) count++;
+  }
+  return count;
+}
+
+export function getUnclaimedClashPassCount(profile: UserProfile | null): number {
+  if (!profile) return 0;
+  const claimed = new Set(profile.clashPassClaimed);
+  let count = 0;
+  // Clash Pass awards a reward when the player *reaches* a level. Anything from
+  // level 1 up to (and including) the current level that hasn't been claimed
+  // yet is fair game.
+  for (let lvl = 1; lvl <= profile.clashPassLevel; lvl++) {
+    if (!claimed.has(lvl)) count++;
+  }
+  return count;
+}
+
+export function getUnopenedChestCount(profile: UserProfile | null): number {
+  if (!profile) return 0;
+  return Object.values(profile.chestInventory || {}).reduce((a, b) => a + b, 0);
+}
+
 export function isBrawlerUnlocked(profile: UserProfile | null, brawlerId: string): boolean {
   if (!profile) return false;
   return profile.unlockedBrawlers.includes(brawlerId);
