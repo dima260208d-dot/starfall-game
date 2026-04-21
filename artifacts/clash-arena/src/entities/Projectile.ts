@@ -62,14 +62,10 @@ export function updateProjectiles(
       continue;
     }
 
-    if (proj.type !== "beam") {
-      const col = collidesWithWalls(proj.x, proj.y, proj.radius, map.walls);
-      if (col.collides && !proj.piercing) {
-        if (proj.type === "fireball") {
-        } else {
-          proj.active = false;
-        }
-      }
+    const col = collidesWithWalls(proj.x, proj.y, Math.max(proj.radius, 4), map.walls);
+    if (col.collides) {
+      proj.active = false;
+      continue;
     }
   }
 }

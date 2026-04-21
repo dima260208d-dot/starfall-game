@@ -160,11 +160,13 @@ export class ClashShowdown {
       this.gasDoubleTimer = 30;
     }
     
-    if (this.gasTimer <= 0 && this.gas.safeRadius > 100) {
-      this.gas.safeRadius -= 60;
+    if (this.gas.safeRadius > 100) {
+      this.gas.safeRadius = Math.max(100, this.gas.safeRadius - 8 * dt);
+    }
+    if (this.gasTimer <= 0) {
       this.gas.centerX = 1500 + Math.random() * 2000;
       this.gas.centerY = 1500 + Math.random() * 2000;
-      this.gasTimer = 5;
+      this.gasTimer = 12;
     }
     
     for (const b of allBrawlers) {

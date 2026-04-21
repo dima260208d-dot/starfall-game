@@ -152,7 +152,9 @@ export class Brawler {
       const len = Math.sqrt(dx * dx + dy * dy);
       this.x += (dx / len) * spd * dt;
       this.y += (dy / len) * spd * dt;
-      this.angle = Math.atan2(dy, dx);
+      if (!this.isPlayer) {
+        this.angle = Math.atan2(dy, dx);
+      }
     }
   }
 
@@ -508,7 +510,7 @@ export class Brawler {
       this.stats.id,
       sx,
       sy + 10,
-      this.radius * 4.2,
+      this.radius * 2.9,
       this.angle,
       alpha,
       glowColor,
