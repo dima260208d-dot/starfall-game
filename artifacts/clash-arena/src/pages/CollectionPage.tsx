@@ -108,7 +108,7 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
 
         <div style={{ flex: 1, display: "flex", flexDirection: "row", alignItems: "stretch", padding: "24px 30px", overflowY: "auto", minHeight: 0, gap: 24 }}>
           <div style={{ flex: "0 0 auto", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-            <BrawlerViewer3D brawlerId={brawler.id} color={brawler.color} size={620} autoRotateInitial={true} />
+            <BrawlerViewer3D brawlerId={brawler.id} color={brawler.color} size={500} autoRotateInitial={true} />
             <div style={{ textAlign: "center", marginTop: 10 }}>
               <div style={{ fontSize: 32, fontWeight: 900, color: brawler.color }}>{brawler.name}</div>
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: 2 }}>{brawler.role.toUpperCase()} • УРОВЕНЬ {level} / 10</div>
@@ -121,8 +121,8 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
               background: "rgba(255,255,255,0.04)",
               borderRadius: 16,
               padding: 20,
-              minWidth: 320,
-              maxWidth: 520,
+              minWidth: 280,
+              maxWidth: 460,
               alignSelf: "center",
             }}
           >
