@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { BRAWLERS } from "../entities/BrawlerData";
 
 interface Props {
   onDone: () => void;
@@ -31,21 +30,34 @@ export default function LoadingScreen({ onDone, duration = 4500, label = "ЗАГ
       style={{
         position: "fixed",
         inset: 0,
-        background:
-          "radial-gradient(ellipse at 50% 60%, #1a0040 0%, #0A0014 70%, #050008 100%)",
-        display: "flex",
-        flexDirection: "column",
+        background: "#0A0014",
         overflow: "hidden",
         zIndex: 1000,
         fontFamily: "'Segoe UI', Arial, sans-serif",
       }}
     >
-      {/* Subtle grid + glow background */}
+      {/* Battle scene with the actual in-game brawlers */}
+      <img
+        src={`${base}loading.png`}
+        alt=""
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          filter: "brightness(0.85) saturate(1.15)",
+          animation: "loadingZoom 8s ease-in-out infinite alternate",
+        }}
+      />
+
+      {/* Bottom vignette so the progress bar pops */}
       <div
         style={{
-          position: "absolute", inset: 0, opacity: 0.25,
+          position: "absolute", inset: 0,
           background:
-            "repeating-linear-gradient(0deg, transparent 0 60px, rgba(255,255,255,0.03) 60px 61px), repeating-linear-gradient(90deg, transparent 0 60px, rgba(255,255,255,0.03) 60px 61px)",
+            "linear-gradient(180deg, rgba(0,0,0,0.55) 0%, transparent 25%, transparent 55%, rgba(5,0,20,0.92) 100%)",
+          pointerEvents: "none",
         }}
       />
 
@@ -89,81 +101,6 @@ export default function LoadingScreen({ onDone, duration = 4500, label = "ЗАГ
           ARENA
         </div>
       </div>
-
-      {/* Brawler lineup (only in-game characters) */}
-      <div
-        style={{
-          position: "absolute",
-          left: 0, right: 0,
-          top: "50%",
-          transform: "translateY(-50%)",
-          display: "flex",
-          alignItems: "flex-end",
-          justifyContent: "center",
-          gap: 0,
-          pointerEvents: "none",
-          zIndex: 1,
-        }}
-      >
-        {BRAWLERS.map((b, i) => {
-          // Arc the line so middle brawlers sit higher, like a hero shot.
-          const mid = (BRAWLERS.length - 1) / 2;
-          const offset = Math.abs(i - mid);
-          const lift = (mid - offset) * 14;
-          const scale = 1 - offset * 0.05;
-          const delay = i * 0.12;
-          return (
-            <div
-              key={b.id}
-              style={{
-                width: 160,
-                height: 200,
-                marginLeft: i === 0 ? 0 : -38,
-                transform: `translateY(${-lift}px) scale(${scale})`,
-                position: "relative",
-                animation: `lineupBob 3.2s ease-in-out ${delay}s infinite`,
-              }}
-            >
-              <div
-                style={{
-                  position: "absolute",
-                  bottom: 0,
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  width: 130,
-                  height: 130,
-                  borderRadius: "50%",
-                  background: `radial-gradient(circle, ${b.color}88, ${b.color}00 70%)`,
-                  filter: "blur(14px)",
-                }}
-              />
-              <img
-                src={`${base}brawlers/${b.id}_front.png`}
-                alt={b.name}
-                style={{
-                  position: "relative",
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "contain",
-                  filter: `drop-shadow(0 8px 18px ${b.color}cc)`,
-                }}
-              />
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Vignette to soften edges and emphasize the bar */}
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          background:
-            "radial-gradient(ellipse at 50% 60%, transparent 35%, rgba(5,0,20,0.85) 90%)",
-          pointerEvents: "none",
-          zIndex: 2,
-        }}
-      />
 
       {/* Bottom-center progress block */}
       <div
@@ -249,9 +186,9 @@ export default function LoadingScreen({ onDone, duration = 4500, label = "ЗАГ
       </div>
 
       <style>{`
-        @keyframes lineupBob {
-          0%, 100% { transform: translateY(var(--lift, 0)) scale(1); }
-          50%      { transform: translateY(calc(var(--lift, 0) - 8px)) scale(1); }
+        @keyframes loadingZoom {
+          0%   { transform: scale(1.04) translate(0, 0); }
+          100% { transform: scale(1.12) translate(-1.5%, -1%); }
         }
         @keyframes shimmer {
           0%   { transform: translateX(-100%); }

@@ -56,34 +56,48 @@ export class ClashShowdown {
     this.spriteLoaded = spriteLoaded;
     
     const playerStats = getBrawlerById(playerBrawlerId) || BRAWLERS[0];
-    this.player = new Brawler(playerStats, playerLevel, 2500, 2500, "ffa-player", true);
-    
-    const usedPositions = [{ x: 2500, y: 2500 }];
+
+    // Spawn the player and 7 bots at 8 random positions evenly spread around
+    // the map perimeter, just like a real Showdown match. The player gets a
+    // random one of those slots — no longer always at dead center.
     const spawnPadding = 350;
-    
-    // Spawn bots in a ring around the player so they're encounterable
-    const botPicks = pickBotStats(playerBrawlerId, 7);
-    for (let i = 0; i < 7; i++) {
-      const botStats = botPicks[i];
-      const level = randomInt(1, 5);
-      
-      let bx: number, by: number;
+    const usedPositions: Array<{ x: number; y: number }> = [];
+    const totalSlots = 8;
+    const slotOffset = Math.random() * Math.PI * 2;
+    const allPositions: Array<{ x: number; y: number }> = [];
+    for (let i = 0; i < totalSlots; i++) {
+      let sx = 0, sy = 0;
       let attempts = 0;
       do {
-        const ringAngle = (i / 7) * Math.PI * 2 + Math.random() * 0.6;
-        const ringDist = 900 + Math.random() * 1100;
-        bx = Math.round(2500 + Math.cos(ringAngle) * ringDist);
-        by = Math.round(2500 + Math.sin(ringAngle) * ringDist);
-        bx = Math.max(200, Math.min(this.map.width - 200, bx));
-        by = Math.max(200, Math.min(this.map.height - 200, by));
+        const angle = (i / totalSlots) * Math.PI * 2 + slotOffset + (Math.random() - 0.5) * 0.4;
+        const ringDist = 1500 + Math.random() * 700;
+        sx = Math.round(2500 + Math.cos(angle) * ringDist);
+        sy = Math.round(2500 + Math.sin(angle) * ringDist);
+        sx = Math.max(300, Math.min(this.map.width - 300, sx));
+        sy = Math.max(300, Math.min(this.map.height - 300, sy));
         attempts++;
       } while (
-        usedPositions.some(p => Math.abs(p.x - bx) < spawnPadding && Math.abs(p.y - by) < spawnPadding) && 
+        usedPositions.some(p => Math.abs(p.x - sx) < spawnPadding && Math.abs(p.y - sy) < spawnPadding) &&
         attempts < 50
       );
-      
-      usedPositions.push({ x: bx, y: by });
-      this.bots.push(new Bot(botStats, level, bx, by, `ffa-${i}`));
+      usedPositions.push({ x: sx, y: sy });
+      allPositions.push({ x: sx, y: sy });
+    }
+
+    // Pick a random slot for the player; the rest go to bots.
+    const playerSlot = randomInt(0, totalSlots - 1);
+    const playerSpawn = allPositions[playerSlot];
+    this.player = new Brawler(playerStats, playerLevel, playerSpawn.x, playerSpawn.y, "ffa-player", true);
+
+    const botPicks = pickBotStats(playerBrawlerId, totalSlots - 1);
+    let botIdx = 0;
+    for (let i = 0; i < totalSlots; i++) {
+      if (i === playerSlot) continue;
+      const botStats = botPicks[botIdx];
+      const level = randomInt(1, 5);
+      const pos = allPositions[i];
+      this.bots.push(new Bot(botStats, level, pos.x, pos.y, `ffa-${botIdx}`));
+      botIdx++;
     }
     
     this.gas = {

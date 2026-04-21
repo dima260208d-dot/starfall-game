@@ -197,6 +197,7 @@ function CharacterDetail({
   const cost = upgradeBrawlerCost(level);
   const canAfford = coins >= cost.coins && powerPoints >= cost.powerPoints;
   const [msg, setMsg] = useState<string | null>(null);
+  const [showStatsModal, setShowStatsModal] = useState(false);
 
   const handleUpgrade = () => {
     if (isMax) { flash("Максимальный уровень!"); return; }
@@ -295,14 +296,38 @@ function CharacterDetail({
         zIndex: 5, width: 280,
         display: "flex", flexDirection: "column", gap: 10,
       }}>
-        <div style={{
-          background: "rgba(0,0,0,0.55)",
-          border: `1px solid ${brawler.color}55`,
-          borderRadius: 14, padding: "14px 16px",
-          backdropFilter: "blur(8px)",
-        }}>
-          <div style={{ fontSize: 11, color: brawler.color, fontWeight: 800, letterSpacing: 2, marginBottom: 10 }}>
-            ХАРАКТЕРИСТИКИ
+        <button
+          onClick={() => setShowStatsModal(true)}
+          style={{
+            background: "rgba(0,0,0,0.55)",
+            border: `1px solid ${brawler.color}55`,
+            borderRadius: 14, padding: "14px 16px",
+            backdropFilter: "blur(8px)",
+            color: "white", cursor: "pointer", textAlign: "left",
+            fontFamily: "inherit",
+            transition: "transform 0.15s, box-shadow 0.15s, border-color 0.15s",
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.transform = "translateY(-2px)";
+            e.currentTarget.style.boxShadow = `0 6px 25px ${brawler.color}66`;
+            e.currentTarget.style.borderColor = brawler.color;
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.transform = "";
+            e.currentTarget.style.boxShadow = "";
+            e.currentTarget.style.borderColor = `${brawler.color}55`;
+          }}
+        >
+          <div style={{
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+            marginBottom: 10,
+          }}>
+            <div style={{ fontSize: 11, color: brawler.color, fontWeight: 800, letterSpacing: 2 }}>
+              ХАРАКТЕРИСТИКИ
+            </div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", fontWeight: 700, letterSpacing: 1 }}>
+              ПОДРОБНЕЕ ▸
+            </div>
           </div>
           <Stat label="ЗДОРОВЬЕ" value={scaled.hp.toString()} icon="❤️" color="#4CAF50" />
           <Stat label="УРОН"     value={scaled.attackDamage.toString()} icon="⚔️" color="#FF5252" />
@@ -310,14 +335,7 @@ function CharacterDetail({
           <Stat label="ДАЛЬН-ТЬ" value={brawler.attackRange.toString()} icon="🎯" color="#CE93D8" />
           <Stat label="РЕГЕН"    value={`${brawler.regenRate}/c`} icon="✨" color="#69F0AE" />
           <Stat label="ЗАРЯДЫ"   value={brawler.attackCharges.toString()} icon="🔋" color="#FFD700" />
-
-          <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-            <div style={{ fontSize: 10, color: "#40C4FF", fontWeight: 700, letterSpacing: 1 }}>АТАКА: {brawler.attackName}</div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>{brawler.attackDesc}</div>
-            <div style={{ fontSize: 10, color: "#FFD700", fontWeight: 700, letterSpacing: 1, marginTop: 8 }}>СУПЕР: {brawler.superName}</div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>{brawler.superDesc}</div>
-          </div>
-        </div>
+        </button>
 
         <button
           onClick={handleUpgrade}
@@ -390,6 +408,183 @@ function CharacterDetail({
           {msg}
         </div>
       )}
+
+      {showStatsModal && (
+        <StatsModal
+          brawler={brawler}
+          level={level}
+          scaled={scaled}
+          onClose={() => setShowStatsModal(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+// =========================================================================
+// FULL STATS MODAL
+// =========================================================================
+
+interface StatsModalProps {
+  brawler: typeof BRAWLERS[number];
+  level: number;
+  scaled: ReturnType<typeof getScaledStats>;
+  onClose: () => void;
+}
+
+function StatsModal({ brawler, level, scaled, onClose }: StatsModalProps) {
+  const base = (import.meta as any).env?.BASE_URL ?? "/";
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 50,
+        background: "rgba(0,0,0,0.7)",
+        backdropFilter: "blur(8px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 20,
+        animation: "fadeIn 0.2s ease",
+      }}
+    >
+      <style>{`
+        @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes pop { from { transform: scale(0.92); opacity: 0 } to { transform: scale(1); opacity: 1 } }
+      `}</style>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: "relative",
+          width: "min(720px, 95vw)",
+          maxHeight: "90vh",
+          overflowY: "auto",
+          background: `linear-gradient(180deg, ${brawler.color}22 0%, #0a0028 60%, #050018 100%)`,
+          border: `2px solid ${brawler.color}`,
+          borderRadius: 20,
+          boxShadow: `0 30px 80px rgba(0,0,0,0.7), 0 0 80px ${brawler.color}55`,
+          animation: "pop 0.25s ease",
+          color: "white",
+        }}
+      >
+        {/* Header */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: 16,
+          padding: "20px 24px",
+          background: `linear-gradient(135deg, ${brawler.color}, ${brawler.secondaryColor})`,
+          borderRadius: "18px 18px 0 0",
+          position: "relative",
+        }}>
+          <img
+            src={`${base}brawlers/${brawler.id}_front.png`}
+            alt={brawler.name}
+            style={{ width: 90, height: 90, objectFit: "contain", filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.4))" }}
+          />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 32, fontWeight: 900, letterSpacing: 2, lineHeight: 1 }}>
+              {brawler.name.toUpperCase()}
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 3, opacity: 0.9, marginTop: 6 }}>
+              {brawler.role.toUpperCase()} • УРОВЕНЬ {level}/{MAX_BRAWLER_LEVEL}
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.3)",
+              borderRadius: 10, padding: "6px 12px",
+              color: "white", fontWeight: 800, cursor: "pointer", fontSize: 14,
+            }}
+          >✕</button>
+        </div>
+
+        {/* Stats grid */}
+        <div style={{ padding: "20px 24px" }}>
+          <SectionTitle color={brawler.color}>БОЕВЫЕ ХАРАКТЕРИСТИКИ</SectionTitle>
+          <div style={{
+            display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10,
+            marginBottom: 18,
+          }}>
+            <FullStat icon="❤️"  label="ЗДОРОВЬЕ"          value={`${scaled.hp}`}                  base={`${brawler.hp} базовый`} color="#4CAF50" />
+            <FullStat icon="⚔️"  label="УРОН АТАКИ"        value={`${scaled.attackDamage}`}        base={`${brawler.attackDamage} базовый`} color="#FF5252" />
+            <FullStat icon="👟"  label="СКОРОСТЬ"           value={brawler.speed.toFixed(1)}         base="клеток в секунду" color="#40C4FF" />
+            <FullStat icon="🎯"  label="ДАЛЬНОСТЬ"          value={`${brawler.attackRange}`}         base="радиус выстрела"  color="#CE93D8" />
+            <FullStat icon="✨"  label="РЕГЕНЕРАЦИЯ"        value={`${brawler.regenRate}/c`}         base="HP в секунду"     color="#69F0AE" />
+            <FullStat icon="🔋"  label="ЗАРЯДЫ АТАКИ"       value={`${brawler.attackCharges}`}       base="макс. одновременно" color="#FFD700" />
+            <FullStat icon="⏱"  label="ПЕРЕЗАРЯДКА"        value={`${brawler.attackCooldown.toFixed(1)}c`} base="между выстрелами" color="#FFAB40" />
+            <FullStat icon="⚡"  label="ОТКАТ СУПЕРА"       value={`${brawler.superCooldown}c`}      base="максимум"         color="#E040FB" />
+          </div>
+
+          <SectionTitle color="#40C4FF">⚔️ ОСНОВНАЯ АТАКА — {brawler.attackName}</SectionTitle>
+          <div style={{
+            background: "rgba(64,196,255,0.08)",
+            border: "1px solid rgba(64,196,255,0.3)",
+            borderRadius: 12,
+            padding: "12px 14px",
+            fontSize: 13, lineHeight: 1.55,
+            color: "rgba(255,255,255,0.85)",
+            marginBottom: 18,
+          }}>
+            {brawler.attackDesc}
+          </div>
+
+          <SectionTitle color="#FFD700">⚡ СУПЕРСПОСОБНОСТЬ — {brawler.superName}</SectionTitle>
+          <div style={{
+            background: "rgba(255,215,0,0.08)",
+            border: "1px solid rgba(255,215,0,0.3)",
+            borderRadius: 12,
+            padding: "12px 14px",
+            fontSize: 13, lineHeight: 1.55,
+            color: "rgba(255,255,255,0.85)",
+            marginBottom: 18,
+          }}>
+            {brawler.superDesc}
+          </div>
+
+          <SectionTitle color={brawler.color}>📜 ОПИСАНИЕ</SectionTitle>
+          <div style={{
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.1)",
+            borderRadius: 12,
+            padding: "12px 14px",
+            fontSize: 12, lineHeight: 1.5,
+            color: "rgba(255,255,255,0.7)",
+            fontStyle: "italic",
+          }}>
+            {brawler.description}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SectionTitle({ children, color }: { children: React.ReactNode; color: string }) {
+  return (
+    <div style={{
+      fontSize: 11, color, fontWeight: 800, letterSpacing: 2,
+      marginBottom: 10, marginTop: 4,
+    }}>
+      {children}
+    </div>
+  );
+}
+
+function FullStat({ icon, label, value, base, color }: { icon: string; label: string; value: string; base: string; color: string }) {
+  return (
+    <div style={{
+      background: "rgba(0,0,0,0.4)",
+      border: "1px solid rgba(255,255,255,0.08)",
+      borderRadius: 10,
+      padding: "10px 12px",
+    }}>
+      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", fontWeight: 700, letterSpacing: 1, marginBottom: 4 }}>
+        {icon} {label}
+      </div>
+      <div style={{ fontSize: 22, color, fontWeight: 900, lineHeight: 1 }}>
+        {value}
+      </div>
+      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 4 }}>
+        {base}
+      </div>
     </div>
   );
 }
