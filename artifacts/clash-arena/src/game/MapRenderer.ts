@@ -51,7 +51,6 @@ export function createShowdownMap(): GameMap {
     { x: 0, y: H - 60, w: W, h: 60, solid: true },
     { x: 0, y: 0, w: 60, h: H, solid: true },
     { x: W - 60, y: 0, w: 60, h: H, solid: true },
-    // Inner walls
     { x: 400, y: 400, w: 200, h: 60, solid: true },
     { x: 800, y: 600, w: 60, h: 200, solid: true },
     { x: 1200, y: 300, w: 300, h: 60, solid: true },
@@ -94,7 +93,6 @@ export function createShowdownMap(): GameMap {
     { x: 3000, y: 4300, w: 60, h: 250, solid: true },
     { x: 3600, y: 4100, w: 300, h: 60, solid: true },
     { x: 4200, y: 4300, w: 60, h: 250, solid: true },
-    // Center pillars
     { x: 2300, y: 2300, w: 100, h: 100, solid: true },
     { x: 2600, y: 2300, w: 100, h: 100, solid: true },
     { x: 2300, y: 2600, w: 100, h: 100, solid: true },
@@ -187,7 +185,24 @@ export function createCrystalsMap(): GameMap {
   return { width: W, height: H, walls, bushes, crates, rivers, tileSize: 60, name: "Кристальная шахта" };
 }
 
-export function renderMap(ctx: CanvasRenderingContext2D, map: GameMap, camX: number, camY: number, canvasW: number, canvasH: number): void {
+// Deterministic pseudo-random noise from integer coords (stable per tile)
+function noise2(x: number, y: number): number {
+  const n = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+  return n - Math.floor(n);
+}
+
+const WALL_DEPTH = 16; // pseudo-3D extrusion offset for walls/crates
+const WALL_SHADOW = 22;
+
+export function renderMap(
+  ctx: CanvasRenderingContext2D,
+  map: GameMap,
+  camX: number,
+  camY: number,
+  canvasW: number,
+  canvasH: number,
+  frame = 0
+): void {
   const startTX = Math.floor(camX / map.tileSize);
   const endTX = Math.ceil((camX + canvasW) / map.tileSize);
   const startTY = Math.floor(camY / map.tileSize);
@@ -195,6 +210,7 @@ export function renderMap(ctx: CanvasRenderingContext2D, map: GameMap, camX: num
 
   const isShowdown = map.name === "Заброшенный храм";
 
+  // ---------- GROUND TILES with realistic texture ----------
   for (let tx = startTX; tx <= endTX; tx++) {
     for (let ty = startTY; ty <= endTY; ty++) {
       const wx = tx * map.tileSize;
@@ -205,117 +221,340 @@ export function renderMap(ctx: CanvasRenderingContext2D, map: GameMap, camX: num
       const isEdge = wx < 200 || wy < 200 || wx > map.width - 200 || wy > map.height - 200;
       const isCenter = Math.abs(wx - map.width / 2) < 400 && Math.abs(wy - map.height / 2) < 400;
 
-      let tileColor: string;
+      const n = noise2(tx, ty);
+      const nVar = (n - 0.5) * 18; // brightness variation per tile
+
+      let r: number, g: number, b: number;
       if (isEdge) {
-        tileColor = isShowdown ? "#2D4A1E" : "#1A3A2A";
+        if (isShowdown) { r = 45; g = 74; b = 30; }
+        else { r = 26; g = 58; b = 42; }
       } else if (isCenter) {
-        tileColor = isShowdown ? "#B8965A" : "#4A3060";
+        if (isShowdown) { r = 184; g = 150; b = 90; }
+        else { r = 74; g = 48; b = 96; }
       } else {
         const checker = (tx + ty) % 2;
-        tileColor = isShowdown
-          ? (checker ? "#8B7355" : "#9B8365")
-          : (checker ? "#2D1B4E" : "#341F5A");
+        if (isShowdown) {
+          r = checker ? 139 : 155;
+          g = checker ? 115 : 131;
+          b = checker ? 85 : 101;
+        } else {
+          r = checker ? 45 : 52;
+          g = checker ? 27 : 31;
+          b = checker ? 78 : 90;
+        }
+      }
+      r = Math.max(0, Math.min(255, r + nVar));
+      g = Math.max(0, Math.min(255, g + nVar));
+      b = Math.max(0, Math.min(255, b + nVar));
+
+      ctx.fillStyle = `rgb(${r | 0},${g | 0},${b | 0})`;
+      ctx.fillRect(sx, sy, map.tileSize + 1, map.tileSize + 1);
+
+      // Subtle stone speckles
+      const spec = noise2(tx * 7.13, ty * 5.41);
+      if (spec > 0.85) {
+        ctx.fillStyle = `rgba(255,255,255,${(spec - 0.85) * 0.6})`;
+        const px = sx + n * map.tileSize;
+        const py = sy + spec * map.tileSize;
+        ctx.fillRect(px, py, 2, 2);
       }
 
-      ctx.fillStyle = tileColor;
-      ctx.fillRect(sx, sy, map.tileSize + 1, map.tileSize + 1);
+      // Tile grout lines for depth
+      ctx.strokeStyle = "rgba(0,0,0,0.12)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(sx + 0.5, sy + 0.5, map.tileSize, map.tileSize);
     }
   }
 
+  // Vignette overlay near map borders for atmosphere
+  {
+    const edgeFade = 240;
+    const grad = ctx.createRadialGradient(
+      canvasW / 2, canvasH / 2, Math.min(canvasW, canvasH) * 0.35,
+      canvasW / 2, canvasH / 2, Math.max(canvasW, canvasH) * 0.75
+    );
+    grad.addColorStop(0, "rgba(0,0,0,0)");
+    grad.addColorStop(1, "rgba(0,0,0,0.35)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, canvasW, canvasH);
+    void edgeFade;
+  }
+
+  // ---------- RIVERS with animated water ----------
+  const t = frame * 0.05;
   for (const river of map.rivers) {
     const sx = river.x - camX;
     const sy = river.y - camY;
     if (sx + river.w < 0 || sy + river.h < 0 || sx > canvasW || sy > canvasH) continue;
 
-    const grad = ctx.createLinearGradient(sx, sy, sx + river.w, sy + river.h);
-    grad.addColorStop(0, "#1565C0");
+    // Recessed dark base (depth)
+    ctx.fillStyle = "rgba(0,0,0,0.45)";
+    ctx.fillRect(sx - 2, sy - 2, river.w + 4, river.h + 4);
+
+    const grad = ctx.createLinearGradient(sx, sy, sx, sy + river.h);
+    grad.addColorStop(0, "#0D47A1");
     grad.addColorStop(0.5, "#1976D2");
-    grad.addColorStop(1, "#1565C0");
+    grad.addColorStop(1, "#0D47A1");
     ctx.fillStyle = grad;
     ctx.fillRect(sx, sy, river.w, river.h);
 
-    ctx.strokeStyle = "rgba(255,255,255,0.2)";
-    ctx.lineWidth = 1;
-    for (let i = 0; i < 3; i++) {
-      const waveY = sy + river.h * 0.3 + i * river.h * 0.2;
+    // Caustic / wave shimmer
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(sx, sy, river.w, river.h);
+    ctx.clip();
+    ctx.strokeStyle = "rgba(180,220,255,0.45)";
+    ctx.lineWidth = 1.5;
+    for (let i = 0; i < 5; i++) {
       ctx.beginPath();
-      ctx.moveTo(sx, waveY);
-      ctx.lineTo(sx + river.w, waveY);
+      const baseY = sy + (river.h * (i + 0.5)) / 5;
+      ctx.moveTo(sx, baseY);
+      const step = 14;
+      for (let xx = 0; xx <= river.w; xx += step) {
+        const yy = baseY + Math.sin((xx + t * 30 + i * 50) * 0.06) * 3.2;
+        ctx.lineTo(sx + xx, yy);
+      }
       ctx.stroke();
     }
+    // Highlight specular dots
+    ctx.fillStyle = "rgba(255,255,255,0.5)";
+    for (let i = 0; i < 6; i++) {
+      const px = sx + ((i * 73 + frame * 0.7) % river.w);
+      const py = sy + ((i * 41) % river.h);
+      ctx.fillRect(px, py, 2, 1);
+    }
+    ctx.restore();
+
+    // Bank highlight
+    ctx.strokeStyle = "rgba(255,255,255,0.15)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(sx + 0.5, sy + 0.5, river.w - 1, river.h - 1);
   }
 
+  // ---------- BUSHES — multi-layer foliage with bevel ----------
   for (const bush of map.bushes) {
     const sx = bush.x - camX;
     const sy = bush.y - camY;
     if (sx + bush.radius < 0 || sy + bush.radius < 0 || sx - bush.radius > canvasW || sy - bush.radius > canvasH) continue;
 
     ctx.save();
-    for (let i = 0; i < 3; i++) {
-      const ox = (i - 1) * bush.radius * 0.4;
+    // Soft ground shadow
+    ctx.fillStyle = "rgba(0,0,0,0.35)";
+    ctx.beginPath();
+    ctx.ellipse(sx + 6, sy + bush.radius * 0.55, bush.radius * 0.95, bush.radius * 0.35, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Dark base layer
+    ctx.fillStyle = "#1B5E20";
+    ctx.beginPath();
+    ctx.arc(sx, sy + 4, bush.radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Mid layer clusters
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2;
+      const ox = Math.cos(a) * bush.radius * 0.45;
+      const oy = Math.sin(a) * bush.radius * 0.4;
       ctx.beginPath();
-      ctx.arc(sx + ox, sy, bush.radius * (0.7 + i * 0.1), 0, Math.PI * 2);
-      ctx.fillStyle = i === 1 ? "#2E7D32" : "#388E3C";
+      ctx.arc(sx + ox, sy + oy, bush.radius * 0.55, 0, Math.PI * 2);
+      ctx.fillStyle = i % 2 === 0 ? "#2E7D32" : "#388E3C";
       ctx.fill();
     }
+
+    // Top highlight cluster
     ctx.beginPath();
-    ctx.arc(sx, sy, bush.radius * 0.7, 0, Math.PI * 2);
-    ctx.fillStyle = "#43A047";
+    ctx.arc(sx, sy - bush.radius * 0.1, bush.radius * 0.55, 0, Math.PI * 2);
+    const bgrad = ctx.createRadialGradient(
+      sx - bush.radius * 0.2, sy - bush.radius * 0.3, 2,
+      sx, sy, bush.radius * 0.7
+    );
+    bgrad.addColorStop(0, "#A5D6A7");
+    bgrad.addColorStop(0.5, "#66BB6A");
+    bgrad.addColorStop(1, "#43A047");
+    ctx.fillStyle = bgrad;
+    ctx.fill();
+
+    // Specular leaf highlights
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    ctx.beginPath();
+    ctx.ellipse(sx - bush.radius * 0.25, sy - bush.radius * 0.3, bush.radius * 0.15, bush.radius * 0.07, -0.4, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
 
+  // ---------- CRATES — pseudo-3D wooden boxes ----------
   for (const crate of map.crates) {
     if (crate.destroyed) continue;
     const sx = crate.x - camX;
     const sy = crate.y - camY;
     if (sx + crate.w < 0 || sy + crate.h < 0 || sx > canvasW || sy > canvasH) continue;
 
-    const hpRatio = crate.hp / crate.maxHp;
-    const crateColor = hpRatio > 0.66 ? "#8D6E63" : hpRatio > 0.33 ? "#795548" : "#6D4C41";
-
-    ctx.fillStyle = crateColor;
-    ctx.fillRect(sx, sy, crate.w, crate.h);
-    ctx.strokeStyle = "#5D4037";
-    ctx.lineWidth = 3;
-    ctx.strokeRect(sx, sy, crate.w, crate.h);
-
-    ctx.strokeStyle = "#A1887F";
-    ctx.lineWidth = 1;
+    const depth = 10;
+    // Shadow
+    ctx.fillStyle = "rgba(0,0,0,0.45)";
     ctx.beginPath();
-    ctx.moveTo(sx, sy);
-    ctx.lineTo(sx + crate.w, sy + crate.h);
+    ctx.ellipse(sx + crate.w / 2 + 4, sy + crate.h + 6, crate.w * 0.55, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    const hpRatio = crate.hp / crate.maxHp;
+    const baseR = hpRatio > 0.66 ? 141 : hpRatio > 0.33 ? 121 : 109;
+    const baseG = hpRatio > 0.66 ? 110 : hpRatio > 0.33 ? 85 : 76;
+    const baseB = hpRatio > 0.66 ? 99 : hpRatio > 0.33 ? 72 : 65;
+
+    // Right side face (extrusion)
+    ctx.fillStyle = `rgb(${baseR - 35},${baseG - 30},${baseB - 25})`;
+    ctx.beginPath();
     ctx.moveTo(sx + crate.w, sy);
-    ctx.lineTo(sx, sy + crate.h);
+    ctx.lineTo(sx + crate.w + depth, sy - depth * 0.5);
+    ctx.lineTo(sx + crate.w + depth, sy + crate.h - depth * 0.5);
+    ctx.lineTo(sx + crate.w, sy + crate.h);
+    ctx.closePath();
+    ctx.fill();
+
+    // Top face
+    const topGrad = ctx.createLinearGradient(sx, sy, sx + crate.w, sy + crate.h);
+    topGrad.addColorStop(0, `rgb(${baseR + 25},${baseG + 20},${baseB + 15})`);
+    topGrad.addColorStop(1, `rgb(${baseR - 10},${baseG - 8},${baseB - 6})`);
+    ctx.fillStyle = topGrad;
+    ctx.fillRect(sx, sy, crate.w, crate.h);
+
+    // Wood plank lines
+    ctx.strokeStyle = `rgb(${baseR - 35},${baseG - 30},${baseB - 25})`;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy + crate.h / 2);
+    ctx.lineTo(sx + crate.w, sy + crate.h / 2);
     ctx.stroke();
 
-    if (hpRatio < 1) {
-      ctx.strokeStyle = "rgba(0,0,0,0.5)";
-      ctx.lineWidth = 2;
+    // Iron straps
+    ctx.fillStyle = "rgba(60,50,45,0.85)";
+    ctx.fillRect(sx, sy, crate.w, 4);
+    ctx.fillRect(sx, sy + crate.h - 4, crate.w, 4);
+    // Rivets
+    ctx.fillStyle = "#3E2723";
+    for (const px of [sx + 4, sx + crate.w - 6]) {
       ctx.beginPath();
-      ctx.moveTo(sx + 5, sy + 10);
-      ctx.lineTo(sx + 15, sy + 5);
+      ctx.arc(px + 1, sy + 2, 1.5, 0, Math.PI * 2);
+      ctx.arc(px + 1, sy + crate.h - 2, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Bevel highlight on top edge
+    ctx.fillStyle = "rgba(255,235,200,0.3)";
+    ctx.fillRect(sx, sy, crate.w, 2);
+    ctx.fillRect(sx, sy, 2, crate.h);
+
+    // Outline
+    ctx.strokeStyle = "rgba(40,25,15,0.9)";
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(sx + 0.5, sy + 0.5, crate.w - 1, crate.h - 1);
+
+    // Damage cracks
+    if (hpRatio < 1) {
+      ctx.strokeStyle = "rgba(0,0,0,0.7)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(sx + crate.w * 0.2, sy + crate.h * 0.3);
+      ctx.lineTo(sx + crate.w * 0.5, sy + crate.h * 0.5);
+      ctx.lineTo(sx + crate.w * 0.4, sy + crate.h * 0.7);
       ctx.stroke();
+      if (hpRatio < 0.5) {
+        ctx.beginPath();
+        ctx.moveTo(sx + crate.w * 0.7, sy + crate.h * 0.2);
+        ctx.lineTo(sx + crate.w * 0.6, sy + crate.h * 0.6);
+        ctx.lineTo(sx + crate.w * 0.85, sy + crate.h * 0.8);
+        ctx.stroke();
+      }
     }
   }
 
+  // ---------- WALLS — pseudo-3D extruded blocks ----------
+  // Pass 1: drop shadows (soft)
+  for (const wall of map.walls) {
+    const sx = wall.x - camX;
+    const sy = wall.y - camY;
+    if (sx + wall.w + WALL_SHADOW < 0 || sy + wall.h + WALL_SHADOW < 0 || sx > canvasW || sy > canvasH) continue;
+    ctx.fillStyle = "rgba(0,0,0,0.35)";
+    ctx.fillRect(sx + WALL_SHADOW * 0.6, sy + WALL_SHADOW, wall.w, wall.h);
+  }
+
+  // Pass 2: side faces (right and bottom extrusion)
+  for (const wall of map.walls) {
+    const sx = wall.x - camX;
+    const sy = wall.y - camY;
+    if (sx + wall.w + WALL_DEPTH < 0 || sy + wall.h + WALL_DEPTH < 0 || sx > canvasW || sy > canvasH) continue;
+
+    // Right face
+    ctx.fillStyle = isShowdown ? "#3E3E3E" : "#2A0E55";
+    ctx.beginPath();
+    ctx.moveTo(sx + wall.w, sy);
+    ctx.lineTo(sx + wall.w + WALL_DEPTH, sy + WALL_DEPTH);
+    ctx.lineTo(sx + wall.w + WALL_DEPTH, sy + wall.h + WALL_DEPTH);
+    ctx.lineTo(sx + wall.w, sy + wall.h);
+    ctx.closePath();
+    ctx.fill();
+
+    // Bottom face
+    ctx.fillStyle = isShowdown ? "#2E2E2E" : "#1F0840";
+    ctx.beginPath();
+    ctx.moveTo(sx, sy + wall.h);
+    ctx.lineTo(sx + WALL_DEPTH, sy + wall.h + WALL_DEPTH);
+    ctx.lineTo(sx + wall.w + WALL_DEPTH, sy + wall.h + WALL_DEPTH);
+    ctx.lineTo(sx + wall.w, sy + wall.h);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Pass 3: top faces with gradient + bevel
   for (const wall of map.walls) {
     const sx = wall.x - camX;
     const sy = wall.y - camY;
     if (sx + wall.w < 0 || sy + wall.h < 0 || sx > canvasW || sy > canvasH) continue;
 
     const grad = ctx.createLinearGradient(sx, sy, sx + wall.w, sy + wall.h);
-    grad.addColorStop(0, isShowdown ? "#757575" : "#4A148C");
-    grad.addColorStop(1, isShowdown ? "#616161" : "#6A1B9A");
+    if (isShowdown) {
+      grad.addColorStop(0, "#A8A8A8");
+      grad.addColorStop(0.5, "#888888");
+      grad.addColorStop(1, "#5C5C5C");
+    } else {
+      grad.addColorStop(0, "#9C27B0");
+      grad.addColorStop(0.5, "#7B1FA2");
+      grad.addColorStop(1, "#4A148C");
+    }
     ctx.fillStyle = grad;
     ctx.fillRect(sx, sy, wall.w, wall.h);
 
-    ctx.strokeStyle = isShowdown ? "#9E9E9E" : "#7B1FA2";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(sx, sy, wall.w, wall.h);
+    // Stone block subdivision lines
+    ctx.strokeStyle = "rgba(0,0,0,0.4)";
+    ctx.lineWidth = 1;
+    const blockSize = 40;
+    for (let bx = blockSize; bx < wall.w; bx += blockSize) {
+      ctx.beginPath();
+      ctx.moveTo(sx + bx, sy);
+      ctx.lineTo(sx + bx, sy + wall.h);
+      ctx.stroke();
+    }
+    for (let by = blockSize; by < wall.h; by += blockSize) {
+      ctx.beginPath();
+      ctx.moveTo(sx, sy + by);
+      ctx.lineTo(sx + wall.w, sy + by);
+      ctx.stroke();
+    }
 
-    ctx.fillStyle = isShowdown ? "rgba(255,255,255,0.1)" : "rgba(150,100,255,0.1)";
-    ctx.fillRect(sx, sy, wall.w * 0.4, wall.h * 0.3);
+    // Top + left bevel highlight (light from top-left)
+    ctx.fillStyle = isShowdown ? "rgba(255,255,255,0.35)" : "rgba(225,180,255,0.35)";
+    ctx.fillRect(sx, sy, wall.w, 3);
+    ctx.fillRect(sx, sy, 3, wall.h);
+
+    // Right + bottom inner shadow
+    ctx.fillStyle = "rgba(0,0,0,0.25)";
+    ctx.fillRect(sx, sy + wall.h - 2, wall.w, 2);
+    ctx.fillRect(sx + wall.w - 2, sy, 2, wall.h);
+
+    // Outline
+    ctx.strokeStyle = "rgba(0,0,0,0.7)";
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(sx + 0.5, sy + 0.5, wall.w - 1, wall.h - 1);
   }
 }
 

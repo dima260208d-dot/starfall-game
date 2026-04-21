@@ -206,7 +206,7 @@ export class ClashGemGrab {
 
   render(ctx: CanvasRenderingContext2D): void {
     ctx.clearRect(0, 0, 1200, 800);
-    renderMap(ctx, this.map, this.camera.x, this.camera.y, 1200, 800);
+    renderMap(ctx, this.map, this.camera.x, this.camera.y, 1200, 800, this.frame);
     // Center vein indicator
     const csx = 1750 - this.camera.x;
     const csy = 1750 - this.camera.y;

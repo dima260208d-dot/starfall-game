@@ -320,7 +320,7 @@ export class ClashCrystals {
   render(ctx: CanvasRenderingContext2D): void {
     ctx.clearRect(0, 0, 1200, 800);
     
-    renderMap(ctx, this.map, this.camera.x, this.camera.y, 1200, 800);
+    renderMap(ctx, this.map, this.camera.x, this.camera.y, 1200, 800, this.frame);
     
     this.renderGoalZones(ctx);
     this.renderCrystals(ctx);

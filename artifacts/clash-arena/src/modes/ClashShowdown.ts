@@ -293,7 +293,7 @@ export class ClashShowdown {
   render(ctx: CanvasRenderingContext2D): void {
     ctx.clearRect(0, 0, 1200, 800);
     
-    renderMap(ctx, this.map, this.camera.x, this.camera.y, 1200, 800);
+    renderMap(ctx, this.map, this.camera.x, this.camera.y, 1200, 800, this.frame);
     
     this.renderDrops(ctx);
     this.renderGas(ctx);

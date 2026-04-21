@@ -191,7 +191,7 @@ export class ClashHeist {
 
   render(ctx: CanvasRenderingContext2D): void {
     ctx.clearRect(0, 0, 1200, 800);
-    renderMap(ctx, this.map, this.camera.x, this.camera.y, 1200, 800);
+    renderMap(ctx, this.map, this.camera.x, this.camera.y, 1200, 800, this.frame);
     this.renderSafes(ctx);
     const allBrawlers = [this.player, ...this.allies, ...this.enemies];
     const _friendlies = [this.player, ...this.allies].filter(b => b.alive).map(b => ({ x: b.x, y: b.y }));
