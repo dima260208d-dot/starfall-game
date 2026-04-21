@@ -2,7 +2,7 @@ import { Brawler, Team } from "./Brawler";
 import { BrawlerStats } from "./BrawlerData";
 import { Projectile } from "./Projectile";
 import { GameMap, collidesWithWalls } from "../game/MapRenderer";
-import { distance, angleTo, randomFloat } from "../utils/helpers";
+import { distance, angleTo, randomFloat, lineBlockedByWalls } from "../utils/helpers";
 
 type BotState = "idle" | "chase" | "attack" | "retreat" | "wander" | "forced";
 
@@ -26,6 +26,12 @@ export class Bot extends Brawler {
     this.stateTimer -= dt;
     this.attackTimer -= dt;
     this.wanderTimer -= dt;
+
+    // Passive super charge so bots actually use ultimates
+    if (!this.superReady) {
+      this.superCharge = Math.min(this.maxSuperCharge, this.superCharge + dt * (this.maxSuperCharge / 22));
+      if (this.superCharge >= this.maxSuperCharge) this.superReady = true;
+    }
 
     const enemies = allBrawlers.filter(b => b.alive && b.team !== this.team);
 
@@ -99,13 +105,31 @@ export class Bot extends Brawler {
 
       case "attack":
         if (this.target && this.target.alive) {
-          if (this.attackTimer <= 0 && this.canAttack()) {
+          const isMelee = ["goro", "ronin", "taro"].includes(this.stats.id);
+          // Check that walls don't block our shot — bots understand walls
+          const losBlocked = !isMelee && lineBlockedByWalls(this.x, this.y, this.target.x, this.target.y, map.walls);
+          // Don't shoot if a friendly is right in our line of fire
+          let friendlyInLine = false;
+          if (!isMelee) {
+            for (const ally of allBrawlers) {
+              if (!ally.alive || ally.team !== this.team || ally.id === this.id) continue;
+              // Project ally onto the bot→target line and check perpendicular distance
+              const tx = this.target.x - this.x, ty = this.target.y - this.y;
+              const len2 = tx * tx + ty * ty || 1;
+              const ax = ally.x - this.x, ay = ally.y - this.y;
+              const t = (ax * tx + ay * ty) / len2;
+              if (t <= 0 || t >= 1) continue;
+              const px = ax - t * tx, py = ay - t * ty;
+              if (px * px + py * py < (ally.radius + 8) ** 2) { friendlyInLine = true; break; }
+            }
+          }
+
+          if (this.attackTimer <= 0 && this.canAttack() && !losBlocked && !friendlyInLine) {
             const missChance = Math.random() < 0.15;
             const targetAngle = angleTo(this.x, this.y, this.target.x, this.target.y);
             const fireAngle = missChance ? targetAngle + randomFloat(-0.3, 0.3) : targetAngle;
             this.angle = fireAngle;
-            
-            const isMelee = ["goro", "ronin", "taro"].includes(this.stats.id);
+
             if (isMelee) {
               this.meleeAttack(allBrawlers);
             } else {
@@ -113,6 +137,14 @@ export class Bot extends Brawler {
               projectiles.push(...newProjs);
             }
             this.attackTimer = this.stats.attackCooldown * (0.8 + Math.random() * 0.6);
+          } else if (losBlocked || friendlyInLine) {
+            // No clean shot — sidestep to flank around the wall / teammate
+            const toTarget = angleTo(this.x, this.y, this.target.x, this.target.y);
+            const flankDir = (this.id.charCodeAt(0) % 2 === 0) ? 1 : -1;
+            const flankAngle = toTarget + Math.PI / 2 * flankDir;
+            const steered = this.steerAroundWalls(Math.cos(flankAngle), Math.sin(flankAngle), map);
+            this.move(steered.x, steered.y, dt * 0.85);
+            break;
           }
           
           // Strafe perpendicular to target to dodge incoming shots

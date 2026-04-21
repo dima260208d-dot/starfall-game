@@ -82,6 +82,50 @@ export function autoAimAngle(
   return fallbackAngle;
 }
 
+export interface LOSWall { x: number; y: number; w: number; h: number; solid: boolean }
+
+// Returns true if the segment from (x1,y1)→(x2,y2) intersects any solid wall rect.
+export function lineBlockedByWalls(
+  x1: number, y1: number, x2: number, y2: number, walls: LOSWall[]
+): boolean {
+  for (const w of walls) {
+    if (!w.solid) continue;
+    if (segIntersectsRect(x1, y1, x2, y2, w.x, w.y, w.x + w.w, w.y + w.h)) return true;
+  }
+  return false;
+}
+
+function segIntersectsRect(
+  x1: number, y1: number, x2: number, y2: number,
+  rx1: number, ry1: number, rx2: number, ry2: number
+): boolean {
+  // Quick reject if the segment's bounding box doesn't touch the rect
+  const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
+  const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
+  if (maxX < rx1 || minX > rx2 || maxY < ry1 || minY > ry2) return false;
+  // If either endpoint is inside the rect, blocked
+  if (x1 >= rx1 && x1 <= rx2 && y1 >= ry1 && y1 <= ry2) return true;
+  if (x2 >= rx1 && x2 <= rx2 && y2 >= ry1 && y2 <= ry2) return true;
+  // Test against the four edges
+  return (
+    segSeg(x1, y1, x2, y2, rx1, ry1, rx2, ry1) ||
+    segSeg(x1, y1, x2, y2, rx2, ry1, rx2, ry2) ||
+    segSeg(x1, y1, x2, y2, rx2, ry2, rx1, ry2) ||
+    segSeg(x1, y1, x2, y2, rx1, ry2, rx1, ry1)
+  );
+}
+
+function segSeg(
+  ax: number, ay: number, bx: number, by: number,
+  cx: number, cy: number, dx: number, dy: number
+): boolean {
+  const r = (bx - ax) * (dy - cy) - (by - ay) * (dx - cx);
+  if (r === 0) return false;
+  const t = ((cx - ax) * (dy - cy) - (cy - ay) * (dx - cx)) / r;
+  const u = ((cx - ax) * (by - ay) - (cy - ay) * (bx - ax)) / r;
+  return t >= 0 && t <= 1 && u >= 0 && u <= 1;
+}
+
 export function hpColor(ratio: number): string {
   const r = Math.floor(255 * (1 - ratio));
   const g = Math.floor(255 * ratio);
