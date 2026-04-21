@@ -47,6 +47,41 @@ export function normalizeAngle(a: number): number {
   return a;
 }
 
+export interface AutoAimTarget {
+  alive: boolean;
+  inBush: boolean;
+  team: string;
+  x: number;
+  y: number;
+  radius: number;
+}
+
+export function autoAimAngle(
+  player: { x: number; y: number; team: string; stats: { attackRange: number } },
+  candidates: AutoAimTarget[],
+  fallbackAngle: number,
+  rangeMultiplier = 1.15
+): number {
+  const range = player.stats.attackRange * rangeMultiplier;
+  let best: AutoAimTarget | null = null;
+  let bestD = Infinity;
+  for (const c of candidates) {
+    if (!c.alive) continue;
+    if (c.team === player.team) continue;
+    if (c.inBush) {
+      const dd = distance(player.x, player.y, c.x, c.y);
+      if (dd > 140) continue;
+    }
+    const d = distance(player.x, player.y, c.x, c.y);
+    if (d < range + c.radius && d < bestD) {
+      bestD = d;
+      best = c;
+    }
+  }
+  if (best) return angleTo(player.x, player.y, best.x, best.y);
+  return fallbackAngle;
+}
+
 export function hpColor(ratio: number): string {
   const r = Math.floor(255 * (1 - ratio));
   const g = Math.floor(255 * ratio);

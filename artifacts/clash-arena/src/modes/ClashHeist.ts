@@ -6,7 +6,7 @@ import { Projectile, updateProjectiles, renderProjectiles } from "../entities/Pr
 import { Camera } from "../game/Camera";
 import { InputHandler } from "../game/InputHandler";
 import { updateDamageNumbers, renderDamageNumbers, clearDamageNumbers, spawnDamageNumber } from "../utils/damageNumbers";
-import { angleTo, distance, randomInt } from "../utils/helpers";
+import { angleTo, autoAimAngle, distance, randomInt } from "../utils/helpers";
 import { recordGameResult } from "../utils/localStorageAPI";
 import { renderPlayerHUD } from "./sharedHUD";
 
@@ -59,7 +59,8 @@ export class ClashHeist {
 
   handleAttack(): void {
     if (!this.player.canAttack()) return;
-    const angle = angleTo(this.player.x, this.player.y, this.input.state.mouseWorldX, this.input.state.mouseWorldY);
+    const mouseAngle = angleTo(this.player.x, this.player.y, this.input.state.mouseWorldX, this.input.state.mouseWorldY);
+    const angle = autoAimAngle(this.player, this.enemies, mouseAngle);
     this.player.angle = angle;
     const isMelee = ["goro", "ronin", "taro"].includes(this.player.stats.id);
     const allBrawlers = [this.player, ...this.allies, ...this.enemies];
