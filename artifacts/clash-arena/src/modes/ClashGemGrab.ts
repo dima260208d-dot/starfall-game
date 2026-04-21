@@ -27,6 +27,7 @@ export class ClashGemGrab {
   blueCountdown = 0; // counts down from 15 when team holds 10+
   redCountdown = 0;
   respawnTimers: Map<string, number> = new Map();
+  playerRespawnTimer = 0;
 
   over = false;
   won = false;
@@ -170,9 +171,21 @@ export class ClashGemGrab {
       if (!bot.alive && !this.respawnTimers.has(bot.id)) this.respawnTimers.set(bot.id, 5);
     }
 
+    // Player respawn (team mode)
     if (!this.player.alive) {
-      this.over = true; this.won = false;
-      if (!this.resultRecorded) { recordGameResult(false, "gemgrab"); this.resultRecorded = true; }
+      if (this.playerRespawnTimer <= 0) {
+        this.playerRespawnTimer = 5;
+      } else {
+        this.playerRespawnTimer -= dt;
+        if (this.playerRespawnTimer <= 0) {
+          this.player.alive = true;
+          this.player.hp = this.player.maxHp;
+          this.player.x = 600;
+          this.player.y = 1750;
+          this.player.superCharge = 0;
+          this.player.superReady = false;
+        }
+      }
     }
     if (this.blueCountdown < 0 && this.blueGems >= 10) {
       this.over = true; this.won = true;

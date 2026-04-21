@@ -28,6 +28,7 @@ export class ClashHeist {
   input: InputHandler;
   safes: Safe[] = [];
   respawnTimers: Map<string, number> = new Map();
+  playerRespawnTimer = 0;
 
   over = false;
   won = false;
@@ -139,9 +140,21 @@ export class ClashHeist {
       if (!bot.alive && !this.respawnTimers.has(bot.id)) this.respawnTimers.set(bot.id, 5);
     }
 
+    // Player respawn (team mode)
     if (!this.player.alive) {
-      this.over = true; this.won = false;
-      if (!this.resultRecorded) { recordGameResult(false, "heist"); this.resultRecorded = true; }
+      if (this.playerRespawnTimer <= 0) {
+        this.playerRespawnTimer = 5;
+      } else {
+        this.playerRespawnTimer -= dt;
+        if (this.playerRespawnTimer <= 0) {
+          this.player.alive = true;
+          this.player.hp = this.player.maxHp;
+          this.player.x = 600;
+          this.player.y = 1750;
+          this.player.superCharge = 0;
+          this.player.superReady = false;
+        }
+      }
     }
     const enemySafe = this.safes.find(s => s.team === "red")!;
     const playerSafe = this.safes.find(s => s.team === "blue")!;

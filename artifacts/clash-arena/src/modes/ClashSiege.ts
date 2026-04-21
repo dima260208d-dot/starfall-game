@@ -17,6 +17,7 @@ export class ClashSiege {
   enemies: Bot[] = [];
   projectiles: Projectile[] = [];
   respawnTimers: Map<string, number> = new Map();
+  playerRespawnTimer = 0;
   camera: Camera;
   input: InputHandler;
 
@@ -140,15 +141,28 @@ export class ClashSiege {
       ally.updateAI(dt, all, this.map, this.projectiles);
     }
 
-    // Bots target the base
+    // Bots target nearby defenders if any are close, otherwise march on the base
+    const defenders: Brawler[] = [this.player, ...this.allies].filter(b => b.alive);
     for (const bot of this.enemies) {
       if (!bot.alive) continue;
-      bot.forcedTarget = { x: this.baseX, y: this.baseY };
+      let nearestDef: Brawler | null = null;
+      let nd = 99999;
+      for (const def of defenders) {
+        const d = distance(bot.x, bot.y, def.x, def.y);
+        if (d < nd) { nd = d; nearestDef = def; }
+      }
+      if (nearestDef && nd < 600) {
+        // Engage the defender (they will path toward it and attack via normal AI)
+        bot.forcedTarget = { x: nearestDef.x, y: nearestDef.y };
+      } else {
+        bot.forcedTarget = { x: this.baseX, y: this.baseY };
+      }
       bot.update(dt, this.map);
       bot.updateAI(dt, all, this.map, this.projectiles);
 
-      const d = distance(bot.x, bot.y, this.baseX, this.baseY);
-      if (d < 110 && bot.attackTimer <= 0 && bot.canAttack()) {
+      // Always damage the base when in melee range
+      const dBase = distance(bot.x, bot.y, this.baseX, this.baseY);
+      if (dBase < 110 && bot.attackTimer <= 0 && bot.canAttack()) {
         const dmg = bot.stats.attackDamage * 0.4;
         this.baseHp -= dmg;
         spawnDamageNumber(this.baseX, this.baseY - 50, Math.floor(dmg), "damage");
@@ -193,7 +207,24 @@ export class ClashSiege {
       this.baseHp = Math.min(this.baseMaxHp, this.baseHp + 300);
     }
 
-    if (!this.player.alive || this.baseHp <= 0) {
+    // Player respawn (team mode): death does NOT end the match
+    if (!this.player.alive) {
+      if (this.playerRespawnTimer <= 0) {
+        this.playerRespawnTimer = 5;
+      } else {
+        this.playerRespawnTimer -= dt;
+        if (this.playerRespawnTimer <= 0) {
+          this.player.alive = true;
+          this.player.hp = this.player.maxHp;
+          this.player.x = 1750;
+          this.player.y = 1900;
+          this.player.superCharge = 0;
+          this.player.superReady = false;
+        }
+      }
+    }
+    // Loss only if the base falls
+    if (this.baseHp <= 0) {
       this.over = true; this.won = false;
       if (!this.resultRecorded) { recordGameResult(false, "siege"); this.resultRecorded = true; }
     }

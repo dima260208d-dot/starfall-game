@@ -34,6 +34,9 @@ export class ClashCrystals {
   
   respawnTimers: Map<string, number> = new Map();
   spawnTimer = 0;
+  playerRespawnTimer = 0;
+  private playerSpawnX = 600;
+  private playerSpawnY = 1750;
 
   over = false;
   won = false;
@@ -195,12 +198,20 @@ export class ClashCrystals {
       }
     }
     
+    // Player respawn (team mode): death does NOT end the match
     if (!this.player.alive) {
-      this.over = true;
-      this.won = false;
-      if (!this.resultRecorded) {
-        recordGameResult(false, "crystals");
-        this.resultRecorded = true;
+      if (this.playerRespawnTimer <= 0) {
+        this.playerRespawnTimer = 5;
+      } else {
+        this.playerRespawnTimer -= dt;
+        if (this.playerRespawnTimer <= 0) {
+          this.player.alive = true;
+          this.player.hp = this.player.maxHp;
+          this.player.x = this.playerSpawnX;
+          this.player.y = this.playerSpawnY;
+          this.player.superCharge = 0;
+          this.player.superReady = false;
+        }
       }
     }
     

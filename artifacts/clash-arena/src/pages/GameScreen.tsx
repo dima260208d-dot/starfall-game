@@ -121,15 +121,57 @@ export default function GameScreen({ mode, brawlerId, onExit }: GameScreenProps)
           style={{
             position: "absolute",
             inset: 0,
-            background: "rgba(0,0,0,0.8)",
+            background: won ? "rgba(0,0,0,0.55)" : "rgba(0,0,0,0.92)",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
             backdropFilter: "blur(10px)",
             zIndex: 10,
+            overflow: "hidden",
           }}
         >
+          {won && (
+            <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
+              {Array.from({ length: 80 }).map((_, i) => {
+                const colors = ["#FFD700", "#FF5252", "#7B2FBE", "#00E5FF", "#69F0AE", "#FFAB40"];
+                const color = colors[i % colors.length];
+                const left = Math.random() * 100;
+                const delay = Math.random() * 2;
+                const duration = 2.5 + Math.random() * 2.5;
+                const size = 6 + Math.random() * 8;
+                const rot = Math.random() * 360;
+                return (
+                  <span
+                    key={i}
+                    style={{
+                      position: "absolute",
+                      top: -20,
+                      left: `${left}%`,
+                      width: size,
+                      height: size * 1.6,
+                      background: color,
+                      transform: `rotate(${rot}deg)`,
+                      animation: `confettiFall ${duration}s linear ${delay}s infinite`,
+                      borderRadius: 2,
+                    }}
+                  />
+                );
+              })}
+            </div>
+          )}
+
+          <div
+            style={{
+              fontSize: 120,
+              lineHeight: 1,
+              marginBottom: 8,
+              filter: `drop-shadow(0 0 30px ${won ? "#FFD700" : "#FF5252"})`,
+              animation: won ? "trophyBounce 1.4s ease-in-out infinite" : "shake 0.6s ease-in-out 3",
+            }}
+          >
+            {won ? "🏆" : "💀"}
+          </div>
           <div
             style={{
               fontSize: 72,
@@ -138,6 +180,7 @@ export default function GameScreen({ mode, brawlerId, onExit }: GameScreenProps)
               textShadow: `0 0 40px ${won ? "#FFD700" : "#FF5252"}`,
               marginBottom: 10,
               animation: "pulse 1s ease-in-out infinite",
+              letterSpacing: 4,
             }}
           >
             {won ? "ПОБЕДА!" : "ПОРАЖЕНИЕ"}
@@ -145,7 +188,7 @@ export default function GameScreen({ mode, brawlerId, onExit }: GameScreenProps)
           <div
             style={{
               fontSize: 18,
-              color: "rgba(255,255,255,0.6)",
+              color: "rgba(255,255,255,0.7)",
               marginBottom: 40,
             }}
           >
@@ -164,12 +207,19 @@ export default function GameScreen({ mode, brawlerId, onExit }: GameScreenProps)
               cursor: "pointer",
               letterSpacing: 2,
               boxShadow: "0 6px 30px rgba(123,47,190,0.5)",
+              zIndex: 2,
             }}
           >
-            В ЛОББИ
+            ВЫЙТИ
           </button>
           <style>{`
             @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+            @keyframes trophyBounce { 0%,100% { transform: translateY(0) rotate(-5deg);} 50% { transform: translateY(-15px) rotate(5deg);} }
+            @keyframes shake { 0%,100% { transform: translateX(0);} 25% { transform: translateX(-10px);} 75% { transform: translateX(10px);} }
+            @keyframes confettiFall {
+              0%   { transform: translateY(-10vh) rotate(0deg);   opacity: 1; }
+              100% { transform: translateY(110vh) rotate(720deg); opacity: 0.8; }
+            }
           `}</style>
         </div>
       )}
