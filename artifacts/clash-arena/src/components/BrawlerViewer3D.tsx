@@ -73,8 +73,6 @@ export default function BrawlerViewer3D({ brawlerId, color, size = 320, autoRota
         userSelect: "none",
         cursor: dragging ? "grabbing" : "grab",
         touchAction: "none",
-        overflow: "hidden",
-        borderRadius: 24,
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -132,8 +130,8 @@ export default function BrawlerViewer3D({ brawlerId, color, size = 320, autoRota
           position: "absolute",
           inset: 0,
           transformStyle: "preserve-3d",
-          transform: `translateY(${bob}px) scale(2)`,
-          transformOrigin: "center 88%",
+          transform: `translateY(${bob}px) scale(2.6)`,
+          transformOrigin: "center 82%",
         }}
       >
         <img
