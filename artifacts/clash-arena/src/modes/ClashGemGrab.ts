@@ -21,7 +21,7 @@ export class ClashGemGrab {
   camera: Camera;
   input: InputHandler;
   gems: Gem[] = [];
-  spawnTimer = 2;
+  spawnTimer = 0;
   blueGems = 0;
   redGems = 0;
   blueCountdown = 0; // counts down from 15 when team holds 10+
@@ -81,11 +81,11 @@ export class ClashGemGrab {
     const all = [this.player, ...this.allies, ...this.enemies];
     this.player.update(dt, this.map);
 
-    // Spawn gems from center
+    // Spawn gems from the center — one every 10 seconds
     this.spawnTimer -= dt;
-    if (this.spawnTimer <= 0 && this.gems.length < 12) {
-      this.gems.push({ x: 1750 + randomInt(-200, 200), y: 1750 + randomInt(-200, 200), carrier: null });
-      this.spawnTimer = 2.5;
+    if (this.spawnTimer <= 0) {
+      this.gems.push({ x: 1750, y: 1750, carrier: null });
+      this.spawnTimer = 10;
     }
 
     for (const bot of [...this.allies, ...this.enemies]) {
@@ -121,10 +121,12 @@ export class ClashGemGrab {
         gem.x = gem.carrier.x;
         gem.y = gem.carrier.y;
         if (!gem.carrier.alive) {
-          // Drop gems back to center on death
+          // Drop gems where the carrier died, scattered slightly so they're easy to grab
+          const dx = gem.carrier.x + randomInt(-40, 40);
+          const dy = gem.carrier.y + randomInt(-40, 40);
           gem.carrier = null;
-          gem.x = 1750 + randomInt(-200, 200);
-          gem.y = 1750 + randomInt(-200, 200);
+          gem.x = dx;
+          gem.y = dy;
         }
         continue;
       }
@@ -237,6 +239,34 @@ export class ClashGemGrab {
     const all = [this.player, ...this.allies, ...this.enemies];
     const _friendlies = [this.player, ...this.allies].filter(b => b.alive).map(b => ({ x: b.x, y: b.y }));
     for (const b of all) b.render(ctx, this.camera.x, this.camera.y, this.spriteLoaded, this.player.team, _friendlies);
+
+    // Carried-gem badge above HP bar for every brawler holding gems
+    for (const b of all) {
+      if (!b.alive) continue;
+      const carried = this.gems.filter(g => g.carrier?.id === b.id).length;
+      if (carried <= 0) continue;
+      const sx = b.x - this.camera.x;
+      const sy = b.y - this.camera.y - b.radius - 38;
+      ctx.save();
+      ctx.fillStyle = "rgba(0,0,0,0.75)";
+      ctx.strokeStyle = "#E040FB";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "#E040FB";
+      ctx.font = "bold 10px Arial";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.fillText("💎", sx - 11, sy);
+      ctx.fillStyle = "white";
+      ctx.font = "bold 13px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText(`${carried}`, sx + 4, sy + 1);
+      ctx.restore();
+    }
+
     renderProjectiles(ctx, this.projectiles, this.camera.x, this.camera.y, this.frame);
     renderDamageNumbers(ctx, this.camera.x, this.camera.y);
 
