@@ -1,7 +1,7 @@
 import { Brawler } from "../entities/Brawler";
 import { Bot } from "../entities/Bot";
 import { BRAWLERS, getBrawlerById } from "../entities/BrawlerData";
-import { createCrystalsMap, GameMap } from "../game/MapRenderer";
+import { createCrystalsMap, GameMap, collidesWithWalls } from "../game/MapRenderer";
 import { Projectile, updateProjectiles, renderProjectiles } from "../entities/Projectile";
 import { Camera } from "../game/Camera";
 import { InputHandler } from "../game/InputHandler";
@@ -16,6 +16,7 @@ export interface Crystal {
   carrier: Brawler | null;
   dropped: boolean;
   dropTimer: number;
+  depositedTeam?: "blue" | "red"; // sits at base, can be stolen by enemies
 }
 
 export class ClashCrystals {
@@ -32,7 +33,8 @@ export class ClashCrystals {
   crystals: Crystal[] = [];
   
   respawnTimers: Map<string, number> = new Map();
-  
+  spawnTimer = 0;
+
   over = false;
   won = false;
   frame = 0;
@@ -40,6 +42,11 @@ export class ClashCrystals {
   
   private resultRecorded = false;
   private winScore = 10;
+  private centerX = 1750;
+  private centerY = 1750;
+  private centerR = 250;
+  private blueBase = { x: 300, y: 1750 };
+  private redBase = { x: 3200, y: 1750 };
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -63,16 +70,6 @@ export class ClashCrystals {
     this.enemies.push(new Bot(allStats[2], randomInt(1, 5), 2900, 1200, "red"));
     this.enemies.push(new Bot(allStats[3], randomInt(1, 5), 2900, 1750, "red"));
     this.enemies.push(new Bot(allStats[4], randomInt(1, 5), 2900, 2300, "red"));
-    
-    for (let i = 0; i < 5; i++) {
-      this.crystals.push({
-        x: 1300 + i * 200,
-        y: 1600 + (i % 2 === 0 ? -100 : 100),
-        carrier: null,
-        dropped: false,
-        dropTimer: 0,
-      });
-    }
     
     this.camera = new Camera(1200, 800, this.map.width, this.map.height);
     this.input = new InputHandler(canvas, onAttack, onSuper);
@@ -126,28 +123,38 @@ export class ClashCrystals {
     const allBrawlers = [this.player, ...this.allies, ...this.enemies];
     
     this.player.update(dt, this.map);
-    
+
+    // Spawn one new crystal in the central circle every 10s (avoid walls)
+    this.spawnTimer -= dt;
+    const looseCount = this.crystals.filter(c => !c.carrier && !c.depositedTeam).length;
+    if (this.spawnTimer <= 0 && looseCount < 12) {
+      const pos = this.findValidCrystalPos();
+      this.crystals.push({ x: pos.x, y: pos.y, carrier: null, dropped: false, dropTimer: 0 });
+      this.spawnTimer = 10;
+    }
+
     for (const bot of [...this.allies, ...this.enemies]) {
       if (bot.alive) {
         const carriedCount = this.crystals.filter(c => c.carrier?.id === bot.id).length;
         if (carriedCount > 0) {
-          const base = bot.team === "blue" ? { x: 300, y: 1750 } : { x: 3200, y: 1750 };
+          const base = bot.team === "blue" ? this.blueBase : this.redBase;
           bot.forcedTarget = base;
           bot.crystalTarget = undefined;
         } else {
           bot.forcedTarget = undefined;
-          let nearestCrystal: Crystal | null = null;
-          let nearestDist = 99999;
-          for (const c of this.crystals) {
-            if (c.carrier || c.dropped) continue;
-            const d = distance(bot.x, bot.y, c.x, c.y);
-            if (d < nearestDist) { nearestDist = d; nearestCrystal = c; }
+          // Prefer stealing from enemy base if there are any deposited crystals there
+          const enemyTeam = bot.team === "blue" ? "red" : "blue";
+          const stealable = this.crystals.find(c => c.depositedTeam === enemyTeam && !c.carrier);
+          let target: Crystal | null = stealable ?? null;
+          if (!target) {
+            let nd = 99999;
+            for (const c of this.crystals) {
+              if (c.carrier) continue;
+              const d = distance(bot.x, bot.y, c.x, c.y);
+              if (d < nd) { nd = d; target = c; }
+            }
           }
-          if (nearestCrystal) {
-            bot.crystalTarget = { x: nearestCrystal.x, y: nearestCrystal.y };
-          } else {
-            bot.crystalTarget = undefined;
-          }
+          bot.crystalTarget = target ? { x: target.x, y: target.y } : undefined;
         }
         bot.update(dt, this.map);
         bot.updateAI(dt, allBrawlers, this.map, this.projectiles);
@@ -197,20 +204,13 @@ export class ClashCrystals {
       }
     }
     
-    if (this.playerTeamCrystals >= this.winScore) {
+    if (this.playerTeamCrystals >= this.winScore || this.enemyTeamCrystals >= this.winScore) {
+      // Deterministic resolution: higher score wins; if tied, player wins (defender's edge)
+      const playerWins = this.playerTeamCrystals >= this.enemyTeamCrystals;
       this.over = true;
-      this.won = true;
+      this.won = playerWins;
       if (!this.resultRecorded) {
-        recordGameResult(true, "crystals");
-        this.resultRecorded = true;
-      }
-    }
-    
-    if (this.enemyTeamCrystals >= this.winScore) {
-      this.over = true;
-      this.won = false;
-      if (!this.resultRecorded) {
-        recordGameResult(false, "crystals");
+        recordGameResult(playerWins, "crystals");
         this.resultRecorded = true;
       }
     }
@@ -218,71 +218,111 @@ export class ClashCrystals {
     updateDamageNumbers(dt);
   }
 
+  private findValidCrystalPos(): { x: number; y: number } {
+    for (let i = 0; i < 20; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = Math.sqrt(Math.random()) * this.centerR;
+      const x = this.centerX + Math.cos(a) * r;
+      const y = this.centerY + Math.sin(a) * r;
+      if (!collidesWithWalls(x, y, 14, this.map.walls).collides) {
+        return { x, y };
+      }
+    }
+    return { x: this.centerX, y: this.centerY };
+  }
+
+  private placeAtBase(crystal: Crystal, team: "blue" | "red"): void {
+    const base = team === "blue" ? this.blueBase : this.redBase;
+    // Spread deposited crystals in a small ring around the base center so they're visible
+    for (let i = 0; i < 12; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = 30 + Math.random() * 55;
+      const x = base.x + Math.cos(a) * r;
+      const y = base.y + Math.sin(a) * r;
+      if (!collidesWithWalls(x, y, 12, this.map.walls).collides) {
+        crystal.x = x;
+        crystal.y = y;
+        crystal.depositedTeam = team;
+        crystal.carrier = null;
+        crystal.dropped = false;
+        return;
+      }
+    }
+    crystal.x = base.x;
+    crystal.y = base.y;
+    crystal.depositedTeam = team;
+    crystal.carrier = null;
+    crystal.dropped = false;
+  }
+
   private updateCrystals(dt: number, allBrawlers: Brawler[]): void {
     for (const crystal of this.crystals) {
-      if (crystal.dropped) {
-        crystal.dropTimer -= dt;
-        if (crystal.dropTimer <= 0) {
-          crystal.dropped = false;
-          crystal.x = 1300 + randomInt(0, 600);
-          crystal.y = 1400 + randomInt(0, 400);
-        }
-        continue;
-      }
-      
+      // Carried follows the carrier
       if (crystal.carrier) {
         crystal.x = crystal.carrier.x;
         crystal.y = crystal.carrier.y;
-        
         if (!crystal.carrier.alive) {
+          // Drop where the carrier died, scattered slightly so others can grab
+          const dx0 = crystal.carrier.x;
+          const dy0 = crystal.carrier.y;
+          let nx = dx0 + randomInt(-30, 30);
+          let ny = dy0 + randomInt(-30, 30);
+          // If inside a wall, search locally around the death point first
+          if (collidesWithWalls(nx, ny, 12, this.map.walls).collides) {
+            let placed = false;
+            for (let i = 0; i < 24; i++) {
+              const a = Math.random() * Math.PI * 2;
+              const r = 20 + Math.random() * 80;
+              const tx = dx0 + Math.cos(a) * r;
+              const ty = dy0 + Math.sin(a) * r;
+              if (!collidesWithWalls(tx, ty, 12, this.map.walls).collides) {
+                nx = tx; ny = ty; placed = true; break;
+              }
+            }
+            if (!placed) {
+              const safe = this.findValidCrystalPos();
+              nx = safe.x; ny = safe.y;
+            }
+          }
+          crystal.x = nx;
+          crystal.y = ny;
           crystal.carrier = null;
           crystal.dropped = true;
-          crystal.dropTimer = 10;
+          crystal.dropTimer = 0;
+          crystal.depositedTeam = undefined;
         }
         continue;
       }
-      
+
+      // Loose: anyone can grab. Deposited: only enemies of the depositing team can steal.
       for (const b of allBrawlers) {
         if (!b.alive) continue;
+        if (crystal.depositedTeam && crystal.depositedTeam === b.team) continue;
         const d = distance(b.x, b.y, crystal.x, crystal.y);
-        if (d < b.radius + 15) {
+        if (d < b.radius + 18) {
           crystal.carrier = b;
+          crystal.depositedTeam = undefined;
+          crystal.dropped = false;
           break;
         }
       }
     }
-    
+
+    // Deposit carried crystals when carrier reaches own base
     for (const b of allBrawlers) {
       if (!b.alive) continue;
-      const carriedCount = this.crystals.filter(c => c.carrier?.id === b.id).length;
-      if (carriedCount === 0) continue;
-      
-      if (b.team === "blue") {
-        const d = distance(b.x, b.y, 300, 1750);
-        if (d < 100) {
-          this.playerTeamCrystals += carriedCount;
-          this.crystals.filter(c => c.carrier?.id === b.id).forEach(c => {
-            c.carrier = null;
-            c.dropped = true;
-            c.dropTimer = 5;
-            c.x = 1300 + randomInt(0, 600);
-            c.y = 1400 + randomInt(0, 400);
-          });
-        }
-      } else {
-        const d = distance(b.x, b.y, 3200, 1750);
-        if (d < 100) {
-          this.enemyTeamCrystals += carriedCount;
-          this.crystals.filter(c => c.carrier?.id === b.id).forEach(c => {
-            c.carrier = null;
-            c.dropped = true;
-            c.dropTimer = 5;
-            c.x = 1300 + randomInt(0, 600);
-            c.y = 1400 + randomInt(0, 400);
-          });
-        }
+      const carried = this.crystals.filter(c => c.carrier?.id === b.id);
+      if (carried.length === 0) continue;
+      const base = b.team === "blue" ? this.blueBase : this.redBase;
+      const d = distance(b.x, b.y, base.x, base.y);
+      if (d < 100) {
+        for (const c of carried) this.placeAtBase(c, b.team as "blue" | "red");
       }
     }
+
+    // Recompute scores from physically deposited crystals
+    this.playerTeamCrystals = this.crystals.filter(c => c.depositedTeam === "blue").length;
+    this.enemyTeamCrystals = this.crystals.filter(c => c.depositedTeam === "red").length;
   }
 
   private handleProjectileHits(allBrawlers: Brawler[]): void {
@@ -330,7 +370,34 @@ export class ClashCrystals {
     for (const b of allBrawlers) {
       b.render(ctx, this.camera.x, this.camera.y, this.spriteLoaded, this.player.team, _friendlies);
     }
-    
+
+    // Carried-crystal badge above the HP bar for every carrier
+    for (const b of allBrawlers) {
+      if (!b.alive) continue;
+      const carried = this.crystals.filter(c => c.carrier?.id === b.id).length;
+      if (carried <= 0) continue;
+      const sx = b.x - this.camera.x;
+      const sy = b.y - this.camera.y - b.radius - 38;
+      ctx.save();
+      ctx.fillStyle = "rgba(0,0,0,0.75)";
+      ctx.strokeStyle = "#00E5FF";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "#00E5FF";
+      ctx.font = "10px Arial";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.fillText("💎", sx - 11, sy);
+      ctx.fillStyle = "white";
+      ctx.font = "bold 13px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText(`${carried}`, sx + 4, sy + 1);
+      ctx.restore();
+    }
+
     renderProjectiles(ctx, this.projectiles, this.camera.x, this.camera.y, this.frame);
     renderDamageNumbers(ctx, this.camera.x, this.camera.y);
     
@@ -362,9 +429,8 @@ export class ClashCrystals {
 
   private renderCrystals(ctx: CanvasRenderingContext2D): void {
     for (const crystal of this.crystals) {
-      if (crystal.dropped) continue;
       if (crystal.carrier) continue;
-      
+
       const sx = crystal.x - this.camera.x;
       const sy = crystal.y - this.camera.y;
       
