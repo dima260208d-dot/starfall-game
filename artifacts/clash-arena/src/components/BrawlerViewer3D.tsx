@@ -130,7 +130,7 @@ export default function BrawlerViewer3D({ brawlerId, color, size = 320, autoRota
           position: "absolute",
           inset: 0,
           transformStyle: "preserve-3d",
-          transform: `translateY(${bob}px) scale(1.3)`,
+          transform: `translateY(${bob}px) scale(1.0)`,
           transformOrigin: "center 82%",
         }}
       >
