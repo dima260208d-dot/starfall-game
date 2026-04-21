@@ -149,6 +149,21 @@ export class ClashShowdown {
     for (const bot of this.bots) {
       const wasAlive = bot.alive;
       if (bot.alive) {
+        // Gas-avoidance intelligence: flee inward if outside or near gas edge
+        const dToCenter = distance(bot.x, bot.y, this.gas.centerX, this.gas.centerY);
+        const safeBuffer = 200;
+        if (dToCenter > this.gas.safeRadius - safeBuffer) {
+          // Pick a point well inside the safe zone (not the exact center, spread bots out)
+          const targetR = Math.max(0, this.gas.safeRadius - safeBuffer - 100);
+          const angleFromCenter = Math.atan2(bot.y - this.gas.centerY, bot.x - this.gas.centerX);
+          bot.forcedTarget = {
+            x: this.gas.centerX + Math.cos(angleFromCenter) * targetR,
+            y: this.gas.centerY + Math.sin(angleFromCenter) * targetR,
+          };
+        } else if (bot.forcedTarget) {
+          // Clear the forced target only if it was a gas-flee target (no crystal mode here)
+          bot.forcedTarget = undefined;
+        }
         bot.update(dt, this.map);
         bot.updateAI(dt, allBrawlers, this.map, this.projectiles);
       }
