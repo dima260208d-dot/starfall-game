@@ -4,6 +4,7 @@ import { ClashCrystals } from "../modes/ClashCrystals";
 import { ClashHeist } from "../modes/ClashHeist";
 import { ClashGemGrab } from "../modes/ClashGemGrab";
 import { ClashSiege } from "../modes/ClashSiege";
+import { ClashTraining } from "../modes/ClashTraining";
 import { getCurrentProfile } from "../utils/localStorageAPI";
 import { loadSpriteSheet, loadBrawlerImages } from "../game/sprites";
 import { BRAWLERS } from "../entities/BrawlerData";
@@ -15,7 +16,7 @@ interface GameScreenProps {
   onExit: () => void;
 }
 
-type AnyGame = ClashShowdown | ClashCrystals | ClashHeist | ClashGemGrab | ClashSiege;
+type AnyGame = ClashShowdown | ClashCrystals | ClashHeist | ClashGemGrab | ClashSiege | ClashTraining;
 
 export default function GameScreen({ mode, brawlerId, onExit }: GameScreenProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -58,6 +59,8 @@ export default function GameScreen({ mode, brawlerId, onExit }: GameScreenProps)
       game = new ClashHeist(canvas, brawlerId, level, handleAttack, handleSuper, spriteLoaded);
     } else if (mode === "gemgrab") {
       game = new ClashGemGrab(canvas, brawlerId, level, handleAttack, handleSuper, spriteLoaded);
+    } else if (mode === "training") {
+      game = new ClashTraining(canvas, brawlerId, level, handleAttack, handleSuper, spriteLoaded);
     } else {
       game = new ClashSiege(canvas, brawlerId, level, handleAttack, handleSuper, spriteLoaded);
     }
@@ -121,6 +124,28 @@ export default function GameScreen({ mode, brawlerId, onExit }: GameScreenProps)
           display: "block",
         }}
       />
+
+      {mode === "training" && !gameOver && (
+        <button
+          onClick={onExit}
+          style={{
+            position: "absolute",
+            top: 14, right: 14, zIndex: 11,
+            background: "linear-gradient(135deg, #C62828, #FF5252)",
+            border: "none",
+            borderRadius: 12,
+            padding: "10px 18px",
+            color: "white",
+            fontWeight: 800,
+            fontSize: 14,
+            letterSpacing: 1.5,
+            cursor: "pointer",
+            boxShadow: "0 4px 18px rgba(255,82,82,0.5)",
+          }}
+        >
+          ✕ ВЫЙТИ
+        </button>
+      )}
 
       {gameOver && (
         <div

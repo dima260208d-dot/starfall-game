@@ -26,7 +26,7 @@ type Screen =
   | "clashpass"
   | "trophyroad";
 
-export type GameMode = "showdown" | "crystals" | "siege" | "heist" | "gemgrab";
+export type GameMode = "showdown" | "crystals" | "siege" | "heist" | "gemgrab" | "training";
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>(() => {
@@ -118,8 +118,14 @@ export default function App() {
   if (screen === "characterSelect") {
     return (
       <CharacterSelect
-        mode={selectedMode}
-        onStart={(id) => { setSelectedBrawler(id); persistBrawler(id); go("menu"); }}
+        onPickAsActive={(id) => { setSelectedBrawler(id); persistBrawler(id); }}
+        onTraining={(id) => {
+          setSelectedBrawler(id);
+          persistBrawler(id);
+          setSelectedMode("training");
+          persistMode("training");
+          goWithLoad("game", "ВХОД В ТРЕНИРОВКУ");
+        }}
         onBack={() => go("menu")}
       />
     );

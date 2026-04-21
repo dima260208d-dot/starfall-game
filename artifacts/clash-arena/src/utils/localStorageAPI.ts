@@ -266,6 +266,12 @@ export function openBox(): { type: string; amount: number } {
   return reward;
 }
 
+export function upgradeBrawlerCost(level: number): { coins: number; powerPoints: number } {
+  return { coins: 100 * level, powerPoints: 5 * level };
+}
+
+export const MAX_BRAWLER_LEVEL = 10;
+
 export function upgradeBrawler(id: string): { success: boolean; error?: string } {
   const profile = getCurrentProfile();
   if (!profile) return { success: false, error: "Not logged in" };
