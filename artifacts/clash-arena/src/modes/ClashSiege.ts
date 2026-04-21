@@ -13,8 +13,10 @@ import { renderPlayerHUD } from "./sharedHUD";
 export class ClashSiege {
   map: GameMap;
   player: Brawler;
+  allies: Bot[] = [];
   enemies: Bot[] = [];
   projectiles: Projectile[] = [];
+  respawnTimers: Map<string, number> = new Map();
   camera: Camera;
   input: InputHandler;
 
@@ -39,7 +41,18 @@ export class ClashSiege {
     this.map = createCrystalsMap();
     this.spriteLoaded = spriteLoaded;
     const playerStats = getBrawlerById(playerBrawlerId) || BRAWLERS[0];
-    this.player = new Brawler(playerStats, playerLevel, 1750, 1900, "player", true);
+    this.player = new Brawler(playerStats, playerLevel, 1750, 1900, "blue", true);
+    // Spawn 3 allied bots to defend the base together with the player
+    const allyStats = BRAWLERS.filter(b => b.id !== playerBrawlerId);
+    const allyPos: Array<{ x: number; y: number }> = [
+      { x: 1500, y: 1900 },
+      { x: 2000, y: 1900 },
+      { x: 1750, y: 2150 },
+    ];
+    for (let i = 0; i < 3; i++) {
+      const stats = allyStats[i % allyStats.length];
+      this.allies.push(new Bot(stats, Math.max(1, playerLevel - 1), allyPos[i].x, allyPos[i].y, "blue"));
+    }
     this.camera = new Camera(1200, 800, this.map.width, this.map.height);
     this.input = new InputHandler(canvas, onAttack, onSuper);
   }
@@ -50,13 +63,13 @@ export class ClashSiege {
     const angle = autoAimAngle(this.player, this.enemies, mouseAngle);
     this.player.angle = angle;
     const isMelee = ["goro", "ronin", "taro"].includes(this.player.stats.id);
-    const all = [this.player, ...this.enemies];
+    const all = [this.player, ...this.allies, ...this.enemies];
     if (isMelee) this.player.meleeAttack(all);
     else this.projectiles.push(...this.player.shoot(angle));
   }
   handleSuper(): void {
     if (!this.player.canUseSuper()) return;
-    this.player.activateSuper([this.player, ...this.enemies], this.map, this.projectiles);
+    this.player.activateSuper([this.player, ...this.allies, ...this.enemies], this.map, this.projectiles);
   }
 
   private spawnWave(): void {
@@ -89,7 +102,7 @@ export class ClashSiege {
     this.input.updateWorldMouse(this.camera.x, this.camera.y);
     this.player.angle = angleTo(this.player.x, this.player.y, this.input.state.mouseWorldX, this.input.state.mouseWorldY);
 
-    const all = [this.player, ...this.enemies];
+    const all = [this.player, ...this.allies, ...this.enemies];
     this.player.update(dt, this.map);
 
     // Spawn waves
@@ -106,6 +119,27 @@ export class ClashSiege {
       }
     }
 
+    // Allies defend the base — patrol around it and engage enemies that come close
+    for (const ally of this.allies) {
+      if (!ally.alive) continue;
+      // Pick the nearest enemy as a roaming target if any are reasonably close to base
+      let bestEnemy: Bot | null = null;
+      let bestDist = 99999;
+      for (const en of this.enemies) {
+        if (!en.alive) continue;
+        const d = distance(en.x, en.y, this.baseX, this.baseY);
+        if (d < 700 && d < bestDist) { bestDist = d; bestEnemy = en; }
+      }
+      if (bestEnemy) {
+        ally.forcedTarget = { x: bestEnemy.x, y: bestEnemy.y };
+      } else {
+        // Stay near base
+        ally.forcedTarget = { x: this.baseX + Math.cos(ally.id.charCodeAt(0)) * 200, y: this.baseY + Math.sin(ally.id.charCodeAt(0)) * 200 };
+      }
+      ally.update(dt, this.map);
+      ally.updateAI(dt, all, this.map, this.projectiles);
+    }
+
     // Bots target the base
     for (const bot of this.enemies) {
       if (!bot.alive) continue;
@@ -119,6 +153,27 @@ export class ClashSiege {
         this.baseHp -= dmg;
         spawnDamageNumber(this.baseX, this.baseY - 50, Math.floor(dmg), "damage");
         bot.attackTimer = bot.stats.attackCooldown;
+      }
+    }
+
+    // Respawn fallen allies after a delay so the team stays alive
+    for (const ally of this.allies) {
+      if (!ally.alive && !this.respawnTimers.has(ally.id)) {
+        this.respawnTimers.set(ally.id, 6);
+      }
+    }
+    for (const [id, timer] of this.respawnTimers) {
+      const nt = timer - dt;
+      this.respawnTimers.set(id, nt);
+      if (nt <= 0) {
+        this.respawnTimers.delete(id);
+        const ally = this.allies.find(a => a.id === id);
+        if (ally) {
+          ally.alive = true;
+          ally.hp = ally.maxHp;
+          ally.x = this.baseX + randomInt(-200, 200);
+          ally.y = this.baseY + randomInt(150, 280);
+        }
       }
     }
 
@@ -203,8 +258,8 @@ export class ClashSiege {
     ctx.strokeRect(sx - 70, sy - 95, 140, 14);
     ctx.restore();
 
-    const all = [this.player, ...this.enemies];
-    const _friendlies = this.player.alive ? [{ x: this.player.x, y: this.player.y }] : [];
+    const all = [this.player, ...this.allies, ...this.enemies];
+    const _friendlies = [this.player, ...this.allies].filter(b => b.alive).map(b => ({ x: b.x, y: b.y }));
     for (const b of all) b.render(ctx, this.camera.x, this.camera.y, this.spriteLoaded, this.player.team, _friendlies);
     renderProjectiles(ctx, this.projectiles, this.camera.x, this.camera.y, this.frame);
     renderDamageNumbers(ctx, this.camera.x, this.camera.y);

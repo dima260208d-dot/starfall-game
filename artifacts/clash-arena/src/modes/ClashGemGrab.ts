@@ -239,6 +239,30 @@ export class ClashGemGrab {
     for (const b of all) b.render(ctx, this.camera.x, this.camera.y, this.spriteLoaded, this.player.team, _friendlies);
     renderProjectiles(ctx, this.projectiles, this.camera.x, this.camera.y, this.frame);
     renderDamageNumbers(ctx, this.camera.x, this.camera.y);
+
+    // Giant translucent countdown visible to everyone in the middle of the screen
+    const cd = this.blueCountdown > 0 ? this.blueCountdown : (this.redCountdown > 0 ? this.redCountdown : 0);
+    if (cd > 0) {
+      const isBlue = this.blueCountdown > 0;
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = "bold 280px Arial";
+      const txt = Math.ceil(cd).toString();
+      ctx.fillStyle = isBlue ? "rgba(64,196,255,0.35)" : "rgba(255,82,82,0.35)";
+      ctx.strokeStyle = isBlue ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.45)";
+      ctx.lineWidth = 8;
+      ctx.shadowColor = isBlue ? "#40C4FF" : "#FF5252";
+      ctx.shadowBlur = 30;
+      ctx.fillText(txt, 600, 400);
+      ctx.shadowBlur = 0;
+      ctx.strokeText(txt, 600, 400);
+      ctx.font = "bold 28px Arial";
+      ctx.fillStyle = "rgba(255,255,255,0.7)";
+      ctx.fillText(isBlue ? "ВАША КОМАНДА ПОБЕЖДАЕТ" : "ВРАГИ ПОБЕЖДАЮТ", 600, 580);
+      ctx.restore();
+    }
+
     this.renderHUD(ctx);
   }
 

@@ -52,20 +52,21 @@ export class Bot extends Brawler {
       }
     }
 
-    const detectionRange = this.forcedTarget ? this.stats.attackRange * 1.1 : 600;
     const attackRange = this.stats.attackRange;
+    const hasObjective = !!this.forcedTarget || !!this.crystalTarget;
+    // With an objective: only engage when threats are close. Without: full 600px detection.
+    const detectionRange = hasObjective ? attackRange * 1.25 : 600;
 
     if (this.forcedTarget) {
       const fd = distance(this.x, this.y, this.forcedTarget.x, this.forcedTarget.y);
-      if (fd > 60) {
-        if (nearestEnemy && nearestDist < attackRange * 0.9) {
-          this.target = nearestEnemy;
-          this.angle = angleTo(this.x, this.y, nearestEnemy.x, nearestEnemy.y);
-          this.state = "attack";
-        } else {
-          this.target = null;
-          this.state = "forced";
-        }
+      // Always shoot back when an enemy is in attack range, even at the destination
+      if (nearestEnemy && nearestDist < attackRange) {
+        this.target = nearestEnemy;
+        this.angle = angleTo(this.x, this.y, nearestEnemy.x, nearestEnemy.y);
+        this.state = "attack";
+      } else if (fd > 60) {
+        this.target = null;
+        this.state = "forced";
       } else {
         this.state = "forced";
         this.target = null;
@@ -114,18 +115,50 @@ export class Bot extends Brawler {
             this.attackTimer = this.stats.attackCooldown * (0.8 + Math.random() * 0.6);
           }
           
-          if (nearestDist < attackRange * 0.5) {
+          // Strafe perpendicular to target to dodge incoming shots
+          const toTarget = angleTo(this.x, this.y, this.target.x, this.target.y);
+          const strafeDir = Math.sin(performance.now() * 0.003 + (this.wanderAngle || 0)) > 0 ? 1 : -1;
+          const perp = toTarget + Math.PI / 2 * strafeDir;
+
+          if (this.forcedTarget) {
+            // Anchored attack: stay near objective, strafe in place
+            const fd = distance(this.x, this.y, this.forcedTarget.x, this.forcedTarget.y);
+            if (fd > 90) {
+              const dx = this.forcedTarget.x - this.x;
+              const dy = this.forcedTarget.y - this.y;
+              const steered = this.steerAroundWalls(dx, dy, map);
+              this.move(steered.x, steered.y, dt * 0.7);
+            } else {
+              const steered = this.steerAroundWalls(Math.cos(perp), Math.sin(perp), map);
+              this.move(steered.x, steered.y, dt * 0.5);
+            }
+          } else if (nearestDist < attackRange * 0.5) {
             const awayAngle = angleTo(this.target.x, this.target.y, this.x, this.y) + randomFloat(-0.3, 0.3);
-            this.move(Math.cos(awayAngle), Math.sin(awayAngle), dt * 0.5);
-          } else if (nearestDist > attackRange * 0.9) {
+            this.move(Math.cos(awayAngle), Math.sin(awayAngle), dt * 0.6);
+          } else if (nearestDist > attackRange * 0.85) {
             const dx = this.target.x - this.x;
             const dy = this.target.y - this.y;
-            this.move(dx, dy, dt * 0.4);
+            this.move(dx, dy, dt * 0.5);
+          } else {
+            // In sweet spot — strafe to dodge
+            const steered = this.steerAroundWalls(Math.cos(perp), Math.sin(perp), map);
+            this.move(steered.x, steered.y, dt * 0.45);
           }
         }
         break;
 
       case "wander": {
+        // If we have a crystal target, head straight to it instead of wandering
+        if (this.crystalTarget) {
+          const d = distance(this.x, this.y, this.crystalTarget.x, this.crystalTarget.y);
+          if (d > 30) {
+            const dx = this.crystalTarget.x - this.x;
+            const dy = this.crystalTarget.y - this.y;
+            const steered = this.steerAroundWalls(dx, dy, map);
+            this.move(steered.x, steered.y, dt);
+          }
+          break;
+        }
         if (this.wanderTimer <= 0) {
           this.wanderAngle += randomFloat(-Math.PI / 2, Math.PI / 2);
           this.wanderTimer = randomFloat(1.5, 4);
@@ -152,15 +185,6 @@ export class Bot extends Brawler {
         break;
     }
 
-    if (!this.forcedTarget && this.crystalTarget && this.state === "wander") {
-      const d = distance(this.x, this.y, this.crystalTarget.x, this.crystalTarget.y);
-      if (d > 60) {
-        const dx = this.crystalTarget.x - this.x;
-        const dy = this.crystalTarget.y - this.y;
-        const steered = this.steerAroundWalls(dx, dy, map);
-        this.move(steered.x, steered.y, dt * 0.9);
-      }
-    }
   }
 
   private steerAroundWalls(dx: number, dy: number, map: GameMap): { x: number; y: number } {
