@@ -64,14 +64,14 @@ export default function App() {
   };
 
   if (bootLoading) {
-    return <LoadingScreen onDone={() => setBootLoading(false)} duration={2600} label="ДОБРО ПОЖАЛОВАТЬ" />;
+    return <LoadingScreen onDone={() => setBootLoading(false)} duration={4500} label="ДОБРО ПОЖАЛОВАТЬ" />;
   }
 
   if (transitionTo) {
     return (
       <LoadingScreen
         label={transitionLabel}
-        duration={1800}
+        duration={4500}
         onDone={() => {
           const target = transitionTo;
           setTransitionTo(null);

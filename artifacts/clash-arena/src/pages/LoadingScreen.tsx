@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { BRAWLERS } from "../entities/BrawlerData";
 
 interface Props {
   onDone: () => void;
@@ -6,7 +7,7 @@ interface Props {
   label?: string;
 }
 
-export default function LoadingScreen({ onDone, duration = 2200, label = "ЗАГРУЗКА" }: Props) {
+export default function LoadingScreen({ onDone, duration = 4500, label = "ЗАГРУЗКА" }: Props) {
   const [progress, setProgress] = useState(0);
   const base = (import.meta as any).env?.BASE_URL ?? "/";
 
@@ -16,136 +17,245 @@ export default function LoadingScreen({ onDone, duration = 2200, label = "ЗАГ
     const tick = (t: number) => {
       const p = Math.min(1, (t - start) / duration);
       setProgress(p);
-      if (p < 1) {
-        raf = requestAnimationFrame(tick);
-      } else {
-        setTimeout(onDone, 120);
-      }
+      if (p < 1) raf = requestAnimationFrame(tick);
+      else setTimeout(onDone, 150);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [duration, onDone]);
+
+  const percent = Math.floor(progress * 100);
 
   return (
     <div
       style={{
         position: "fixed",
         inset: 0,
-        background: "#0A0014",
+        background:
+          "radial-gradient(ellipse at 50% 60%, #1a0040 0%, #0A0014 70%, #050008 100%)",
         display: "flex",
         flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
         overflow: "hidden",
         zIndex: 1000,
+        fontFamily: "'Segoe UI', Arial, sans-serif",
       }}
     >
-      <img
-        src={`${base}loading.png`}
-        alt=""
-        style={{
-          position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
-          objectFit: "cover",
-          filter: "brightness(0.85) saturate(1.15)",
-          animation: "loadingZoom 6s ease-in-out infinite alternate",
-        }}
-      />
+      {/* Subtle grid + glow background */}
       <div
         style={{
-          position: "absolute",
-          inset: 0,
+          position: "absolute", inset: 0, opacity: 0.25,
           background:
-            "radial-gradient(ellipse at center, rgba(0,0,0,0) 30%, rgba(10,0,20,0.85) 100%)",
+            "repeating-linear-gradient(0deg, transparent 0 60px, rgba(255,255,255,0.03) 60px 61px), repeating-linear-gradient(90deg, transparent 0 60px, rgba(255,255,255,0.03) 60px 61px)",
         }}
       />
 
+      {/* Top-left title badge */}
       <div
         style={{
-          position: "relative",
-          textAlign: "center",
-          marginBottom: 60,
-          zIndex: 2,
+          position: "absolute",
+          top: 28, left: 28,
+          zIndex: 5,
+          padding: "16px 28px",
+          background: "linear-gradient(135deg, #FF1744 0%, #7B2FBE 50%, #00B0FF 100%)",
+          borderRadius: 18,
+          boxShadow:
+            "0 12px 50px rgba(123,47,190,0.6), inset 0 0 30px rgba(255,255,255,0.15)",
+          border: "2px solid rgba(255,255,255,0.25)",
+          transform: "rotate(-2deg)",
         }}
       >
         <div
           style={{
-            fontSize: 84,
+            fontSize: 44,
             fontWeight: 900,
-            letterSpacing: 6,
-            background: "linear-gradient(135deg, #FFD700 0%, #FF5252 50%, #7B2FBE 100%)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            textShadow: "0 0 40px rgba(255,215,0,0.4)",
+            letterSpacing: 4,
+            color: "white",
             lineHeight: 1,
+            textShadow: "0 3px 12px rgba(0,0,0,0.5)",
           }}
         >
           CLASH
         </div>
         <div
           style={{
-            fontSize: 28,
-            fontWeight: 700,
-            letterSpacing: 14,
-            color: "#CE93D8",
-            textShadow: "0 0 20px rgba(206,147,216,0.6)",
+            fontSize: 16,
+            fontWeight: 800,
+            letterSpacing: 10,
+            color: "#FFE57F",
+            marginTop: 4,
+            textShadow: "0 2px 8px rgba(0,0,0,0.5)",
           }}
         >
           ARENA
         </div>
       </div>
 
+      {/* Brawler lineup (only in-game characters) */}
       <div
         style={{
-          position: "relative",
+          position: "absolute",
+          left: 0, right: 0,
+          top: "50%",
+          transform: "translateY(-50%)",
+          display: "flex",
+          alignItems: "flex-end",
+          justifyContent: "center",
+          gap: 0,
+          pointerEvents: "none",
+          zIndex: 1,
+        }}
+      >
+        {BRAWLERS.map((b, i) => {
+          // Arc the line so middle brawlers sit higher, like a hero shot.
+          const mid = (BRAWLERS.length - 1) / 2;
+          const offset = Math.abs(i - mid);
+          const lift = (mid - offset) * 14;
+          const scale = 1 - offset * 0.05;
+          const delay = i * 0.12;
+          return (
+            <div
+              key={b.id}
+              style={{
+                width: 160,
+                height: 200,
+                marginLeft: i === 0 ? 0 : -38,
+                transform: `translateY(${-lift}px) scale(${scale})`,
+                position: "relative",
+                animation: `lineupBob 3.2s ease-in-out ${delay}s infinite`,
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: 0,
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  width: 130,
+                  height: 130,
+                  borderRadius: "50%",
+                  background: `radial-gradient(circle, ${b.color}88, ${b.color}00 70%)`,
+                  filter: "blur(14px)",
+                }}
+              />
+              <img
+                src={`${base}brawlers/${b.id}_front.png`}
+                alt={b.name}
+                style={{
+                  position: "relative",
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "contain",
+                  filter: `drop-shadow(0 8px 18px ${b.color}cc)`,
+                }}
+              />
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Vignette to soften edges and emphasize the bar */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background:
+            "radial-gradient(ellipse at 50% 60%, transparent 35%, rgba(5,0,20,0.85) 90%)",
+          pointerEvents: "none",
           zIndex: 2,
-          width: "min(420px, 70vw)",
+        }}
+      />
+
+      {/* Bottom-center progress block */}
+      <div
+        style={{
+          position: "absolute",
+          left: "50%",
+          bottom: 60,
+          transform: "translateX(-50%)",
+          width: "min(620px, 80vw)",
           textAlign: "center",
+          zIndex: 6,
         }}
       >
         <div
           style={{
-            fontSize: 13,
-            letterSpacing: 4,
-            color: "rgba(255,255,255,0.7)",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "baseline",
             marginBottom: 12,
-            fontWeight: 700,
           }}
         >
-          {label}
-          <span style={{ display: "inline-block", marginLeft: 8 }}>
-            {Math.floor(progress * 100)}%
+          <span
+            style={{
+              fontSize: 14,
+              letterSpacing: 5,
+              color: "rgba(255,255,255,0.85)",
+              fontWeight: 800,
+            }}
+          >
+            {label}
+          </span>
+          <span
+            style={{
+              fontSize: 32,
+              fontWeight: 900,
+              background:
+                "linear-gradient(135deg, #FFD700 0%, #FF5252 70%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              textShadow: "0 0 18px rgba(255,215,0,0.5)",
+              letterSpacing: 1,
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            {percent}%
           </span>
         </div>
         <div
           style={{
             width: "100%",
-            height: 10,
+            height: 24,
             borderRadius: 99,
-            background: "rgba(255,255,255,0.1)",
+            background: "rgba(255,255,255,0.08)",
             overflow: "hidden",
-            border: "1px solid rgba(255,255,255,0.15)",
-            boxShadow: "0 0 20px rgba(123,47,190,0.3)",
+            border: "2px solid rgba(255,255,255,0.18)",
+            boxShadow:
+              "0 0 30px rgba(123,47,190,0.5), inset 0 2px 6px rgba(0,0,0,0.4)",
+            position: "relative",
           }}
         >
           <div
             style={{
               width: `${progress * 100}%`,
               height: "100%",
-              background: "linear-gradient(90deg, #7B2FBE, #FFD700, #FF5252)",
+              background:
+                "linear-gradient(90deg, #7B2FBE 0%, #FF5252 50%, #FFD700 100%)",
               transition: "width 80ms linear",
-              boxShadow: "0 0 12px rgba(255,215,0,0.7)",
+              boxShadow: "0 0 20px rgba(255,215,0,0.8)",
+              position: "relative",
             }}
-          />
+          >
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                background:
+                  "linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)",
+                animation: "shimmer 1.4s linear infinite",
+              }}
+            />
+          </div>
         </div>
       </div>
 
       <style>{`
-        @keyframes loadingZoom {
-          0%   { transform: scale(1.02) translate(0,0); }
-          100% { transform: scale(1.10) translate(-1.5%, -1%); }
+        @keyframes lineupBob {
+          0%, 100% { transform: translateY(var(--lift, 0)) scale(1); }
+          50%      { transform: translateY(calc(var(--lift, 0) - 8px)) scale(1); }
+        }
+        @keyframes shimmer {
+          0%   { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
         }
       `}</style>
     </div>

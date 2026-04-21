@@ -36,6 +36,9 @@ export class Brawler {
   superCharge = 0;
   maxSuperCharge = 100;
   superReady = false;
+  // Per-brawler multiplier on how fast the super bar fills from dealing damage.
+  // Lower = slower charge. Defaults to 1; tuned per-character below.
+  superChargeMultiplier = 1;
   
   regenTimer = 0;
   regenDelay = 3;
@@ -77,6 +80,8 @@ export class Brawler {
     this.attackCharges = scaled.attackCharges;
     this.maxAttackCharges = scaled.attackCharges;
     this.attackCooldown = scaled.attackCooldown;
+    // Miya's super (teleport) is very strong as a gap-closer, so it should charge slower.
+    if (stats.id === "miya") this.superChargeMultiplier = 0.5;
   }
 
   get scaledDamage(): number {
@@ -194,7 +199,7 @@ export class Brawler {
     }
     
     if (attacker && attacker.isPlayer) {
-      attacker.superCharge = Math.min(attacker.maxSuperCharge, attacker.superCharge + dmg * 0.1);
+      attacker.superCharge = Math.min(attacker.maxSuperCharge, attacker.superCharge + dmg * 0.1 * attacker.superChargeMultiplier);
       if (attacker.superCharge >= attacker.maxSuperCharge) attacker.superReady = true;
     }
     
@@ -386,7 +391,7 @@ export class Brawler {
           const angle = angleTo(nearest.x, nearest.y, this.x, this.y);
           this.x = clamp(nearest.x + Math.cos(angle) * 40, this.radius, map.width - this.radius);
           this.y = clamp(nearest.y + Math.sin(angle) * 40, this.radius, map.height - this.radius);
-          nearest.takeDamage(800, this);
+          // Teleport no longer deals damage — the player must follow up with attacks.
           nearest.addStatus("slow", 1.5, 0.5);
         }
         break;

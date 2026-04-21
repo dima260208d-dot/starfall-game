@@ -41,7 +41,7 @@ const modes: Array<{
     name: "Осада",
     subtitle: "Защита базы",
     desc: "Защитите свою базу от 3 волн врагов!",
-    players: "1 против волн",
+    players: "4 против волн",
     icon: "🏰",
     color: "#69F0AE",
     gradient: "linear-gradient(135deg, #1B5E20, #69F0AE)",
