@@ -8,6 +8,7 @@ import GameScreen from "./pages/GameScreen";
 import CollectionPage from "./pages/CollectionPage";
 import ShopPage from "./pages/ShopPage";
 import SettingsPage from "./pages/SettingsPage";
+import LoadingScreen from "./pages/LoadingScreen";
 
 type Screen =
   | "auth"
@@ -27,12 +28,39 @@ export default function App() {
   });
   const [selectedMode, setSelectedMode] = useState<GameMode>("showdown");
   const [selectedBrawler, setSelectedBrawler] = useState("miya");
+  const [bootLoading, setBootLoading] = useState(true);
+  const [transitionTo, setTransitionTo] = useState<Screen | null>(null);
+  const [transitionLabel, setTransitionLabel] = useState("ЗАГРУЗКА");
 
   useEffect(() => {
     document.title = "Clash Arena";
   }, []);
 
   const go = (s: Screen) => setScreen(s);
+
+  // Animated transition with a loading screen
+  const goWithLoad = (s: Screen, label = "ЗАГРУЗКА") => {
+    setTransitionLabel(label);
+    setTransitionTo(s);
+  };
+
+  if (bootLoading) {
+    return <LoadingScreen onDone={() => setBootLoading(false)} duration={2600} label="ДОБРО ПОЖАЛОВАТЬ" />;
+  }
+
+  if (transitionTo) {
+    return (
+      <LoadingScreen
+        label={transitionLabel}
+        duration={1800}
+        onDone={() => {
+          const target = transitionTo;
+          setTransitionTo(null);
+          if (target) go(target);
+        }}
+      />
+    );
+  }
 
   if (screen === "auth") {
     return <AuthPage onAuth={() => go("menu")} />;
@@ -65,7 +93,7 @@ export default function App() {
     return (
       <CharacterSelect
         mode={selectedMode}
-        onStart={(id) => { setSelectedBrawler(id); go("game"); }}
+        onStart={(id) => { setSelectedBrawler(id); goWithLoad("game", "ВХОД В АРЕНУ"); }}
         onBack={() => go("modeSelect")}
       />
     );
@@ -76,7 +104,7 @@ export default function App() {
       <GameScreen
         mode={selectedMode}
         brawlerId={selectedBrawler}
-        onExit={() => go("menu")}
+        onExit={() => goWithLoad("menu", "ВОЗВРАТ В ЛОББИ")}
       />
     );
   }
