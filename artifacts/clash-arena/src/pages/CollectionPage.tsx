@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { BRAWLERS, getScaledStats } from "../entities/BrawlerData";
 import { getCurrentProfile, upgradeBrawler } from "../utils/localStorageAPI";
+import BrawlerViewer3D from "../components/BrawlerViewer3D";
 
 interface CollectionPageProps {
   onBack: () => void;
@@ -10,49 +11,8 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
   const [profile, setProfile] = useState(getCurrentProfile());
   const [selected, setSelected] = useState(0);
   const [msg, setMsg] = useState("");
-  const [spriteLoaded, setSpriteLoaded] = useState(false);
-  const spriteRef = useRef<HTMLImageElement | null>(null);
-  const bigCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const frameRef = useRef(0);
 
-  useEffect(() => {
-    const img = new Image();
-    img.onload = () => { spriteRef.current = img; setSpriteLoaded(true); };
-    img.src = "/characters.webp";
-  }, []);
-
-  useEffect(() => {
-    let raf: number;
-    const animate = () => {
-      frameRef.current++;
-      drawBig();
-      raf = requestAnimationFrame(animate);
-    };
-    raf = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(raf);
-  }, [selected, spriteLoaded]);
-
-  const drawBig = () => {
-    if (!spriteRef.current || !bigCanvasRef.current) return;
-    const img = spriteRef.current;
-    const canvas = bigCanvasRef.current;
-    const ctx = canvas.getContext("2d")!;
-    const sw = img.naturalWidth / 5;
-    const sh = img.naturalHeight / 2;
-    const brawler = BRAWLERS[selected];
-    const bounce = Math.sin(frameRef.current * 0.05) * 8;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.save();
-    ctx.translate(canvas.width / 2, canvas.height / 2 + bounce);
-    const glow = ctx.createRadialGradient(0, 50, 0, 0, 50, 120);
-    glow.addColorStop(0, `${brawler.color}30`);
-    glow.addColorStop(1, "transparent");
-    ctx.fillStyle = glow;
-    ctx.fillRect(-120, -80, 240, 200);
-    ctx.drawImage(img, brawler.spriteCol * sw, brawler.spriteRow * sh, sw, sh, -100, -120, 200, 200);
-    ctx.restore();
-  };
+  useEffect(() => {}, []);
 
   const handleUpgrade = () => {
     const brawler = BRAWLERS[selected];
@@ -122,9 +82,20 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
                   transition: "all 0.2s",
                 }}
               >
-                <div style={{ width: 40, height: 40, borderRadius: 8, background: `${b.color}20`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>
-                  {["🌟", "🔭", "⚔️", "❄️", "⚡", "💊", "🪓", "🔥", "🗡️", "🔧"][i]}
-                </div>
+                <img
+                  src={`${import.meta.env.BASE_URL}brawlers/${b.id}_front.png`}
+                  alt={b.name}
+                  width={48}
+                  height={48}
+                  style={{
+                    borderRadius: 8,
+                    background: `radial-gradient(circle at 50% 60%, ${b.color}40, ${b.color}10 70%, transparent)`,
+                    objectFit: "contain",
+                    objectPosition: "center bottom",
+                    flexShrink: 0,
+                    filter: `drop-shadow(0 2px 4px ${b.color}80)`,
+                  }}
+                />
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 14, color: isSelected ? b.color : "white" }}>{b.name}</div>
                   <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>УР {lv} {b.role}</div>
@@ -135,15 +106,7 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
         </div>
 
         <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: 30 }}>
-          <canvas
-            ref={bigCanvasRef}
-            width={280}
-            height={240}
-            style={{
-              background: `radial-gradient(circle at center, ${brawler.color}10 0%, transparent 70%)`,
-              borderRadius: 20,
-            }}
-          />
+          <BrawlerViewer3D brawlerId={brawler.id} color={brawler.color} size={300} />
 
           <div style={{ textAlign: "center", marginTop: 10, marginBottom: 20 }}>
             <div style={{ fontSize: 28, fontWeight: 900, color: brawler.color }}>{brawler.name}</div>

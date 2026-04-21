@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { BRAWLERS, getScaledStats } from "../entities/BrawlerData";
 import { getCurrentProfile } from "../utils/localStorageAPI";
 import type { GameMode } from "../App";
+import BrawlerViewer3D from "../components/BrawlerViewer3D";
 
 interface CharacterSelectProps {
   mode: GameMode;
@@ -17,109 +18,14 @@ const MODE_LABELS: Record<GameMode, string> = {
   gemgrab: "Выноси кристаллы",
 };
 
-const SPRITE_COLS = 5;
-const SPRITE_ROWS = 2;
-
 export default function CharacterSelect({ mode, onStart, onBack }: CharacterSelectProps) {
   const [selected, setSelected] = useState(0);
   const [profile, setProfile] = useState(getCurrentProfile());
-  const [animFrame, setAnimFrame] = useState(0);
-  const spriteRef = useRef<HTMLImageElement | null>(null);
-  const [spriteLoaded, setSpriteLoaded] = useState(false);
-  const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([]);
-  const bigCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const animRef = useRef<number>(0);
-  const frameRef = useRef(0);
 
   useEffect(() => {
     const interval = setInterval(() => setProfile(getCurrentProfile()), 1000);
     return () => clearInterval(interval);
   }, []);
-
-  useEffect(() => {
-    const img = new Image();
-    img.onload = () => {
-      spriteRef.current = img;
-      setSpriteLoaded(true);
-    };
-    img.src = "/characters.webp";
-  }, []);
-
-  useEffect(() => {
-    let raf: number;
-    const animate = () => {
-      frameRef.current++;
-      setAnimFrame(frameRef.current);
-      raf = requestAnimationFrame(animate);
-    };
-    raf = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(raf);
-  }, []);
-
-  useEffect(() => {
-    if (!spriteLoaded || !spriteRef.current) return;
-    const img = spriteRef.current;
-    const sw = img.naturalWidth / SPRITE_COLS;
-    const sh = img.naturalHeight / SPRITE_ROWS;
-
-    BRAWLERS.forEach((b, i) => {
-      const canvas = canvasRefs.current[i];
-      if (!canvas) return;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, b.spriteCol * sw, b.spriteRow * sh, sw, sh, 0, 0, canvas.width, canvas.height);
-    });
-  }, [spriteLoaded, animFrame]);
-
-  useEffect(() => {
-    if (!spriteLoaded || !spriteRef.current || !bigCanvasRef.current) return;
-    const img = spriteRef.current;
-    const sw = img.naturalWidth / SPRITE_COLS;
-    const sh = img.naturalHeight / SPRITE_ROWS;
-    const brawler = BRAWLERS[selected];
-    const canvas = bigCanvasRef.current;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    const bounce = Math.sin(frameRef.current * 0.05) * 6;
-    const squish = 1 + Math.sin(frameRef.current * 0.07) * 0.03;
-
-    ctx.save();
-    ctx.translate(canvas.width / 2, canvas.height / 2 + bounce);
-    ctx.scale(squish, 1 / squish);
-
-    const glowGrad = ctx.createRadialGradient(0, 40, 0, 0, 40, 100);
-    glowGrad.addColorStop(0, `${brawler.color}40`);
-    glowGrad.addColorStop(1, "transparent");
-    ctx.fillStyle = glowGrad;
-    ctx.fillRect(-100, -50, 200, 200);
-
-    ctx.drawImage(
-      img,
-      brawler.spriteCol * sw,
-      brawler.spriteRow * sh,
-      sw,
-      sh,
-      -100,
-      -120,
-      200,
-      200
-    );
-    ctx.restore();
-
-    const auraPhase = (frameRef.current * 0.04) % (Math.PI * 2);
-    ctx.save();
-    ctx.globalAlpha = 0.15 + Math.sin(auraPhase) * 0.05;
-    ctx.strokeStyle = brawler.color;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.ellipse(canvas.width / 2, canvas.height / 2 + 80, 80 + Math.sin(auraPhase) * 5, 20, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
-  }, [selected, animFrame, spriteLoaded]);
 
   const brawler = BRAWLERS[selected];
   const level = profile?.brawlerLevels[brawler.id] || 1;
@@ -179,16 +85,7 @@ export default function CharacterSelect({ mode, onStart, onBack }: CharacterSele
             padding: 30,
           }}
         >
-          <canvas
-            ref={bigCanvasRef}
-            width={300}
-            height={280}
-            style={{
-              borderRadius: 20,
-              background: `radial-gradient(circle at center, ${brawler.color}15 0%, transparent 70%)`,
-              filter: "drop-shadow(0 0 30px " + brawler.color + "40)",
-            }}
-          />
+          <BrawlerViewer3D brawlerId={brawler.id} color={brawler.color} size={340} />
 
           <div style={{ textAlign: "center", marginTop: 10 }}>
             <div style={{ fontSize: 32, fontWeight: 900, color: brawler.color, textShadow: `0 0 20px ${brawler.color}` }}>
@@ -284,15 +181,18 @@ export default function CharacterSelect({ mode, onStart, onBack }: CharacterSele
                     transform: isSelected ? "translateX(-4px)" : "none",
                   }}
                 >
-                  <canvas
-                    ref={el => { canvasRefs.current[i] = el; }}
+                  <img
+                    src={`${import.meta.env.BASE_URL}brawlers/${b.id}_front.png`}
+                    alt={b.name}
                     width={56}
                     height={56}
                     style={{
                       borderRadius: 10,
-                      background: `${b.color}15`,
+                      background: `radial-gradient(circle at 50% 60%, ${b.color}40, ${b.color}10 70%, transparent)`,
                       flexShrink: 0,
-                      imageRendering: "auto",
+                      objectFit: "contain",
+                      objectPosition: "center bottom",
+                      filter: `drop-shadow(0 2px 4px ${b.color}80)`,
                     }}
                   />
                   <div style={{ flex: 1, minWidth: 0 }}>

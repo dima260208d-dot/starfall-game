@@ -1,0 +1,145 @@
+uploads = []
+
+[[generated]]
+id = "XkwvukeX7KVwOJoHy0yua"
+uri = "file://artifacts/clash-arena/public/brawlers/miya_front.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "vZfGJcqXN6FiIyrlGivIO"
+uri = "file://artifacts/clash-arena/public/brawlers/miya_back.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "zDwcXtDytc6EZk0V_x_Y_"
+uri = "file://artifacts/clash-arena/public/brawlers/kibo_front.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "dOhvoi6CbURDP7XUv2bmu"
+uri = "file://artifacts/clash-arena/public/brawlers/kibo_back.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "0c0d_BJGQAaXibIbF6tC9"
+uri = "file://artifacts/clash-arena/public/brawlers/ronin_front.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "p9mBBdivGFtWMWPtP1WL7"
+uri = "file://artifacts/clash-arena/public/brawlers/ronin_back.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "dAMyy6YJmB8FrMJZ2jtlQ"
+uri = "file://artifacts/clash-arena/public/brawlers/yuki_front.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "f_83G9I-HFPFdinqkZ901"
+uri = "file://artifacts/clash-arena/public/brawlers/yuki_back.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "92ql6Ypo08GmM6eDnJ6G6"
+uri = "file://artifacts/clash-arena/public/brawlers/kenji_front.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "5Cb2ayk70HQXsfhAxA14Y"
+uri = "file://artifacts/clash-arena/public/brawlers/kenji_back.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "cNLlVNt72Q2OgqMw6MnTH"
+uri = "file://artifacts/clash-arena/public/brawlers/hana_front.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "9s0IkRbAQBtMxVWb3Zw7E"
+uri = "file://artifacts/clash-arena/public/brawlers/hana_back.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "epCegHcGi_dIBbieZFeC5"
+uri = "file://artifacts/clash-arena/public/brawlers/goro_front.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "I05q0K8ssziZfnHaM7gHz"
+uri = "file://artifacts/clash-arena/public/brawlers/goro_back.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "juj8pCCP1-3hRMlLrAPBV"
+uri = "file://artifacts/clash-arena/public/brawlers/sora_front.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "LSQC32mK_PjZzOf1XV2hM"
+uri = "file://artifacts/clash-arena/public/brawlers/sora_back.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "LwaAnzixiLTHdV6kZKdv6"
+uri = "file://artifacts/clash-arena/public/brawlers/rin_front.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "mZPBdAA4NTG3jYaHPmm68"
+uri = "file://artifacts/clash-arena/public/brawlers/rin_back.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "J3bd4wsdckzI7NcdXNSqR"
+uri = "file://artifacts/clash-arena/public/brawlers/taro_front.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "T4J40mi5z03n1RW8QiQCl"
+uri = "file://artifacts/clash-arena/public/brawlers/taro_back.png"
+type = "image"
+title = "generated_image"
+
+[[outputs]]
+id = "X9Tws63Uu-uL8M0CvEeAQ"
+uri = "file://artifacts/clash-arena/public/brawlers/miya_front.png"
+type = "image"
+title = "Мия (front)"
+
+[[outputs]]
+id = "QlmFnY30Oy4P50lNtA58H"
+uri = "file://artifacts/clash-arena/public/brawlers/ronin_front.png"
+type = "image"
+title = "Ronin (front)"
+
+[[outputs]]
+id = "qkxF1hGO8vgMg5Mq8Lkvu"
+uri = "file://artifacts/clash-arena/public/brawlers/yuki_front.png"
+type = "image"
+title = "Yuki (front)"
+
+[[outputs]]
+id = "F1p7HwzgOZhqwiW1K3yMR"
+uri = "file://artifacts/clash-arena/public/brawlers/miya_back.png"
+type = "image"
+title = "Мия (back)"
