@@ -40,8 +40,16 @@ export class Bot extends Brawler {
 
     const hpRatio = this.hp / this.maxHp;
     
-    if (hpRatio < 0.3 && this.canUseSuper()) {
-      this.activateSuper(allBrawlers, map, projectiles);
+    // Use super whenever ready: low HP for escape, OR any enemy within reasonable range
+    if (this.canUseSuper()) {
+      const superRange = this.stats.attackRange * 1.3;
+      const hasTargetInRange = nearestEnemy !== null && nearestDist < superRange;
+      if (hpRatio < 0.4 || hasTargetInRange) {
+        if (nearestEnemy) {
+          this.angle = angleTo(this.x, this.y, nearestEnemy.x, nearestEnemy.y);
+        }
+        this.activateSuper(allBrawlers, map, projectiles);
+      }
     }
 
     const detectionRange = this.forcedTarget ? this.stats.attackRange * 1.1 : 600;

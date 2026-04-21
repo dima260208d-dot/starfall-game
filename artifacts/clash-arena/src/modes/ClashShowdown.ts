@@ -35,7 +35,6 @@ export class ClashShowdown {
   input: InputHandler;
   
   gas: GasZone;
-  gasTimer = 5;
   gasDoubleTimer = 30;
   
   over = false;
@@ -90,7 +89,7 @@ export class ClashShowdown {
     this.gas = {
       centerX: 2500,
       centerY: 2500,
-      safeRadius: 2500,
+      safeRadius: 2000,
       timer: 0,
       damageMultiplier: 1,
     };
@@ -173,7 +172,6 @@ export class ClashShowdown {
     this.handleProjectileHits(allBrawlers);
     this.projectiles = this.projectiles.filter(p => p.active);
     
-    this.gasTimer -= dt;
     this.gasDoubleTimer -= dt;
     
     if (this.gasDoubleTimer <= 0) {
@@ -181,13 +179,9 @@ export class ClashShowdown {
       this.gasDoubleTimer = 30;
     }
     
-    if (this.gas.safeRadius > 100) {
-      this.gas.safeRadius = Math.max(100, this.gas.safeRadius - 8 * dt);
-    }
-    if (this.gasTimer <= 0) {
-      this.gas.centerX = 1500 + Math.random() * 2000;
-      this.gas.centerY = 1500 + Math.random() * 2000;
-      this.gasTimer = 12;
+    // Continuous shrink, fixed center — never disappears
+    if (this.gas.safeRadius > 150) {
+      this.gas.safeRadius = Math.max(150, this.gas.safeRadius - 22 * dt);
     }
     
     for (const b of allBrawlers) {
