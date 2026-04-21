@@ -510,7 +510,7 @@ export class Brawler {
       this.stats.id,
       sx,
       sy + 10,
-      this.radius * 2.9,
+      this.radius * 2.2,
       this.angle,
       alpha,
       glowColor,

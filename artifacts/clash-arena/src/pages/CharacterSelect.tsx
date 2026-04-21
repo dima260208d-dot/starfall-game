@@ -94,7 +94,7 @@ export default function CharacterSelect({ mode, onStart, onBack }: CharacterSele
             minHeight: 0,
           }}
         >
-          <BrawlerViewer3D brawlerId={brawler.id} color={brawler.color} size={300} autoRotateInitial={true} />
+          <BrawlerViewer3D brawlerId={brawler.id} color={brawler.color} size={420} autoRotateInitial={true} />
 
           <div style={{ textAlign: "center", marginTop: 10 }}>
             <div style={{ fontSize: 32, fontWeight: 900, color: brawler.color, textShadow: `0 0 20px ${brawler.color}` }}>
