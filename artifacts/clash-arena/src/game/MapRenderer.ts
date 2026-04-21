@@ -168,12 +168,6 @@ export function createCrystalsMap(): GameMap {
   ];
 
   const crates: Crate[] = [];
-  for (let i = 0; i < 40; i++) {
-    crates.push(makeCrate(
-      Math.random() * (W - 200) + 100,
-      Math.random() * (H - 200) + 100
-    ));
-  }
 
   const rivers: River[] = [
     { x: 1500, y: 700, w: 500, h: 60 },
