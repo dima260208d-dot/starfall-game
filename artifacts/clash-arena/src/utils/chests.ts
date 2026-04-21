@@ -180,9 +180,8 @@ export const CHEST_RARITY_ORDER: ChestRarity[] = [
 ];
 
 export interface ChestRoll {
-  type: "coins" | "gems" | "powerPoints" | "brawler";
-  amount: number;       // for brawler rolls this is always 1
-  brawlerId?: string;   // only set when type === "brawler"
+  type: "coins" | "gems" | "powerPoints";
+  amount: number;
 }
 
 function randInt(a: number, b: number): number {
@@ -215,10 +214,6 @@ export function rollChestRewards(rarity: ChestRarity): ChestRoll[] {
 
 export function summarizeRolls(rolls: ChestRoll[]): { coins: number; gems: number; powerPoints: number } {
   const sum = { coins: 0, gems: 0, powerPoints: 0 };
-  for (const r of rolls) {
-    if (r.type === "coins" || r.type === "gems" || r.type === "powerPoints") {
-      sum[r.type] += r.amount;
-    }
-  }
+  for (const r of rolls) sum[r.type] += r.amount;
   return sum;
 }

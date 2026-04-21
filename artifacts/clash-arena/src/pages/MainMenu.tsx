@@ -63,11 +63,10 @@ export default function MainMenu(props: MainMenuProps) {
     <div
       style={{
         minHeight: "100vh",
-        background: "transparent",
+        background: "radial-gradient(ellipse at center, #160048 0%, #060025 70%, #03001a 100%)",
         position: "relative",
         overflow: "hidden",
         fontFamily: "'Segoe UI', Arial, sans-serif",
-        zIndex: 1,
       }}
     >
       <style>{`

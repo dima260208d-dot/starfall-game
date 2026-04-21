@@ -4,15 +4,9 @@ import {
   getCurrentProfile,
   upgradeBrawler,
   upgradeBrawlerCost,
-  upgradeBrawlerWithGems,
-  gemUpgradeShortfall,
-  isBrawlerUnlocked,
-  brawlerGemPrice,
-  buyBrawler,
   MAX_BRAWLER_LEVEL,
 } from "../utils/localStorageAPI";
 import BrawlerViewer3D from "../components/BrawlerViewer3D";
-import { getBrawlerRarity, RARITY_LABEL, RARITY_COLOR } from "../utils/brawlerRarity";
 
 interface CharacterSelectProps {
   onPickAsActive: (brawlerId: string) => void;
@@ -41,23 +35,12 @@ export default function CharacterSelect({ onPickAsActive, onTraining, onBack }: 
       gems={profile.gems}
       powerPoints={profile.powerPoints}
       isActive={profile.selectedBrawlerId === detailBrawler.id}
-      isUnlocked={isBrawlerUnlocked(detailBrawler.id)}
       onClose={() => setOpenId(null)}
       onHome={onBack}
       onPickAsActive={() => { onPickAsActive(detailBrawler.id); }}
       onTraining={() => onTraining(detailBrawler.id)}
       onUpgrade={() => {
         const r = upgradeBrawler(detailBrawler.id);
-        if (r.success) setProfile(getCurrentProfile());
-        return r;
-      }}
-      onUpgradeWithGems={() => {
-        const r = upgradeBrawlerWithGems(detailBrawler.id);
-        if (r.success) setProfile(getCurrentProfile());
-        return r;
-      }}
-      onBuy={() => {
-        const r = buyBrawler(detailBrawler.id);
         if (r.success) setProfile(getCurrentProfile());
         return r;
       }}
@@ -88,7 +71,7 @@ function CharacterGrid({ profile, onBack, onOpen }: CharacterGridProps) {
   return (
     <div style={{
       minHeight: "100vh",
-      background: "transparent",
+      background: "linear-gradient(135deg, #050020 0%, #0a0040 100%)",
       fontFamily: "'Segoe UI', Arial, sans-serif",
       color: "white",
       padding: 20,
@@ -118,18 +101,13 @@ function CharacterGrid({ profile, onBack, onOpen }: CharacterGridProps) {
         {BRAWLERS.map((b) => {
           const lv = profile.brawlerLevels[b.id] || 1;
           const isActive = profile.selectedBrawlerId === b.id;
-          const unlocked = profile.unlockedBrawlers.includes(b.id);
-          const rarity = getBrawlerRarity(b.id);
-          const rColor = RARITY_COLOR[rarity];
           return (
             <button
               key={b.id}
               onClick={() => onOpen(b.id)}
               style={{
-                background: unlocked
-                  ? `linear-gradient(180deg, ${b.color}26 0%, rgba(0,0,0,0.4) 80%)`
-                  : `linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(0,0,0,0.55) 80%)`,
-                border: `2px solid ${isActive ? b.color : (unlocked ? b.color + "55" : rColor + "55")}`,
+                background: `linear-gradient(180deg, ${b.color}26 0%, rgba(0,0,0,0.4) 80%)`,
+                border: `2px solid ${isActive ? b.color : b.color + "55"}`,
                 borderRadius: 18,
                 padding: "18px 14px",
                 cursor: "pointer",
@@ -139,7 +117,7 @@ function CharacterGrid({ profile, onBack, onOpen }: CharacterGridProps) {
                 transition: "transform 0.15s, box-shadow 0.15s",
                 boxShadow: isActive ? `0 0 25px ${b.color}aa` : "none",
               }}
-              onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = unlocked ? `0 6px 25px ${b.color}cc` : `0 6px 25px ${rColor}88`; }}
+              onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = `0 6px 25px ${b.color}cc`; }}
               onMouseOut={(e) => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = isActive ? `0 0 25px ${b.color}aa` : "none"; }}
             >
               {isActive && (
@@ -151,80 +129,38 @@ function CharacterGrid({ profile, onBack, onOpen }: CharacterGridProps) {
                   letterSpacing: 1,
                 }}>ВЫБРАН</div>
               )}
-              {!unlocked && (
-                <div style={{
-                  position: "absolute", top: 8, left: 10,
-                  background: "rgba(0,0,0,0.7)", color: rColor,
-                  fontSize: 14, fontWeight: 800,
-                  borderRadius: 8, padding: "2px 8px",
-                  letterSpacing: 1, border: `1px solid ${rColor}`,
-                }}>🔒</div>
-              )}
               <div style={{
                 width: 130, height: 130, margin: "0 auto",
-                background: `radial-gradient(circle at 50% 60%, ${unlocked ? b.color + "55" : "rgba(255,255,255,0.08)"}, transparent 70%)`,
+                background: `radial-gradient(circle at 50% 60%, ${b.color}55, transparent 70%)`,
                 borderRadius: 14,
                 display: "flex", alignItems: "flex-end", justifyContent: "center",
-                position: "relative",
               }}>
                 <img
                   src={`${base}brawlers/${b.id}_front.png`}
                   alt={b.name}
                   style={{
                     maxWidth: "100%", maxHeight: "100%",
-                    filter: unlocked
-                      ? `drop-shadow(0 4px 10px ${b.color})`
-                      : "brightness(0) drop-shadow(0 4px 10px rgba(0,0,0,0.6))",
-                    opacity: unlocked ? 1 : 0.55,
+                    filter: `drop-shadow(0 4px 10px ${b.color})`,
                   }}
                 />
               </div>
-              {/* Rarity badge under icon */}
-              <div style={{
-                marginTop: 6,
-                display: "inline-block",
-                background: rColor, color: "white",
-                fontSize: 9, fontWeight: 900, letterSpacing: 1.5,
-                borderRadius: 6, padding: "2px 8px",
-                boxShadow: `0 0 10px ${rColor}aa`,
-              }}>
-                {RARITY_LABEL[rarity]}
-              </div>
-              <div style={{ marginTop: 8, fontSize: 18, fontWeight: 800, color: unlocked ? b.color : "#aaa", letterSpacing: 1 }}>
+              <div style={{ marginTop: 10, fontSize: 18, fontWeight: 800, color: b.color, letterSpacing: 1 }}>
                 {b.name}
-              </div>
-              {/* Rarity label under name */}
-              <div style={{ fontSize: 10, color: rColor, marginTop: 2, fontWeight: 700, letterSpacing: 1.5 }}>
-                {RARITY_LABEL[rarity]}
               </div>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginTop: 2, fontWeight: 600, letterSpacing: 1 }}>
                 {b.role.toUpperCase()}
               </div>
-              {unlocked ? (
-                <div style={{
-                  marginTop: 10,
-                  display: "inline-block",
-                  background: "rgba(0,0,0,0.45)",
-                  border: `1px solid ${b.color}`,
-                  borderRadius: 8, padding: "3px 12px",
-                  fontSize: 12, fontWeight: 800, color: "#FFD700",
-                  letterSpacing: 1,
-                }}>
-                  УРОВЕНЬ {lv}
-                </div>
-              ) : (
-                <div style={{
-                  marginTop: 10,
-                  display: "inline-block",
-                  background: "rgba(64,196,255,0.15)",
-                  border: "1px solid #40C4FF",
-                  borderRadius: 8, padding: "3px 12px",
-                  fontSize: 12, fontWeight: 800, color: "#40C4FF",
-                  letterSpacing: 1,
-                }}>
-                  💎 {brawlerGemPrice(b.id)}
-                </div>
-              )}
+              <div style={{
+                marginTop: 10,
+                display: "inline-block",
+                background: "rgba(0,0,0,0.45)",
+                border: `1px solid ${b.color}`,
+                borderRadius: 8, padding: "3px 12px",
+                fontSize: 12, fontWeight: 800, color: "#FFD700",
+                letterSpacing: 1,
+              }}>
+                УРОВЕНЬ {lv}
+              </div>
             </button>
           );
         })}
@@ -244,48 +180,30 @@ interface CharacterDetailProps {
   gems: number;
   powerPoints: number;
   isActive: boolean;
-  isUnlocked: boolean;
   onClose: () => void;
   onHome: () => void;
   onPickAsActive: () => void;
   onTraining: () => void;
   onUpgrade: () => { success: boolean; error?: string };
-  onUpgradeWithGems: () => { success: boolean; error?: string };
-  onBuy: () => { success: boolean; error?: string };
 }
 
 function CharacterDetail({
-  brawler, level, coins, gems, powerPoints, isActive, isUnlocked,
-  onClose, onHome, onPickAsActive, onTraining, onUpgrade, onUpgradeWithGems, onBuy,
+  brawler, level, coins, gems, powerPoints, isActive,
+  onClose, onHome, onPickAsActive, onTraining, onUpgrade,
 }: CharacterDetailProps) {
   const lore = BRAWLER_LORE[brawler.id] || brawler.description;
   const scaled = getScaledStats(brawler, level);
   const isMax = level >= MAX_BRAWLER_LEVEL;
   const cost = upgradeBrawlerCost(level);
   const canAfford = coins >= cost.coins && powerPoints >= cost.powerPoints;
-  const gemShortfall = isUnlocked && !isMax ? gemUpgradeShortfall(brawler.id) : 0;
-  const canGemUpgrade = isUnlocked && !isMax && !canAfford && gemShortfall > 0 && gems >= gemShortfall;
-  const rarity = getBrawlerRarity(brawler.id);
-  const rColor = RARITY_COLOR[rarity];
-  const buyPrice = brawlerGemPrice(brawler.id);
-  const canBuy = !isUnlocked && gems >= buyPrice;
   const [msg, setMsg] = useState<string | null>(null);
   const [showStatsModal, setShowStatsModal] = useState(false);
 
   const handleUpgrade = () => {
     if (isMax) { flash("Максимальный уровень!"); return; }
-    if (!isUnlocked) { flash("Сначала купите бойца"); return; }
     if (!canAfford) { flash("Недостаточно ресурсов"); return; }
     const r = onUpgrade();
     flash(r.success ? "Боец прокачан!" : (r.error || "Ошибка"));
-  };
-  const handleGemUpgrade = () => {
-    const r = onUpgradeWithGems();
-    flash(r.success ? "Боец прокачан кристаллами!" : (r.error || "Ошибка"));
-  };
-  const handleBuy = () => {
-    const r = onBuy();
-    flash(r.success ? "Боец разблокирован!" : (r.error || "Ошибка"));
   };
   function flash(text: string) {
     setMsg(text);
@@ -295,12 +213,11 @@ function CharacterDetail({
   return (
     <div style={{
       minHeight: "100vh",
-      background: `radial-gradient(ellipse at center, ${brawler.color}22 0%, transparent 60%, transparent 100%)`,
+      background: `radial-gradient(ellipse at center, ${brawler.color}22 0%, #060025 60%, #03001a 100%)`,
       fontFamily: "'Segoe UI', Arial, sans-serif",
       color: "white",
       position: "relative",
       overflow: "hidden",
-      zIndex: 1,
     }}>
       <style>{`
         @keyframes floatY { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
@@ -321,16 +238,6 @@ function CharacterDetail({
         }}>
           <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: 2, lineHeight: 1 }}>
             {brawler.name.toUpperCase()}
-          </div>
-          {/* Rarity label under name */}
-          <div style={{
-            display: "inline-block", marginTop: 6,
-            background: rColor, color: "white",
-            fontSize: 10, fontWeight: 900, letterSpacing: 2,
-            borderRadius: 6, padding: "2px 8px",
-            boxShadow: `0 0 14px ${rColor}cc`,
-          }}>
-            ★ {RARITY_LABEL[rarity]} ★
           </div>
           <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 3, opacity: 0.9, marginTop: 4 }}>
             {brawler.role.toUpperCase()} • УР {level}
@@ -430,77 +337,29 @@ function CharacterDetail({
           <Stat label="ЗАРЯДЫ"   value={brawler.attackCharges.toString()} icon="🔋" color="#FFD700" />
         </button>
 
-        {isUnlocked && (canAfford || isMax) && (
-          <button
-            onClick={handleUpgrade}
-            disabled={isMax}
-            style={{
-              background: isMax
-                ? "rgba(255,255,255,0.06)"
-                : canAfford
-                  ? "linear-gradient(135deg, #2E7D32, #69F0AE)"
-                  : "rgba(255,82,82,0.15)",
-              border: isMax ? "1px solid rgba(255,255,255,0.1)" : `1px solid ${canAfford ? "#69F0AE" : "rgba(255,82,82,0.4)"}`,
-              borderRadius: 12, padding: "12px 14px",
-              color: "white", fontWeight: 800, fontSize: 14, letterSpacing: 1,
-              cursor: isMax ? "default" : "pointer",
-              display: "flex", flexDirection: "column", gap: 2,
-            }}
-          >
-            <span>{isMax ? "✓ МАКС. УРОВЕНЬ" : `▲ УЛУЧШИТЬ ДО УР. ${level + 1}`}</span>
-            {!isMax && (
-              <span style={{ fontSize: 11, opacity: 0.8, fontWeight: 700 }}>
-                🪙 {cost.coins} • ✨ {cost.powerPoints}
-              </span>
-            )}
-          </button>
-        )}
-
-        {/* Gem-fallback upgrade: shown when can't afford with normal currencies but has enough gems */}
-        {isUnlocked && !isMax && !canAfford && gemShortfall > 0 && (
-          <button
-            onClick={handleGemUpgrade}
-            disabled={!canGemUpgrade}
-            style={{
-              background: canGemUpgrade
-                ? "linear-gradient(135deg, #0288D1, #40C4FF)"
-                : "rgba(255,255,255,0.06)",
-              border: canGemUpgrade ? "1px solid #40C4FF" : "1px solid rgba(255,255,255,0.15)",
-              borderRadius: 12, padding: "10px 14px",
-              color: "white", fontWeight: 800, fontSize: 13, letterSpacing: 1,
-              cursor: canGemUpgrade ? "pointer" : "not-allowed",
-              display: "flex", flexDirection: "column", gap: 2,
-            }}
-          >
-            <span>💎 ДОПЛАТИТЬ КРИСТАЛЛАМИ</span>
-            <span style={{ fontSize: 11, opacity: 0.85, fontWeight: 700 }}>
-              нужно ещё 💎 {gemShortfall}
-            </span>
-          </button>
-        )}
-
-        {!isUnlocked && (
-          <button
-            onClick={handleBuy}
-            disabled={!canBuy}
-            style={{
-              background: canBuy
-                ? `linear-gradient(135deg, ${rColor}, #40C4FF)`
+        <button
+          onClick={handleUpgrade}
+          disabled={isMax}
+          style={{
+            background: isMax
+              ? "rgba(255,255,255,0.06)"
+              : canAfford
+                ? "linear-gradient(135deg, #2E7D32, #69F0AE)"
                 : "rgba(255,82,82,0.15)",
-              border: canBuy ? `1px solid ${rColor}` : "1px solid rgba(255,82,82,0.4)",
-              borderRadius: 12, padding: "14px 16px",
-              color: "white", fontWeight: 900, fontSize: 14, letterSpacing: 1.5,
-              cursor: canBuy ? "pointer" : "not-allowed",
-              display: "flex", flexDirection: "column", gap: 2,
-              boxShadow: canBuy ? `0 4px 20px ${rColor}aa` : "none",
-            }}
-          >
-            <span>🔓 РАЗБЛОКИРОВАТЬ</span>
-            <span style={{ fontSize: 12, opacity: 0.9, fontWeight: 800 }}>
-              💎 {buyPrice}
+            border: isMax ? "1px solid rgba(255,255,255,0.1)" : `1px solid ${canAfford ? "#69F0AE" : "rgba(255,82,82,0.4)"}`,
+            borderRadius: 12, padding: "12px 14px",
+            color: "white", fontWeight: 800, fontSize: 14, letterSpacing: 1,
+            cursor: isMax ? "default" : "pointer",
+            display: "flex", flexDirection: "column", gap: 2,
+          }}
+        >
+          <span>{isMax ? "✓ МАКС. УРОВЕНЬ" : `▲ УЛУЧШИТЬ ДО УР. ${level + 1}`}</span>
+          {!isMax && (
+            <span style={{ fontSize: 11, opacity: 0.8, fontWeight: 700 }}>
+              🪙 {cost.coins} • ✨ {cost.powerPoints}
             </span>
-          </button>
-        )}
+          )}
+        </button>
       </div>
 
       {/* Bottom-left: Select + Training */}
@@ -510,33 +369,29 @@ function CharacterDetail({
       }}>
         <button
           onClick={onPickAsActive}
-          disabled={isActive || !isUnlocked}
+          disabled={isActive}
           style={{
-            background: isActive || !isUnlocked
+            background: isActive
               ? "rgba(255,255,255,0.06)"
               : `linear-gradient(135deg, ${brawler.color}, ${brawler.secondaryColor})`,
             border: "none", borderRadius: 14,
             padding: "14px 32px",
             color: "white", fontWeight: 900, fontSize: 16, letterSpacing: 2,
-            cursor: isActive || !isUnlocked ? "default" : "pointer",
-            opacity: !isUnlocked ? 0.5 : 1,
-            boxShadow: isActive || !isUnlocked ? "none" : `0 4px 25px ${brawler.color}aa`,
+            cursor: isActive ? "default" : "pointer",
+            boxShadow: isActive ? "none" : `0 4px 25px ${brawler.color}aa`,
           }}
         >
-          {!isUnlocked ? "🔒 ЗАБЛОКИРОВАН" : isActive ? "✓ УЖЕ ВЫБРАН" : "ВЫБРАТЬ"}
+          {isActive ? "✓ УЖЕ ВЫБРАН" : "ВЫБРАТЬ"}
         </button>
         <button
           onClick={onTraining}
-          disabled={!isUnlocked}
           style={{
-            background: !isUnlocked ? "rgba(255,255,255,0.06)" : "linear-gradient(135deg, #FFAB40, #FFD700)",
+            background: "linear-gradient(135deg, #FFAB40, #FFD700)",
             border: "none", borderRadius: 14,
             padding: "14px 32px",
-            color: !isUnlocked ? "rgba(255,255,255,0.4)" : "#3E2723",
-            fontWeight: 900, fontSize: 16, letterSpacing: 2,
-            cursor: !isUnlocked ? "not-allowed" : "pointer",
-            opacity: !isUnlocked ? 0.5 : 1,
-            boxShadow: !isUnlocked ? "none" : "0 4px 25px rgba(255,171,64,0.5)",
+            color: "#3E2723", fontWeight: 900, fontSize: 16, letterSpacing: 2,
+            cursor: "pointer",
+            boxShadow: "0 4px 25px rgba(255,171,64,0.5)",
           }}
         >
           🎯 ИСПЫТАТЬ

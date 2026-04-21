@@ -47,7 +47,7 @@ export default function ClashPassPage({ onBack }: Props) {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "transparent", padding: "30px 20px", color: "white", fontFamily: "'Segoe UI', Arial, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #050020 0%, #0a0040 100%)", padding: "30px 20px", color: "white", fontFamily: "'Segoe UI', Arial, sans-serif" }}>
       <button onClick={onBack} style={backBtn}>← Назад</button>
       <button
         onClick={() => setShowQuests(true)}

@@ -1,10 +1,8 @@
 import { useState, useEffect } from "react";
-import { getCurrentProfile, openBox, addGems, claimDailyBonus, buyChest, openChest, canClaimDailyLadder, isBrawlerUnlocked, brawlerGemPrice, buyBrawler } from "../utils/localStorageAPI";
+import { getCurrentProfile, openBox, addGems, claimDailyBonus, buyChest, openChest, canClaimDailyLadder } from "../utils/localStorageAPI";
 import { CHESTS, CHEST_RARITY_ORDER, type ChestRarity, type ChestRoll } from "../utils/chests";
 import ChestVisual from "../components/ChestVisual";
 import ChestOpenModal from "../components/ChestOpenModal";
-import { BRAWLERS } from "../entities/BrawlerData";
-import { getBrawlerRarity, RARITY_LABEL, RARITY_COLOR } from "../utils/brawlerRarity";
 
 interface ShopPageProps {
   onBack: () => void;
@@ -22,13 +20,6 @@ export default function ShopPage({ onBack }: ShopPageProps) {
     setMsg(r.success ? `Куплен ${CHESTS[rarity].name}` : (r.error || "Ошибка"));
     setProfile(getCurrentProfile());
     setTimeout(() => setMsg(""), 2000);
-  };
-
-  const handleBuyBrawler = (id: string) => {
-    const r = buyBrawler(id);
-    setMsg(r.success ? "Боец разблокирован!" : (r.error || "Ошибка"));
-    setProfile(getCurrentProfile());
-    setTimeout(() => setMsg(""), 2500);
   };
 
   const handleOpenChestRarity = (rarity: ChestRarity) => {
@@ -103,7 +94,7 @@ setMsg("+100 кристаллов добавлено!");
     <div
       style={{
         minHeight: "100vh",
-        background: "transparent",
+        background: "linear-gradient(135deg, #050020 0%, #0a0040 100%)",
         display: "flex",
         flexDirection: "column",
         fontFamily: "'Segoe UI', Arial, sans-serif",
@@ -209,83 +200,6 @@ setMsg("+100 кристаллов добавлено!");
                       }}
                     >💎 {def.priceGems}</button>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* BRAWLERS SECTION */}
-        <div style={{ marginBottom: 28 }}>
-          <div style={{
-            fontSize: 11, color: "rgba(255,255,255,0.5)", letterSpacing: 3, fontWeight: 800,
-            marginBottom: 10, paddingLeft: 4,
-          }}>БОЙЦЫ — РАЗБЛОКИРОВКА ЗА КРИСТАЛЛЫ</div>
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
-            gap: 12,
-          }}>
-            {BRAWLERS.map(b => {
-              const unlocked = !!profile && isBrawlerUnlocked(b.id);
-              const r = getBrawlerRarity(b.id);
-              const rColor = RARITY_COLOR[r];
-              const price = brawlerGemPrice(b.id);
-              const canAfford = !!profile && profile.gems >= price;
-              return (
-                <div key={b.id} style={{
-                  background: unlocked
-                    ? `linear-gradient(180deg, ${b.color}1A 0%, rgba(0,0,0,0.4) 100%)`
-                    : `linear-gradient(180deg, ${rColor}22 0%, rgba(0,0,0,0.5) 100%)`,
-                  border: `1.5px solid ${unlocked ? b.color + "55" : rColor + "77"}`,
-                  borderRadius: 14, padding: 10,
-                  display: "flex", flexDirection: "column", alignItems: "center",
-                  boxShadow: unlocked ? "none" : `0 0 16px ${rColor}33`,
-                }}>
-                  <div style={{
-                    width: 70, height: 70,
-                    background: `radial-gradient(circle at 50% 60%, ${unlocked ? b.color + "55" : "rgba(255,255,255,0.06)"}, transparent 70%)`,
-                    borderRadius: 10,
-                    display: "flex", alignItems: "flex-end", justifyContent: "center",
-                  }}>
-                    <img
-                      src={`${import.meta.env.BASE_URL}brawlers/${b.id}_front.png`}
-                      alt={b.name}
-                      style={{
-                        maxWidth: "100%", maxHeight: "100%",
-                        filter: unlocked
-                          ? `drop-shadow(0 3px 8px ${b.color})`
-                          : "brightness(0) drop-shadow(0 3px 8px rgba(0,0,0,0.6))",
-                        opacity: unlocked ? 1 : 0.55,
-                      }}
-                    />
-                  </div>
-                  <div style={{
-                    marginTop: 4, fontSize: 9, fontWeight: 900, letterSpacing: 1,
-                    background: rColor, color: "white", borderRadius: 5, padding: "1px 6px",
-                  }}>{RARITY_LABEL[r]}</div>
-                  <div style={{ marginTop: 4, fontSize: 12, fontWeight: 800, color: unlocked ? b.color : "#ddd", textAlign: "center" }}>
-                    {b.name}
-                  </div>
-                  {unlocked ? (
-                    <div style={{
-                      marginTop: 6, fontSize: 10, color: "#4CAF50", fontWeight: 800,
-                      background: "rgba(76,175,80,0.12)", borderRadius: 6, padding: "3px 8px",
-                    }}>✓ В КОЛЛЕКЦИИ</div>
-                  ) : (
-                    <button
-                      onClick={() => handleBuyBrawler(b.id)}
-                      disabled={!canAfford}
-                      style={{
-                        marginTop: 6, width: "100%",
-                        background: canAfford ? "linear-gradient(135deg, #0288D1, #40C4FF)" : "rgba(255,255,255,0.05)",
-                        border: "none", borderRadius: 8, padding: "6px 0",
-                        color: canAfford ? "white" : "rgba(255,255,255,0.4)",
-                        fontWeight: 800, fontSize: 11, cursor: canAfford ? "pointer" : "default",
-                        letterSpacing: 1,
-                      }}
-                    >💎 {price}</button>
-                  )}
                 </div>
               );
             })}
