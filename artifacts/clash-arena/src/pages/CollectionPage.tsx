@@ -107,7 +107,7 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
         </div>
 
         <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: "24px 30px", overflowY: "auto", minHeight: 0 }}>
-          <BrawlerViewer3D brawlerId={brawler.id} color={brawler.color} size={460} autoRotateInitial={true} />
+          <BrawlerViewer3D brawlerId={brawler.id} color={brawler.color} size={520} autoRotateInitial={true} />
 
           <div style={{ textAlign: "center", marginTop: 10, marginBottom: 20 }}>
             <div style={{ fontSize: 28, fontWeight: 900, color: brawler.color }}>{brawler.name}</div>
@@ -120,7 +120,7 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
               borderRadius: 16,
               padding: 20,
               width: "100%",
-              maxWidth: 400,
+              maxWidth: 520,
             }}
           >
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
