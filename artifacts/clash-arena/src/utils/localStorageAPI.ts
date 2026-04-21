@@ -2,6 +2,15 @@ import type { ChestRarity } from "./chests";
 import { CHESTS, rollChestRewards, type ChestRoll } from "./chests";
 import { DAILY_LADDER, getRewardForDay } from "./dailyLadder";
 import { generateDailyQuests, isQuestsExpired, type DailyQuestsState, type QuestKind } from "./quests";
+import {
+  BRAWLER_GEM_COST,
+  getBrawlerRarity,
+  rollBrawlerFromChest,
+  GEM_PER_COINS,
+  GEM_PER_POWER_POINTS,
+  gemsToCoverShortfall,
+} from "./brawlerRarity";
+import { BRAWLERS } from "../entities/BrawlerData";
 
 export interface UserProfile {
   username: string;
@@ -36,6 +45,10 @@ export interface UserProfile {
 
   // Chest inventory: how many of each rarity the player owns (unopened)
   chestInventory: Record<ChestRarity, number>;
+
+  // Brawlers the player has unlocked (collected). Locked brawlers can only be
+  // bought with gems in the shop or dropped from chests.
+  unlockedBrawlers: string[];
 }
 
 export const MAX_TROPHIES = 10000;
@@ -167,8 +180,46 @@ function defaultChestInventory(): Record<ChestRarity, number> {
   return { common: 0, rare: 0, epic: 0, mega: 0, legendary: 0, mythic: 0 };
 }
 
+/** Pick one random brawler id, used only for brand-new profiles. */
+function pickStartingBrawlerId(): string {
+  const ids = BRAWLERS.map(b => b.id);
+  return ids[Math.floor(Math.random() * ids.length)];
+}
+
 function normalizeProfile(p: UserProfile): UserProfile {
   const defaultLevels = { miya: 1, kibo: 1, ronin: 1, yuki: 1, kenji: 1, hana: 1, goro: 1, sora: 1, rin: 1, taro: 1 };
+  // Determine which brawlers the player has unlocked.
+  // - If the saved profile already has an `unlockedBrawlers` array, trust it.
+  // - Otherwise this is a brand-new profile (or pre-unlock-system save) — give
+  //   them exactly ONE random brawler to start with, which becomes their
+  //   selected/favorite.
+  let unlocked: string[];
+  if (Array.isArray((p as any).unlockedBrawlers)) {
+    unlocked = (p as any).unlockedBrawlers.filter((id: string) =>
+      BRAWLERS.some(b => b.id === id),
+    );
+  } else {
+    // Legacy save migration: if the profile shows any prior progression (games
+    // played, trophies, XP, upgraded brawler) we treat it as a pre-unlock-system
+    // profile and grant ALL brawlers so we don't strip access. Truly empty
+    // profiles get a single random starter.
+    const hasProgression =
+      (p.totalGamesPlayed ?? 0) > 0 ||
+      (p.trophies ?? 0) > 0 ||
+      (p.xp ?? 0) > 0 ||
+      Object.values(p.brawlerLevels || {}).some(lv => (lv as number) > 1);
+    if (hasProgression) {
+      unlocked = BRAWLERS.map(b => b.id);
+    } else {
+      const starter = p.selectedBrawlerId || p.favoriteBrawlerId || pickStartingBrawlerId();
+      unlocked = [starter];
+    }
+  }
+  if (unlocked.length === 0) unlocked = [pickStartingBrawlerId()];
+  // Active and favorite must be unlocked; if not, fall back to the first unlocked.
+  const fallback = unlocked[0];
+  const selected = unlocked.includes(p.selectedBrawlerId) ? p.selectedBrawlerId : fallback;
+  const favorite = unlocked.includes(p.favoriteBrawlerId) ? p.favoriteBrawlerId : fallback;
   return {
     username: p.username,
     passwordHash: p.passwordHash || "",
@@ -192,8 +243,8 @@ function normalizeProfile(p: UserProfile): UserProfile {
       return (p.trophyRoadClaimed || []).filter((v: number) => validThresholds.has(v));
     })(),
     modeStats: p.modeStats || {},
-    favoriteBrawlerId: p.favoriteBrawlerId || "miya",
-    selectedBrawlerId: p.selectedBrawlerId || "miya",
+    selectedBrawlerId: selected,
+    favoriteBrawlerId: favorite,
     selectedMode: p.selectedMode || "showdown",
     lastResult: p.lastResult,
     createdAt: p.createdAt || Date.now(),
@@ -201,6 +252,7 @@ function normalizeProfile(p: UserProfile): UserProfile {
     dailyLadderLastClaim: p.dailyLadderLastClaim ?? 0,
     dailyQuests: p.dailyQuests,
     chestInventory: { ...defaultChestInventory(), ...(p.chestInventory || {}) },
+    unlockedBrawlers: unlocked,
   };
 }
 
@@ -315,6 +367,9 @@ export const MAX_BRAWLER_LEVEL = 10;
 export function upgradeBrawler(id: string): { success: boolean; error?: string } {
   const profile = getCurrentProfile();
   if (!profile) return { success: false, error: "Not logged in" };
+  if (!profile.unlockedBrawlers.includes(id)) {
+    return { success: false, error: "Боец ещё не открыт" };
+  }
   const level = profile.brawlerLevels[id] || 1;
   if (level >= 10) return { success: false, error: "Max level reached" };
   const costCoins = 100 * level;
@@ -330,6 +385,89 @@ export function upgradeBrawler(id: string): { success: boolean; error?: string }
   trackQuestProgress("upgrade_brawler", 1);
   return { success: true };
 }
+
+/**
+ * Upgrade a brawler, paying gems for any shortfall in coins or power points.
+ * 1 gem covers GEM_PER_COINS coins or GEM_PER_POWER_POINTS power points.
+ * Returns the gem cost so callers can show it before committing.
+ */
+export function upgradeBrawlerWithGems(id: string): { success: boolean; error?: string; gemCost?: number } {
+  const profile = getCurrentProfile();
+  if (!profile) return { success: false, error: "Not logged in" };
+  if (!profile.unlockedBrawlers.includes(id)) return { success: false, error: "Боец ещё не открыт" };
+  const level = profile.brawlerLevels[id] || 1;
+  if (level >= 10) return { success: false, error: "Максимальный уровень" };
+  const costCoins = 100 * level;
+  const costPP = 5 * level;
+  const gemCost = gemsToCoverShortfall(costCoins, profile.coins, costPP, profile.powerPoints);
+  if (gemCost === 0) {
+    // No shortfall — fall through to a regular upgrade.
+    return upgradeBrawler(id);
+  }
+  if (profile.gems < gemCost) {
+    return { success: false, error: `Нужно ${gemCost} кристаллов`, gemCost };
+  }
+  const useCoins = Math.min(profile.coins, costCoins);
+  const usePP = Math.min(profile.powerPoints, costPP);
+  updateProfile({
+    coins: profile.coins - useCoins,
+    powerPoints: profile.powerPoints - usePP,
+    gems: profile.gems - gemCost,
+    brawlerLevels: { ...profile.brawlerLevels, [id]: level + 1 },
+  });
+  trackQuestProgress("upgrade_brawler", 1);
+  return { success: true, gemCost };
+}
+
+/** How many gems are needed right now to upgrade `id` (0 if no shortfall). */
+export function gemUpgradeShortfall(id: string): number {
+  const profile = getCurrentProfile();
+  if (!profile) return 0;
+  const level = profile.brawlerLevels[id] || 1;
+  if (level >= 10) return 0;
+  return gemsToCoverShortfall(100 * level, profile.coins, 5 * level, profile.powerPoints);
+}
+
+// =========================================================================
+// BRAWLER UNLOCKS
+// =========================================================================
+
+export function isBrawlerUnlocked(id: string): boolean {
+  const p = getCurrentProfile();
+  return !!p && p.unlockedBrawlers.includes(id);
+}
+
+export function unlockBrawler(id: string): boolean {
+  const profile = getCurrentProfile();
+  if (!profile) return false;
+  if (profile.unlockedBrawlers.includes(id)) return false;
+  updateProfile({
+    unlockedBrawlers: [...profile.unlockedBrawlers, id],
+    brawlerLevels: { ...profile.brawlerLevels, [id]: profile.brawlerLevels[id] || 1 },
+  });
+  return true;
+}
+
+export function brawlerGemPrice(id: string): number {
+  return BRAWLER_GEM_COST[getBrawlerRarity(id)];
+}
+
+export function buyBrawler(id: string): { success: boolean; error?: string; gemCost?: number } {
+  const profile = getCurrentProfile();
+  if (!profile) return { success: false, error: "Not logged in" };
+  if (profile.unlockedBrawlers.includes(id)) return { success: false, error: "Уже открыт" };
+  const cost = brawlerGemPrice(id);
+  if (profile.gems < cost) return { success: false, error: `Нужно ${cost} кристаллов`, gemCost: cost };
+  updateProfile({
+    gems: profile.gems - cost,
+    unlockedBrawlers: [...profile.unlockedBrawlers, id],
+    brawlerLevels: { ...profile.brawlerLevels, [id]: profile.brawlerLevels[id] || 1 },
+  });
+  return { success: true, gemCost: cost };
+}
+
+// Re-export so UI can show shortfall ratios in tooltips, etc.
+export { GEM_PER_COINS, GEM_PER_POWER_POINTS };
 
 export function addCoins(amount: number): void {
   const profile = getCurrentProfile();
@@ -432,6 +570,9 @@ export function recordGameResult(opts: {
 }
 
 export function setSelectedBrawler(id: string): void {
+  const p = getCurrentProfile();
+  if (!p) return;
+  if (!p.unlockedBrawlers.includes(id)) return;
   updateProfile({ selectedBrawlerId: id });
 }
 
@@ -440,6 +581,8 @@ export function setSelectedMode(mode: string): void {
 }
 
 export function setFavoriteBrawler(id: string): void {
+  const p = getCurrentProfile();
+  if (!p || !p.unlockedBrawlers.includes(id)) return;
   updateProfile({ favoriteBrawlerId: id });
 }
 
@@ -567,6 +710,18 @@ export function openChest(rarity: ChestRarity): { success: boolean; rolls?: Ches
   if (!profile) return { success: false, error: "Not logged in" };
   if ((profile.chestInventory[rarity] || 0) < 1) return { success: false, error: "Нет такого сундука" };
   const rolls = rollChestRewards(rarity);
+
+  // Roll an extra brawler drop. Same rarity as chest or LOWER, must be locked.
+  const allIds = BRAWLERS.map(b => b.id);
+  const droppedBrawler = rollBrawlerFromChest(rarity, profile.unlockedBrawlers, allIds);
+  let unlockedBrawlers = profile.unlockedBrawlers;
+  let brawlerLevels = profile.brawlerLevels;
+  if (droppedBrawler) {
+    rolls.push({ type: "brawler", amount: 1, brawlerId: droppedBrawler });
+    unlockedBrawlers = [...profile.unlockedBrawlers, droppedBrawler];
+    brawlerLevels = { ...profile.brawlerLevels, [droppedBrawler]: profile.brawlerLevels[droppedBrawler] || 1 };
+  }
+
   let coinsGain = 0, gemsGain = 0, ppGain = 0;
   for (const r of rolls) {
     if (r.type === "coins") coinsGain += r.amount;
@@ -581,6 +736,8 @@ export function openChest(rarity: ChestRarity): { success: boolean; rolls?: Ches
       ...profile.chestInventory,
       [rarity]: profile.chestInventory[rarity] - 1,
     },
+    unlockedBrawlers,
+    brawlerLevels,
   });
   trackQuestProgress("open_chests", 1);
   return { success: true, rolls };

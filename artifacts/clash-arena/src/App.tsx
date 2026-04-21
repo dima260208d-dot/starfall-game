@@ -13,6 +13,7 @@ import ClashPassPage from "./pages/ClashPassPage";
 import TrophyRoadPage from "./pages/TrophyRoadPage";
 import ChestsPage from "./pages/ChestsPage";
 import LoadingScreen from "./pages/LoadingScreen";
+import MenuBackground from "./components/MenuBackground";
 
 type Screen =
   | "auth"
@@ -83,12 +84,22 @@ export default function App() {
     );
   }
 
+  // Pick the background variant for the current screen.
+  const bgVariant: "menu" | "lobby" | "none" =
+    screen === "menu" ? "lobby" :
+    screen === "game" || screen === "auth" ? "none" :
+    "menu";
+
+  const bg = bgVariant === "none" ? null : <MenuBackground variant={bgVariant} />;
+
   if (screen === "auth") {
     return <AuthPage onAuth={() => { hydrateFromProfile(); go("menu"); }} />;
   }
 
   if (screen === "menu") {
     return (
+      <>
+      {bg}
       <MainMenu
         onPlay={() => {
           // Always read latest selections from the active profile before entering battle.
@@ -106,20 +117,21 @@ export default function App() {
         onBrawlerSelect={() => go("characterSelect")}
         onLogout={() => { logout(); go("auth"); }}
       />
+      </>
     );
   }
 
   if (screen === "modeSelect") {
-    return (
+    return (<>{bg}
       <ModeSelect
         onSelect={(mode) => { setSelectedMode(mode); persistMode(mode); go("menu"); }}
         onBack={() => go("menu")}
-      />
+      /></>
     );
   }
 
   if (screen === "characterSelect") {
-    return (
+    return (<>{bg}
       <CharacterSelect
         onPickAsActive={(id) => { setSelectedBrawler(id); persistBrawler(id); }}
         onTraining={(id) => {
@@ -130,21 +142,21 @@ export default function App() {
           goWithLoad("game", "ВХОД В ТРЕНИРОВКУ");
         }}
         onBack={() => go("menu")}
-      />
+      /></>
     );
   }
 
   if (screen === "profile") {
-    return <ProfilePage onBack={() => go("menu")} />;
+    return <>{bg}<ProfilePage onBack={() => go("menu")} /></>;
   }
   if (screen === "clashpass") {
-    return <ClashPassPage onBack={() => go("menu")} />;
+    return <>{bg}<ClashPassPage onBack={() => go("menu")} /></>;
   }
   if (screen === "trophyroad") {
-    return <TrophyRoadPage onBack={() => go("menu")} />;
+    return <>{bg}<TrophyRoadPage onBack={() => go("menu")} /></>;
   }
   if (screen === "chests") {
-    return <ChestsPage onBack={() => go("menu")} />;
+    return <>{bg}<ChestsPage onBack={() => go("menu")} /></>;
   }
 
   if (screen === "game") {
@@ -158,19 +170,19 @@ export default function App() {
   }
 
   if (screen === "collection") {
-    return <CollectionPage onBack={() => go("menu")} />;
+    return <>{bg}<CollectionPage onBack={() => go("menu")} /></>;
   }
 
   if (screen === "shop") {
-    return <ShopPage onBack={() => go("menu")} />;
+    return <>{bg}<ShopPage onBack={() => go("menu")} /></>;
   }
 
   if (screen === "settings") {
-    return (
+    return (<>{bg}
       <SettingsPage
         onBack={() => go("menu")}
         onSwitchProfile={() => { logout(); go("auth"); }}
-      />
+      /></>
     );
   }
 

@@ -25,7 +25,7 @@ setMsg("+100 кристаллов добавлено для теста!");
     <div
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(135deg, #050020 0%, #0a0040 100%)",
+        background: "transparent",
         display: "flex",
         flexDirection: "column",
         fontFamily: "'Segoe UI', Arial, sans-serif",
