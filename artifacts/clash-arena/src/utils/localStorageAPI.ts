@@ -41,24 +41,36 @@ export interface TrophyRoadReward {
   label: string;
 }
 
-export const TROPHY_ROAD: TrophyRoadReward[] = [
-  { trophies: 10,   type: "coins",       amount: 50,  label: "50 монет" },
-  { trophies: 25,   type: "powerPoints", amount: 5,   label: "5 очков" },
-  { trophies: 50,   type: "gems",        amount: 5,   label: "5 кристаллов" },
-  { trophies: 100,  type: "coins",       amount: 150, label: "150 монет" },
-  { trophies: 200,  type: "powerPoints", amount: 10,  label: "10 очков" },
-  { trophies: 350,  type: "gems",        amount: 15,  label: "15 кристаллов" },
-  { trophies: 500,  type: "coins",       amount: 400, label: "400 монет" },
-  { trophies: 750,  type: "powerPoints", amount: 20,  label: "20 очков" },
-  { trophies: 1000, type: "gems",        amount: 30,  label: "30 кристаллов" },
-  { trophies: 1500, type: "coins",       amount: 800, label: "800 монет" },
-  { trophies: 2000, type: "gems",        amount: 50,  label: "50 кристаллов" },
-  { trophies: 3000, type: "coins",       amount: 1500, label: "1500 монет" },
-  { trophies: 4500, type: "gems",        amount: 80,  label: "80 кристаллов" },
-  { trophies: 6000, type: "coins",       amount: 3000, label: "3000 монет" },
-  { trophies: 8000, type: "gems",        amount: 150, label: "150 кристаллов" },
-  { trophies: 10000, type: "gems",       amount: 500, label: "500 кристаллов" },
-];
+function buildTrophyRoad(): TrophyRoadReward[] {
+  const thresholds: number[] = [];
+  for (let t = 50; t <= 1000; t += 50) thresholds.push(t);
+  for (let t = 1100; t <= 3000; t += 100) thresholds.push(t);
+  for (let t = 3200; t <= 5000; t += 200) thresholds.push(t);
+  for (let t = 5400; t <= 10000; t += 400) thresholds.push(t);
+
+  return thresholds.map((trophies, i): TrophyRoadReward => {
+    // Big gem milestones at major thresholds
+    if (trophies === 10000) return { trophies, type: "gems", amount: 500, label: "500 кристаллов" };
+    if (trophies === 5000)  return { trophies, type: "gems", amount: 200, label: "200 кристаллов" };
+    if (trophies === 3000)  return { trophies, type: "gems", amount: 100, label: "100 кристаллов" };
+    if (trophies === 1000)  return { trophies, type: "gems", amount: 50,  label: "50 кристаллов"  };
+
+    // 5-tier rotation: coin, coin, pp, coin, gem
+    const cycle = i % 5;
+    if (cycle === 4) {
+      const amount = Math.max(5, Math.round(trophies / 80));
+      return { trophies, type: "gems", amount, label: `${amount} кристаллов` };
+    }
+    if (cycle === 2) {
+      const amount = Math.max(3, Math.round(trophies / 60));
+      return { trophies, type: "powerPoints", amount, label: `${amount} очков прокачки` };
+    }
+    const amount = Math.max(40, Math.round((trophies * 0.5) / 10) * 10);
+    return { trophies, type: "coins", amount, label: `${amount} монет` };
+  });
+}
+
+export const TROPHY_ROAD: TrophyRoadReward[] = buildTrophyRoad();
 
 export interface ClashPassReward {
   type: "coins" | "gems" | "powerPoints";
@@ -134,7 +146,12 @@ function normalizeProfile(p: UserProfile): UserProfile {
     xp: p.xp ?? 0,
     clashPassLevel: p.clashPassLevel ?? 1,
     clashPassClaimed: p.clashPassClaimed || [],
-    trophyRoadClaimed: p.trophyRoadClaimed || [],
+    trophyRoadClaimed: (() => {
+      // Stored as trophy thresholds. Filter out anything not in current ladder
+      // (handles migration from older index-based storage).
+      const validThresholds = new Set(TROPHY_ROAD.map(r => r.trophies));
+      return (p.trophyRoadClaimed || []).filter((v: number) => validThresholds.has(v));
+    })(),
     modeStats: p.modeStats || {},
     favoriteBrawlerId: p.favoriteBrawlerId || "miya",
     selectedBrawlerId: p.selectedBrawlerId || "miya",
@@ -396,9 +413,9 @@ export function claimTrophyRoadReward(idx: number): { success: boolean; reward?:
   if (idx < 0 || idx >= TROPHY_ROAD.length) return { success: false, error: "Неверная награда" };
   const reward = TROPHY_ROAD[idx];
   if (profile.trophies < reward.trophies) return { success: false, error: "Недостаточно кубков" };
-  if (profile.trophyRoadClaimed.includes(idx)) return { success: false, error: "Уже получено" };
+  if (profile.trophyRoadClaimed.includes(reward.trophies)) return { success: false, error: "Уже получено" };
   const updates: Partial<UserProfile> = {
-    trophyRoadClaimed: [...profile.trophyRoadClaimed, idx],
+    trophyRoadClaimed: [...profile.trophyRoadClaimed, reward.trophies],
   };
   if (reward.type === "coins") updates.coins = profile.coins + reward.amount;
   else if (reward.type === "gems") updates.gems = profile.gems + reward.amount;

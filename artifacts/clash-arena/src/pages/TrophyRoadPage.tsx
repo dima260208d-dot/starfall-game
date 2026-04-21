@@ -45,7 +45,7 @@ export default function TrophyRoadPage({ onBack }: Props) {
         <div style={{ marginTop: 24, display: "flex", flexDirection: "column", gap: 10 }}>
           {TROPHY_ROAD.map((reward, idx) => {
             const reached = profile.trophies >= reward.trophies;
-            const claimed = profile.trophyRoadClaimed.includes(idx);
+            const claimed = profile.trophyRoadClaimed.includes(reward.trophies);
             const tierIcon = reward.type === "gems" ? "💎" : reward.type === "powerPoints" ? "✨" : "🪙";
             const tierColor = reward.type === "gems" ? "#40C4FF" : reward.type === "powerPoints" ? "#CE93D8" : "#FFD700";
             const progress = Math.min(100, Math.round((profile.trophies / reward.trophies) * 100));

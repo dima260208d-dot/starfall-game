@@ -97,37 +97,8 @@ export default function MainMenu(props: MainMenuProps) {
         ))}
       </div>
 
-      {/* TOP-RIGHT: trophies + resources */}
-      <div style={{ position: "absolute", top: 16, right: 16, display: "flex", flexDirection: "column", gap: 8, zIndex: 5 }}>
-        <button
-          onClick={onTrophyRoad}
-          style={{
-            display: "flex", alignItems: "center", gap: 8,
-            background: "linear-gradient(135deg, rgba(255,215,0,0.18), rgba(255,171,64,0.18))",
-            border: "1.5px solid rgba(255,215,0,0.5)",
-            borderRadius: 12, padding: "8px 14px",
-            color: "#FFD700", fontWeight: 800, fontSize: 17, cursor: "pointer",
-            boxShadow: "0 0 20px rgba(255,215,0,0.25)",
-          }}
-        >
-          🏆 {profile.trophies}
-          <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: 600, marginLeft: 4 }}>
-            / {MAX_TROPHIES}
-          </span>
-        </button>
-        <div style={{
-          display: "flex", gap: 6,
-          background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.08)",
-          borderRadius: 12, padding: "6px 10px", backdropFilter: "blur(10px)",
-        }}>
-          <Resource icon="🪙" value={profile.coins} color="#FFD700" />
-          <Resource icon="💎" value={profile.gems} color="#40C4FF" />
-          <Resource icon="✨" value={profile.powerPoints} color="#CE93D8" />
-        </div>
-      </div>
-
-      {/* TOP-LEFT: profile pill + clash pass header */}
-      <div style={{ position: "absolute", top: 16, left: 16, zIndex: 5, display: "flex", gap: 10 }}>
+      {/* TOP-LEFT: profile pill + trophies */}
+      <div style={{ position: "absolute", top: 16, left: 16, zIndex: 5, display: "flex", gap: 10, alignItems: "center" }}>
         <button
           onClick={onProfile}
           style={{
@@ -154,14 +125,43 @@ export default function MainMenu(props: MainMenuProps) {
             </div>
           </div>
         </button>
+        <button
+          onClick={onTrophyRoad}
+          style={{
+            display: "flex", alignItems: "center", gap: 8,
+            background: "linear-gradient(135deg, rgba(255,215,0,0.18), rgba(255,171,64,0.18))",
+            border: "1.5px solid rgba(255,215,0,0.5)",
+            borderRadius: 12, padding: "8px 14px",
+            color: "#FFD700", fontWeight: 800, fontSize: 17, cursor: "pointer",
+            boxShadow: "0 0 20px rgba(255,215,0,0.25)",
+          }}
+        >
+          🏆 {profile.trophies}
+          <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: 600, marginLeft: 4 }}>
+            / {MAX_TROPHIES}
+          </span>
+        </button>
       </div>
 
-      {/* CENTER: brawler showcase + name */}
+      {/* TOP-RIGHT: resources */}
+      <div style={{ position: "absolute", top: 16, right: 16, zIndex: 5 }}>
+        <div style={{
+          display: "flex", gap: 6,
+          background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.08)",
+          borderRadius: 12, padding: "6px 10px", backdropFilter: "blur(10px)",
+        }}>
+          <Resource icon="🪙" value={profile.coins} color="#FFD700" />
+          <Resource icon="💎" value={profile.gems} color="#40C4FF" />
+          <Resource icon="✨" value={profile.powerPoints} color="#CE93D8" />
+        </div>
+      </div>
+
+      {/* CENTER: brawler showcase + name (anchored higher) */}
       <div style={{
         position: "absolute", inset: 0,
         display: "flex", flexDirection: "column",
-        alignItems: "center", justifyContent: "center",
-        pointerEvents: "none", paddingTop: 60,
+        alignItems: "center",
+        pointerEvents: "none", paddingTop: 80,
       }}>
         <div style={{
           fontSize: 52, fontWeight: 900,
@@ -175,15 +175,15 @@ export default function MainMenu(props: MainMenuProps) {
           fontSize: 22, fontWeight: 700, color: "#CE93D8",
           letterSpacing: 14, marginTop: -6,
           textShadow: "0 0 20px rgba(206,147,216,0.5)",
-          marginBottom: 6,
+          marginBottom: 0,
         }}>ARENA</div>
 
         <div
           onClick={onBrawlerSelect}
           style={{
             pointerEvents: "auto", cursor: "pointer",
-            position: "relative", marginTop: 8,
-            width: 320, height: 360,
+            position: "relative", marginTop: 0,
+            width: 300, height: 320,
             display: "flex", alignItems: "center", justifyContent: "center",
             animation: "floatY 3.5s ease-in-out infinite",
           }}
