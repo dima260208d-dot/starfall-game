@@ -1,0 +1,60 @@
+Общие настройки (для всех промтов)
+Стиль: аниме-стилизация в 3D, cel-shading, яркие цвета, мультяшные пропорции (чиби или полу-чиби), динамичная поза, белый фон (или прозрачный для вырезания).
+
+Освещение: студийное, мягкие тени.
+
+Качество: 4K, детализированная текстура одежды и оружия.
+
+Аспект: 1:1 (квадрат) или 3:4 (портрет).
+
+Негативный промт: realistic, photorealistic, horror, dark, гротеск, лишние конечности, плохая анатомия.
+
+1. Мия (ассасин)
+Промт:
+
+3D anime chibi-style character full body, young female ninja assassin, purple long hair tied in ponytail, red blindfold over left eye, wearing black and purple ninja outfit with short sleeves, two short katanas on her back, dynamic pose holding a throwing star (shuriken) in one hand, glowing purple aura around her feet, cel-shaded, vibrant colors, white background, soft studio lighting, 4K, cute but fierce expression.
+
+2. Kibo (стрелок)
+Промт:
+
+3D anime chibi-style character full body, teenage boy sniper, long blue hair swept back, wearing white trench coat over black tactical vest, mirrored sunglasses, holding a long plasma rifle with glowing blue energy, aiming pose, one eye visible through glasses, energy particles around the gun, cel-shaded, bright and clean, white background, 4K.
+
+3. Ronin (танк)
+Промт:
+
+3D anime chibi-style character full body, huge samurai warrior, red heavy armor with gold accents, kabuto helmet with horns, giant katana in sheath on his back, muscular build, standing with arms crossed, stoic expression, glowing red aura, cel-shaded, dramatic lighting from above, white background, 4K.
+
+4. Yuki (поддержка)
+Промт:
+
+3D anime chibi-style character full body, gentle girl in blue kimono, white long hair with snowflake hairpin, holding a wooden staff with a glowing ice crystal on top, floating snowflakes around her, healing green sparkles at her feet, soft smiling face, pastel colors, cel-shaded, white background, 4K.
+
+5. Kenji (контроллер)
+Промт:
+
+3D anime chibi-style character full body, energetic boy in yellow electro-shock suit, short spiky black hair, wrist-mounted electric gauntlets crackling with blue lightning, one hand raised with chain lightning jumping between fingers, dynamic crouching pose, yellow and black color scheme, cel-shaded, white background, 4K.
+
+6. Hana (поддержка-хилер)
+Промт:
+
+3D anime chibi-style character full body, cute girl in pink nurse/doctor outfit, pink twin tails, holding a large syringe-gun (healing pistol), floating pink hearts and medical crosses around her, cheerful expression, one foot lifted as if hopping, bright pastel pink and white, cel-shaded, white background, 4K.
+
+7. Goro (берсерк-танк)
+Промт:
+
+3D anime chibi-style character full body, huge muscular bearded man with wild brown hair, bare chest with tribal tattoos, wielding two massive battle axes, roaring pose, red berserker aura around him, wearing only fur pants and wristbands, intimidating but cartoonish, cel-shaded, white background, 4K.
+
+8. Sora (маг)
+Промт:
+
+3D anime chibi-style character full body, young mage boy in blue robe with stars and moons, floating magical book in front of him, holding a staff with a red orb, fire meteors falling around him, one hand casting a fireball, determined expression, dark blue and gold colors, cel-shaded, white background, 4K.
+
+9. Rin (ассасин-отравитель)
+Промт:
+
+3D anime chibi-style character full body, dark green haired girl with short messy hair, wearing tattered green cloak, holding two poisoned daggers with purple dripping venom, purple gas cloud around her feet, sneaky crouching pose, sharp fangs smile, neon green and purple accents, cel-shaded, white background, 4K.
+
+10. Taro (инженер)
+Промт:
+
+3D anime chibi-style character full body, old man with grey beard and goggles on forehead, wearing mechanic overalls with tools, carrying a large wrench on his shoulder, a small turret robot floating beside him, gears and cogs around, friendly grandpa smile, brown and brass colors, cel-shaded, white background, 4K.

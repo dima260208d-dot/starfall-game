@@ -1,0 +1,405 @@
+import { Brawler } from "../entities/Brawler";
+import { Bot } from "../entities/Bot";
+import { BRAWLERS, getBrawlerById } from "../entities/BrawlerData";
+import { createShowdownMap, GameMap, Crate } from "../game/MapRenderer";
+import { Projectile, updateProjectiles, renderProjectiles } from "../entities/Projectile";
+import { Camera } from "../game/Camera";
+import { InputHandler } from "../game/InputHandler";
+import { updateDamageNumbers, renderDamageNumbers, clearDamageNumbers } from "../utils/damageNumbers";
+import { renderMap } from "../game/MapRenderer";
+import { angleTo, distance, randomInt } from "../utils/helpers";
+import { recordGameResult } from "../utils/localStorageAPI";
+
+export interface DropItem {
+  x: number;
+  y: number;
+  type: "health" | "coins";
+  radius: number;
+}
+
+export interface GasZone {
+  centerX: number;
+  centerY: number;
+  safeRadius: number;
+  timer: number;
+  damageMultiplier: number;
+}
+
+export class ClashShowdown {
+  map: GameMap;
+  player: Brawler;
+  bots: Bot[] = [];
+  projectiles: Projectile[] = [];
+  drops: DropItem[] = [];
+  camera: Camera;
+  input: InputHandler;
+  
+  gas: GasZone;
+  gasTimer = 5;
+  gasDoubleTimer = 30;
+  
+  over = false;
+  won = false;
+  frame = 0;
+  spriteLoaded: boolean;
+  
+  private resultRecorded = false;
+
+  constructor(
+    canvas: HTMLCanvasElement,
+    playerBrawlerId: string,
+    playerLevel: number,
+    onAttack: () => void,
+    onSuper: () => void,
+    spriteLoaded: boolean
+  ) {
+    this.map = createShowdownMap();
+    this.spriteLoaded = spriteLoaded;
+    
+    const playerStats = getBrawlerById(playerBrawlerId) || BRAWLERS[0];
+    this.player = new Brawler(playerStats, playerLevel, 2500, 2500, "player", true);
+    
+    const usedPositions = [{ x: 2500, y: 2500 }];
+    const spawnPadding = 400;
+    
+    for (let i = 0; i < 7; i++) {
+      const allStats = BRAWLERS.filter(b => b.id !== playerBrawlerId);
+      const botStats = allStats[i % allStats.length];
+      const level = randomInt(1, 5);
+      
+      let bx: number, by: number;
+      let attempts = 0;
+      do {
+        bx = randomInt(200, this.map.width - 200);
+        by = randomInt(200, this.map.height - 200);
+        attempts++;
+      } while (
+        usedPositions.some(p => Math.abs(p.x - bx) < spawnPadding && Math.abs(p.y - by) < spawnPadding) && 
+        attempts < 50
+      );
+      
+      usedPositions.push({ x: bx, y: by });
+      this.bots.push(new Bot(botStats, level, bx, by, "red"));
+    }
+    
+    this.gas = {
+      centerX: 2500,
+      centerY: 2500,
+      safeRadius: 2500,
+      timer: 0,
+      damageMultiplier: 1,
+    };
+    
+    this.camera = new Camera(1200, 800, this.map.width, this.map.height);
+    this.input = new InputHandler(canvas, onAttack, onSuper);
+  }
+
+  handleAttack(): void {
+    if (!this.player.canAttack()) return;
+    const angle = angleTo(this.player.x, this.player.y, this.input.state.mouseWorldX, this.input.state.mouseWorldY);
+    this.player.angle = angle;
+    
+    const isMelee = ["goro", "ronin", "taro"].includes(this.player.stats.id);
+    if (isMelee) {
+      const allBrawlers = [this.player, ...this.bots];
+      this.player.meleeAttack(allBrawlers);
+    } else {
+      const projs = this.player.shoot(angle);
+      this.projectiles.push(...projs);
+    }
+  }
+
+  handleSuper(): void {
+    if (!this.player.canUseSuper()) return;
+    const allBrawlers = [this.player, ...this.bots];
+    this.player.activateSuper(allBrawlers, this.map, this.projectiles);
+  }
+
+  update(dt: number): void {
+    if (this.over) return;
+    
+    this.frame++;
+    
+    const { up, down, left, right } = this.input.state;
+    let dx = 0, dy = 0;
+    if (up) dy -= 1;
+    if (down) dy += 1;
+    if (left) dx -= 1;
+    if (right) dx += 1;
+    
+    if (dx !== 0 || dy !== 0) {
+      this.player.move(dx, dy, dt);
+    }
+    
+    this.camera.follow(this.player.x, this.player.y);
+    this.input.updateWorldMouse(this.camera.x, this.camera.y);
+    
+    const mouseAngle = angleTo(this.player.x, this.player.y, this.input.state.mouseWorldX, this.input.state.mouseWorldY);
+    this.player.angle = mouseAngle;
+    
+    const allBrawlers = [this.player, ...this.bots];
+    
+    this.player.update(dt, this.map);
+    
+    for (const bot of this.bots) {
+      if (bot.alive) {
+        bot.update(dt, this.map);
+        bot.updateAI(dt, allBrawlers, this.map, this.projectiles);
+      }
+    }
+    
+    updateProjectiles(this.projectiles, dt, this.map);
+    this.handleProjectileHits(allBrawlers);
+    this.projectiles = this.projectiles.filter(p => p.active);
+    
+    this.gasTimer -= dt;
+    this.gasDoubleTimer -= dt;
+    
+    if (this.gasDoubleTimer <= 0) {
+      this.gas.damageMultiplier *= 2;
+      this.gasDoubleTimer = 30;
+    }
+    
+    if (this.gasTimer <= 0 && this.gas.safeRadius > 100) {
+      this.gas.safeRadius -= 60;
+      this.gas.centerX = 1500 + Math.random() * 2000;
+      this.gas.centerY = 1500 + Math.random() * 2000;
+      this.gasTimer = 5;
+    }
+    
+    for (const b of allBrawlers) {
+      if (!b.alive) continue;
+      const d = distance(b.x, b.y, this.gas.centerX, this.gas.centerY);
+      if (d > this.gas.safeRadius) {
+        b.takeDamage(60 * this.gas.damageMultiplier * dt, null);
+      }
+    }
+    
+    this.handleCrateHits(allBrawlers);
+    this.handleDropPickups();
+    
+    updateDamageNumbers(dt);
+    
+    if (!this.player.alive) {
+      this.over = true;
+      this.won = false;
+      if (!this.resultRecorded) {
+        recordGameResult(false, "showdown");
+        this.resultRecorded = true;
+      }
+    }
+    
+    const aliveEnemies = this.bots.filter(b => b.alive);
+    if (aliveEnemies.length === 0 && this.player.alive) {
+      this.over = true;
+      this.won = true;
+      if (!this.resultRecorded) {
+        recordGameResult(true, "showdown");
+        this.resultRecorded = true;
+      }
+    }
+  }
+
+  private handleProjectileHits(allBrawlers: Brawler[]): void {
+    for (const proj of this.projectiles) {
+      if (!proj.active) continue;
+      
+      for (const b of allBrawlers) {
+        if (!b.alive) continue;
+        if (b.id === proj.ownerId) continue;
+        if (proj.hitIds.has(b.id)) continue;
+        
+        const isEnemy = (proj.ownerTeam === "player" && b.team !== "player") ||
+                        (proj.ownerTeam === "enemy" && b.team === "player");
+        
+        if (!isEnemy) continue;
+        
+        const d = distance(proj.x, proj.y, b.x, b.y);
+        if (d < proj.radius + b.radius) {
+          const attacker = allBrawlers.find(bw => bw.id === proj.ownerId) || null;
+          b.takeDamage(proj.damage, attacker);
+          
+          if (proj.slow) b.addStatus("slow", 1, 0.3);
+          if (proj.poison) b.addStatus("poison", 3, 100);
+          
+          proj.hitIds.add(b.id);
+          
+          if (!proj.piercing) {
+            proj.active = false;
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  private handleCrateHits(allBrawlers: Brawler[]): void {
+    for (const proj of this.projectiles) {
+      if (!proj.active) continue;
+      for (const crate of this.map.crates) {
+        if (crate.destroyed) continue;
+        if (
+          proj.x > crate.x && proj.x < crate.x + crate.w &&
+          proj.y > crate.y && proj.y < crate.y + crate.h
+        ) {
+          crate.hp--;
+          if (!proj.piercing) proj.active = false;
+          if (crate.hp <= 0) {
+            crate.destroyed = true;
+            if (Math.random() < 0.5) {
+              this.drops.push({ x: crate.x + 20, y: crate.y + 20, type: "health", radius: 15 });
+            } else {
+              this.drops.push({ x: crate.x + 20, y: crate.y + 20, type: "coins", radius: 12 });
+            }
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  private handleDropPickups(): void {
+    for (let i = this.drops.length - 1; i >= 0; i--) {
+      const drop = this.drops[i];
+      const d = distance(this.player.x, this.player.y, drop.x, drop.y);
+      if (d < drop.radius + this.player.radius) {
+        if (drop.type === "health") {
+          this.player.heal(300);
+        }
+        this.drops.splice(i, 1);
+      }
+    }
+  }
+
+  render(ctx: CanvasRenderingContext2D): void {
+    ctx.clearRect(0, 0, 1200, 800);
+    
+    renderMap(ctx, this.map, this.camera.x, this.camera.y, 1200, 800);
+    
+    this.renderDrops(ctx);
+    this.renderGas(ctx);
+    
+    const allBrawlers = [this.player, ...this.bots];
+    for (const b of allBrawlers) {
+      b.render(ctx, this.camera.x, this.camera.y, this.spriteLoaded);
+    }
+    
+    renderProjectiles(ctx, this.projectiles, this.camera.x, this.camera.y, this.frame);
+    renderDamageNumbers(ctx, this.camera.x, this.camera.y);
+    
+    this.renderHUD(ctx);
+  }
+
+  private renderDrops(ctx: CanvasRenderingContext2D): void {
+    for (const drop of this.drops) {
+      const sx = drop.x - this.camera.x;
+      const sy = drop.y - this.camera.y;
+      ctx.save();
+      if (drop.type === "health") {
+        ctx.fillStyle = "#4CAF50";
+        ctx.shadowColor = "#4CAF50";
+      } else {
+        ctx.fillStyle = "#FFD700";
+        ctx.shadowColor = "#FFD700";
+      }
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.arc(sx, sy, drop.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "white";
+      ctx.font = `bold ${drop.radius}px Arial`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(drop.type === "health" ? "+" : "$", sx, sy);
+      ctx.restore();
+    }
+  }
+
+  private renderGas(ctx: CanvasRenderingContext2D): void {
+    ctx.save();
+    const gsx = this.gas.centerX - this.camera.x;
+    const gsy = this.gas.centerY - this.camera.y;
+    
+    ctx.beginPath();
+    ctx.rect(0, 0, 1200, 800);
+    ctx.arc(gsx, gsy, this.gas.safeRadius, 0, Math.PI * 2, true);
+    ctx.fillStyle = "rgba(0, 200, 0, 0.15)";
+    ctx.fill();
+    
+    ctx.strokeStyle = "rgba(0, 255, 0, 0.5)";
+    ctx.lineWidth = 3;
+    ctx.setLineDash([10, 5]);
+    ctx.beginPath();
+    ctx.arc(gsx, gsy, this.gas.safeRadius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  private renderHUD(ctx: CanvasRenderingContext2D): void {
+    ctx.save();
+    
+    ctx.fillStyle = "rgba(0,0,0,0.6)";
+    ctx.fillRect(10, 10, 200, 70);
+    
+    ctx.drawImage(
+      ctx.canvas,
+      0, 0, 0, 0
+    );
+    
+    ctx.fillStyle = "white";
+    ctx.font = "bold 14px Arial";
+    ctx.textAlign = "left";
+    ctx.fillText(this.player.stats.name, 20, 30);
+    
+    const hpRatio = this.player.hp / this.player.maxHp;
+    const r = Math.floor(255 * (1 - hpRatio));
+    const g = Math.floor(255 * hpRatio);
+    ctx.fillStyle = `rgb(${r},${g},0)`;
+    ctx.fillRect(20, 38, 180 * hpRatio, 10);
+    ctx.strokeStyle = "rgba(255,255,255,0.3)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(20, 38, 180, 10);
+    
+    ctx.fillStyle = this.player.superReady ? "#FFD700" : "#7986CB";
+    ctx.fillRect(20, 52, 180 * (this.player.superCharge / this.player.maxSuperCharge), 8);
+    ctx.strokeRect(20, 52, 180, 8);
+    
+    ctx.fillStyle = "#FFD700";
+    ctx.font = "bold 11px Arial";
+    ctx.fillText(this.player.superReady ? "SUPER READY! [E]" : "Super charging...", 20, 73);
+    
+    const aliveCount = this.bots.filter(b => b.alive).length;
+    ctx.fillStyle = "rgba(0,0,0,0.6)";
+    ctx.fillRect(1050, 10, 140, 40);
+    ctx.fillStyle = "#FF5252";
+    ctx.font = "bold 14px Arial";
+    ctx.textAlign = "right";
+    ctx.fillText(`Enemies: ${aliveCount}`, 1185, 36);
+    
+    const charges = this.player.attackCharges;
+    const maxCharges = this.player.maxAttackCharges;
+    const chargeX = 600 - (maxCharges * 25) / 2;
+    for (let i = 0; i < maxCharges; i++) {
+      ctx.fillStyle = i < charges ? this.player.stats.accentColor : "rgba(255,255,255,0.2)";
+      ctx.beginPath();
+      ctx.arc(chargeX + i * 30, 775, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,0.5)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    
+    ctx.fillStyle = "rgba(255,255,255,0.7)";
+    ctx.font = "11px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("WASD: move | LMB: attack | RMB/E: super", 600, 760);
+    
+    ctx.restore();
+  }
+
+  destroy(): void {
+    this.input.destroy();
+    clearDamageNumbers();
+  }
+}
