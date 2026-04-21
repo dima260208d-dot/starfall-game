@@ -27,11 +27,8 @@ export class Bot extends Brawler {
     this.attackTimer -= dt;
     this.wanderTimer -= dt;
 
-    // Passive super charge so bots actually use ultimates
-    if (!this.superReady) {
-      this.superCharge = Math.min(this.maxSuperCharge, this.superCharge + dt * (this.maxSuperCharge / 22));
-      if (this.superCharge >= this.maxSuperCharge) this.superReady = true;
-    }
+    // Bots no longer auto-charge their super passively — they earn it the same
+    // way the player does, by landing hits on enemies (handled in Brawler.takeDamage).
 
     const enemies = allBrawlers.filter(b => b.alive && b.team !== this.team);
 

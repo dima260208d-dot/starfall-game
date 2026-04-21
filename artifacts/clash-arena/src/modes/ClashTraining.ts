@@ -103,11 +103,8 @@ export class ClashTraining {
     this.player.angle = angleTo(this.player.x, this.player.y, this.input.state.mouseWorldX, this.input.state.mouseWorldY);
     this.player.update(dt, this.map);
 
-    // Charge the player's super passively so the player always has it to practice with.
-    if (!this.player.superReady) {
-      this.player.superCharge = Math.min(this.player.maxSuperCharge, this.player.superCharge + dt * (this.player.maxSuperCharge / 6));
-      if (this.player.superCharge >= this.player.maxSuperCharge) this.player.superReady = true;
-    }
+    // Training no longer auto-charges the super; the player must land hits
+    // on the training dummies to charge it, just like in real matches.
 
     // Dummies: take damage but never attack. Tick statuses; respawn handled below
     // after combat resolution so newly-dead dummies always get the full 2s timer.

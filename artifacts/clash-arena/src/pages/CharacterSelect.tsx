@@ -689,6 +689,7 @@ function StatsModal({ brawler, level, scaled, onClose }: StatsModalProps) {
             <FullStat icon="🔋"  label="ЗАРЯДЫ АТАКИ"       value={`${brawler.attackCharges}`}       base="макс. одновременно" color="#FFD700" />
             <FullStat icon="⏱"  label="ПЕРЕЗАРЯДКА"        value={`${brawler.attackCooldown.toFixed(1)}c`} base="между выстрелами" color="#FFAB40" />
             <FullStat icon="⚡"  label="ОТКАТ СУПЕРА"       value={`${brawler.superCooldown}c`}      base="максимум"         color="#E040FB" />
+            <FullStat icon="🔆"  label="ЗАРЯД СУПЕРА"       value={`+${brawler.superChargePerHit}%`} base={`за попадание (≈${Math.ceil(100 / brawler.superChargePerHit)} попад.)`} color="#FFD740" />
           </div>
 
           <SectionTitle color="#40C4FF">⚔️ ОСНОВНАЯ АТАКА — {brawler.attackName}</SectionTitle>

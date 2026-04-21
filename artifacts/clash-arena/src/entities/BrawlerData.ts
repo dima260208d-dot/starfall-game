@@ -13,6 +13,9 @@ export interface BrawlerStats {
   attackCooldown: number;
   attackCharges: number;
   superCooldown: number;
+  // Percent of the super bar gained per successful hit on an enemy (0-100).
+  // Super now charges *only* from landing hits — no passive/auto-charge.
+  superChargePerHit: number;
   color: string;
   secondaryColor: string;
   accentColor: string;
@@ -85,6 +88,7 @@ export const BRAWLERS: BrawlerStats[] = [
     attackCooldown: 1.2,
     attackCharges: 3,
     superCooldown: 20,
+    superChargePerHit: 8,
     color: "#7B2FBE",
     secondaryColor: "#4A0080",
     accentColor: "#FF1744",
@@ -109,6 +113,7 @@ export const BRAWLERS: BrawlerStats[] = [
     attackCooldown: 1.0,
     attackCharges: 3,
     superCooldown: 25,
+    superChargePerHit: 25,
     color: "#1565C0",
     secondaryColor: "#FFFFFF",
     accentColor: "#40C4FF",
@@ -133,6 +138,7 @@ export const BRAWLERS: BrawlerStats[] = [
     attackCooldown: 1.4,
     attackCharges: 2,
     superCooldown: 22,
+    superChargePerHit: 18,
     color: "#B71C1C",
     secondaryColor: "#FFD700",
     accentColor: "#FF6F00",
@@ -157,6 +163,7 @@ export const BRAWLERS: BrawlerStats[] = [
     attackCooldown: 1.0,
     attackCharges: 3,
     superCooldown: 18,
+    superChargePerHit: 14,
     color: "#0288D1",
     secondaryColor: "#E1F5FE",
     accentColor: "#B2EBF2",
@@ -181,6 +188,7 @@ export const BRAWLERS: BrawlerStats[] = [
     attackCooldown: 1.3,
     attackCharges: 2,
     superCooldown: 20,
+    superChargePerHit: 16,
     color: "#F9A825",
     secondaryColor: "#212121",
     accentColor: "#40C4FF",
@@ -205,6 +213,7 @@ export const BRAWLERS: BrawlerStats[] = [
     attackCooldown: 0.9,
     attackCharges: 4,
     superCooldown: 16,
+    superChargePerHit: 12,
     color: "#E91E8C",
     secondaryColor: "#FCE4EC",
     accentColor: "#FF80AB",
@@ -229,6 +238,7 @@ export const BRAWLERS: BrawlerStats[] = [
     attackCooldown: 1.5,
     attackCharges: 2,
     superCooldown: 22,
+    superChargePerHit: 20,
     color: "#8D4E2B",
     secondaryColor: "#FF3D00",
     accentColor: "#BF360C",
@@ -253,6 +263,7 @@ export const BRAWLERS: BrawlerStats[] = [
     attackCooldown: 1.1,
     attackCharges: 3,
     superCooldown: 24,
+    superChargePerHit: 14,
     color: "#1A237E",
     secondaryColor: "#FFD700",
     accentColor: "#FF6F00",
@@ -277,6 +288,7 @@ export const BRAWLERS: BrawlerStats[] = [
     attackCooldown: 1.0,
     attackCharges: 3,
     superCooldown: 19,
+    superChargePerHit: 13,
     color: "#2E7D32",
     secondaryColor: "#8BC34A",
     accentColor: "#CE93D8",
@@ -301,6 +313,7 @@ export const BRAWLERS: BrawlerStats[] = [
     attackCooldown: 0.8,
     attackCharges: 3,
     superCooldown: 25,
+    superChargePerHit: 16,
     color: "#5D4037",
     secondaryColor: "#CD9B39",
     accentColor: "#78909C",

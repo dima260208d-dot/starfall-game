@@ -36,9 +36,6 @@ export class Brawler {
   superCharge = 0;
   maxSuperCharge = 100;
   superReady = false;
-  // Per-brawler multiplier on how fast the super bar fills from dealing damage.
-  // Lower = slower charge. Defaults to 1; tuned per-character below.
-  superChargeMultiplier = 1;
   
   regenTimer = 0;
   regenDelay = 3;
@@ -80,8 +77,6 @@ export class Brawler {
     this.attackCharges = scaled.attackCharges;
     this.maxAttackCharges = scaled.attackCharges;
     this.attackCooldown = scaled.attackCooldown;
-    // Miya's super (teleport) is very strong as a gap-closer, so it should charge slower.
-    if (stats.id === "miya") this.superChargeMultiplier = 0.5;
   }
 
   get scaledDamage(): number {
@@ -198,8 +193,13 @@ export class Brawler {
       spawnDamageNumber(this.x, this.y - this.radius - 10, Math.floor(dmg), "damage");
     }
     
-    if (attacker && attacker.isPlayer) {
-      attacker.superCharge = Math.min(attacker.maxSuperCharge, attacker.superCharge + dmg * 0.1 * attacker.superChargeMultiplier);
+    // Super now charges ONLY from successfully landing a hit on an enemy —
+    // no passive/auto-fill. Each brawler has its own per-hit charge rate
+    // (see BrawlerStats.superChargePerHit). Damage-over-time / environmental
+    // ticks pass attacker = null and intentionally award no charge.
+    if (attacker && attacker.alive && attacker.team !== this.team) {
+      const gain = (attacker.stats.superChargePerHit / 100) * attacker.maxSuperCharge;
+      attacker.superCharge = Math.min(attacker.maxSuperCharge, attacker.superCharge + gain);
       if (attacker.superCharge >= attacker.maxSuperCharge) attacker.superReady = true;
     }
     
