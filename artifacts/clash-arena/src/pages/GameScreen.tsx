@@ -134,13 +134,12 @@ export default function GameScreen({ mode, brawlerId, onExit }: GameScreenProps)
           {won && (
             <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
               {Array.from({ length: 80 }).map((_, i) => {
-                const colors = ["#FFD700", "#FF5252", "#7B2FBE", "#00E5FF", "#69F0AE", "#FFAB40"];
+                const colors = ["#FFD700", "#FFEB3B", "#FFAB40", "#00E5FF", "#FFFFFF", "#FFC1E3"];
                 const color = colors[i % colors.length];
                 const left = Math.random() * 100;
                 const delay = Math.random() * 2;
                 const duration = 2.5 + Math.random() * 2.5;
-                const size = 6 + Math.random() * 8;
-                const rot = Math.random() * 360;
+                const size = 14 + Math.random() * 18;
                 return (
                   <span
                     key={i}
@@ -148,14 +147,15 @@ export default function GameScreen({ mode, brawlerId, onExit }: GameScreenProps)
                       position: "absolute",
                       top: -20,
                       left: `${left}%`,
-                      width: size,
-                      height: size * 1.6,
-                      background: color,
-                      transform: `rotate(${rot}deg)`,
-                      animation: `confettiFall ${duration}s linear ${delay}s infinite`,
-                      borderRadius: 2,
+                      fontSize: size,
+                      color,
+                      textShadow: `0 0 10px ${color}`,
+                      animation: `starFall ${duration}s linear ${delay}s infinite`,
+                      lineHeight: 1,
                     }}
-                  />
+                  >
+                    ★
+                  </span>
                 );
               })}
             </div>
@@ -216,9 +216,11 @@ export default function GameScreen({ mode, brawlerId, onExit }: GameScreenProps)
             @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
             @keyframes trophyBounce { 0%,100% { transform: translateY(0) rotate(-5deg);} 50% { transform: translateY(-15px) rotate(5deg);} }
             @keyframes shake { 0%,100% { transform: translateX(0);} 25% { transform: translateX(-10px);} 75% { transform: translateX(10px);} }
-            @keyframes confettiFall {
-              0%   { transform: translateY(-10vh) rotate(0deg);   opacity: 1; }
-              100% { transform: translateY(110vh) rotate(720deg); opacity: 0.8; }
+            @keyframes starFall {
+              0%   { transform: translateY(-10vh) rotate(0deg) scale(0.6);   opacity: 0; }
+              10%  { opacity: 1; }
+              50%  { transform: translateY(50vh)  rotate(360deg) scale(1.1); opacity: 1; }
+              100% { transform: translateY(110vh) rotate(720deg) scale(0.7); opacity: 0; }
             }
           `}</style>
         </div>
