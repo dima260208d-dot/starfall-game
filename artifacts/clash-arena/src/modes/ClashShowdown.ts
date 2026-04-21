@@ -1,6 +1,6 @@
 import { Brawler } from "../entities/Brawler";
 import { Bot } from "../entities/Bot";
-import { BRAWLERS, getBrawlerById } from "../entities/BrawlerData";
+import { BRAWLERS, getBrawlerById, pickBotStats } from "../entities/BrawlerData";
 import { createShowdownMap, GameMap, Crate } from "../game/MapRenderer";
 import { Projectile, updateProjectiles, renderProjectiles } from "../entities/Projectile";
 import { Camera } from "../game/Camera";
@@ -62,9 +62,9 @@ export class ClashShowdown {
     const spawnPadding = 350;
     
     // Spawn bots in a ring around the player so they're encounterable
+    const botPicks = pickBotStats(playerBrawlerId, 7);
     for (let i = 0; i < 7; i++) {
-      const allStats = BRAWLERS.filter(b => b.id !== playerBrawlerId);
-      const botStats = allStats[i % allStats.length];
+      const botStats = botPicks[i];
       const level = randomInt(1, 5);
       
       let bx: number, by: number;

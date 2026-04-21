@@ -255,6 +255,21 @@ export const BRAWLERS: BrawlerStats[] = [
   },
 ];
 
+export function pickBotStats(playerBrawlerId: string, count: number): BrawlerStats[] {
+  const pool = BRAWLERS.filter(b => b.id !== playerBrawlerId);
+  // Fisher-Yates shuffle
+  const shuffled = [...pool];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  const result: BrawlerStats[] = [];
+  for (let i = 0; i < count; i++) {
+    result.push(shuffled[i % shuffled.length]);
+  }
+  return result;
+}
+
 export function getBrawlerById(id: string): BrawlerStats | undefined {
   return BRAWLERS.find((b) => b.id === id);
 }

@@ -1,6 +1,6 @@
 import { Brawler } from "../entities/Brawler";
 import { Bot } from "../entities/Bot";
-import { BRAWLERS, getBrawlerById } from "../entities/BrawlerData";
+import { BRAWLERS, getBrawlerById, pickBotStats } from "../entities/BrawlerData";
 import { createCrystalsMap, GameMap, collidesWithWalls } from "../game/MapRenderer";
 import { Projectile, updateProjectiles, renderProjectiles } from "../entities/Projectile";
 import { Camera } from "../game/Camera";
@@ -62,11 +62,11 @@ export class ClashCrystals {
     const playerStats = getBrawlerById(playerBrawlerId) || BRAWLERS[0];
     this.player = new Brawler(playerStats, playerLevel, 600, 1750, "blue", true);
     
-    const allStats = BRAWLERS.filter(b => b.id !== playerBrawlerId);
-    
+    const allStats = pickBotStats(playerBrawlerId, 5);
+
     this.allies.push(new Bot(allStats[0], randomInt(1, 4), 600, 1200, "blue"));
     this.allies.push(new Bot(allStats[1], randomInt(1, 4), 600, 2300, "blue"));
-    
+
     this.enemies.push(new Bot(allStats[2], randomInt(1, 5), 2900, 1200, "red"));
     this.enemies.push(new Bot(allStats[3], randomInt(1, 5), 2900, 1750, "red"));
     this.enemies.push(new Bot(allStats[4], randomInt(1, 5), 2900, 2300, "red"));

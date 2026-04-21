@@ -1,6 +1,6 @@
 import { Brawler } from "../entities/Brawler";
 import { Bot } from "../entities/Bot";
-import { BRAWLERS, getBrawlerById } from "../entities/BrawlerData";
+import { BRAWLERS, getBrawlerById, pickBotStats } from "../entities/BrawlerData";
 import { createCrystalsMap, GameMap, renderMap } from "../game/MapRenderer";
 import { Projectile, updateProjectiles, renderProjectiles } from "../entities/Projectile";
 import { Camera } from "../game/Camera";
