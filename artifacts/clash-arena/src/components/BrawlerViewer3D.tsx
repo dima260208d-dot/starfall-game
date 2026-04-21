@@ -4,19 +4,19 @@ interface BrawlerViewer3DProps {
   brawlerId: string;
   color: string;
   size?: number;
+  autoRotateInitial?: boolean;
 }
 
-export default function BrawlerViewer3D({ brawlerId, color, size = 320 }: BrawlerViewer3DProps) {
+export default function BrawlerViewer3D({ brawlerId, color, size = 320, autoRotateInitial = false }: BrawlerViewer3DProps) {
   const [angle, setAngle] = useState(0);
   const [dragging, setDragging] = useState(false);
-  const [autoRotate, setAutoRotate] = useState(true);
+  const [autoRotate, setAutoRotate] = useState(autoRotateInitial);
   const dragRef = useRef<{ startX: number; startAngle: number } | null>(null);
   const rafRef = useRef<number>(0);
   const tRef = useRef(0);
 
   useEffect(() => {
     setAngle(0);
-    setAutoRotate(true);
   }, [brawlerId]);
 
   useEffect(() => {

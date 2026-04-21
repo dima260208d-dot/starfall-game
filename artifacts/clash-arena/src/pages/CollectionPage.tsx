@@ -36,12 +36,13 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
   return (
     <div
       style={{
-        minHeight: "100vh",
+        height: "100vh",
         background: "linear-gradient(135deg, #050020 0%, #0a0040 100%)",
         display: "flex",
         flexDirection: "column",
         fontFamily: "'Segoe UI', Arial, sans-serif",
         color: "white",
+        overflow: "hidden",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", padding: "16px 24px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
@@ -60,8 +61,8 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
         </div>
       </div>
 
-      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-        <div style={{ width: 260, overflowY: "auto", padding: 16, borderRight: "1px solid rgba(255,255,255,0.06)" }}>
+      <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
+        <div style={{ width: 260, overflowY: "auto", padding: 16, borderRight: "1px solid rgba(255,255,255,0.06)", minHeight: 0 }}>
           {BRAWLERS.map((b, i) => {
             const lv = profile?.brawlerLevels[b.id] || 1;
             const isSelected = i === selected;
@@ -105,8 +106,8 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
           })}
         </div>
 
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: 30 }}>
-          <BrawlerViewer3D brawlerId={brawler.id} color={brawler.color} size={300} />
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: "24px 30px", overflowY: "auto", minHeight: 0 }}>
+          <BrawlerViewer3D brawlerId={brawler.id} color={brawler.color} size={280} autoRotateInitial={true} />
 
           <div style={{ textAlign: "center", marginTop: 10, marginBottom: 20 }}>
             <div style={{ fontSize: 28, fontWeight: 900, color: brawler.color }}>{brawler.name}</div>

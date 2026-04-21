@@ -3,7 +3,7 @@ import { GameMap, collidesWithWalls, isInBush, isInRiver } from "../game/MapRend
 import { Projectile, createProjectile } from "./Projectile";
 import { spawnDamageNumber } from "../utils/damageNumbers";
 import { clamp, distance, angleTo } from "../utils/helpers";
-import { drawCharacterSprite } from "../game/sprites";
+import { drawCharacterSprite, drawBrawlerImage } from "../game/sprites";
 
 export type Team = string;
 
@@ -503,7 +503,20 @@ export class Brawler {
     const glowColor = this.statusEffects.some(e => e.type === "berserker") ? "#FF0000" :
                       this.statusEffects.some(e => e.type === "stun") ? "#FFD700" : undefined;
 
-    if (spriteLoaded) {
+    const drewImage = drawBrawlerImage(
+      ctx,
+      this.stats.id,
+      sx,
+      sy + 10,
+      this.radius * 4.2,
+      this.angle,
+      alpha,
+      glowColor,
+    );
+
+    if (drewImage) {
+      // image rendered
+    } else if (spriteLoaded) {
       drawCharacterSprite(
         ctx,
         this.stats.spriteRow,

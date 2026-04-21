@@ -22,6 +22,122 @@ export function loadSpriteSheet(src: string): Promise<void> {
   });
 }
 
+// === Per-brawler 3D image renderer ===
+
+interface BrawlerImagePair {
+  front: HTMLImageElement;
+  back: HTMLImageElement;
+  frontReady: boolean;
+  backReady: boolean;
+}
+
+const brawlerImages: Record<string, BrawlerImagePair> = {};
+let brawlerImagesLoaded = false;
+
+export function loadBrawlerImages(ids: string[], basePath = "/"): Promise<void> {
+  const base = basePath.endsWith("/") ? basePath : basePath + "/";
+  const tasks: Promise<void>[] = [];
+  for (const id of ids) {
+    if (brawlerImages[id]) continue;
+    const front = new Image();
+    const back = new Image();
+    const pair: BrawlerImagePair = { front, back, frontReady: false, backReady: false };
+    brawlerImages[id] = pair;
+    tasks.push(new Promise<void>((res) => {
+      front.onload = () => { pair.frontReady = true; res(); };
+      front.onerror = () => res();
+      front.src = `${base}brawlers/${id}_front.png`;
+    }));
+    tasks.push(new Promise<void>((res) => {
+      back.onload = () => { pair.backReady = true; res(); };
+      back.onerror = () => res();
+      back.src = `${base}brawlers/${id}_back.png`;
+    }));
+  }
+  return Promise.all(tasks).then(() => { brawlerImagesLoaded = true; });
+}
+
+export function brawlerImageReady(id: string): boolean {
+  const p = brawlerImages[id];
+  return !!p && (p.frontReady || p.backReady);
+}
+
+export function areBrawlerImagesLoaded(): boolean {
+  return brawlerImagesLoaded;
+}
+
+/**
+ * Draw a brawler using its 3D PNG render, choosing front/back based on facing
+ * angle and horizontally flipping when facing left. Top-down convention:
+ * +x = right, +y = down. sin(angle) > 0 means facing toward camera (front view).
+ */
+export function drawBrawlerImage(
+  ctx: CanvasRenderingContext2D,
+  brawlerId: string,
+  x: number,
+  y: number,
+  size: number,
+  angle: number,
+  alpha = 1,
+  glowColor?: string,
+): boolean {
+  const pair = brawlerImages[brawlerId];
+  if (!pair) return false;
+
+  const sinA = Math.sin(angle);
+  const cosA = Math.cos(angle);
+
+  // Use back view when clearly facing up/away. Threshold avoids flicker on side angles.
+  const useBack = sinA < -0.25 && pair.backReady;
+  const img = useBack ? pair.back : pair.front;
+  const ready = useBack ? pair.backReady : pair.frontReady;
+  if (!ready) {
+    // fall back to whichever is ready
+    if (pair.frontReady) {
+      // reuse front as fallback
+    } else if (pair.backReady) {
+      // use back if only back is ready
+      return drawBrawlerImageInternal(ctx, pair.back, x, y, size, cosA, alpha, glowColor);
+    } else {
+      return false;
+    }
+  }
+
+  return drawBrawlerImageInternal(ctx, img, x, y, size, cosA, alpha, glowColor);
+}
+
+function drawBrawlerImageInternal(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  x: number,
+  y: number,
+  size: number,
+  cosA: number,
+  alpha: number,
+  glowColor: string | undefined,
+): boolean {
+  if (!img.complete || img.naturalWidth === 0) return false;
+
+  // Image is portrait (3:4). Compute draw size keeping aspect ratio,
+  // anchored so the character's feet sit roughly on (x, y).
+  const aspect = img.naturalHeight / img.naturalWidth;
+  const w = size;
+  const h = size * aspect;
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  if (glowColor) {
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur = 18;
+  }
+  ctx.translate(x, y);
+  if (cosA < 0) ctx.scale(-1, 1);
+  // Anchor: horizontal center, vertical at ~75% down so feet rest at y
+  ctx.drawImage(img, -w / 2, -h * 0.78, w, h);
+  ctx.restore();
+  return true;
+}
+
 export function drawCharacterSprite(
   ctx: CanvasRenderingContext2D,
   row: number,

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { BRAWLERS, getScaledStats } from "../entities/BrawlerData";
 import { getCurrentProfile } from "../utils/localStorageAPI";
 import type { GameMode } from "../App";
@@ -21,11 +21,18 @@ const MODE_LABELS: Record<GameMode, string> = {
 export default function CharacterSelect({ mode, onStart, onBack }: CharacterSelectProps) {
   const [selected, setSelected] = useState(0);
   const [profile, setProfile] = useState(getCurrentProfile());
+  const leftColRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const interval = setInterval(() => setProfile(getCurrentProfile()), 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // When user picks a brawler, scroll the left (preview) column to the top so
+  // they immediately see the new figure without having to scroll up.
+  useEffect(() => {
+    leftColRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  }, [selected]);
 
   const brawler = BRAWLERS[selected];
   const level = profile?.brawlerLevels[brawler.id] || 1;
@@ -34,7 +41,7 @@ export default function CharacterSelect({ mode, onStart, onBack }: CharacterSele
   return (
     <div
       style={{
-        minHeight: "100vh",
+        height: "100vh",
         background: "linear-gradient(135deg, #050020 0%, #0a0040 100%)",
         display: "flex",
         flexDirection: "column",
@@ -74,18 +81,20 @@ export default function CharacterSelect({ mode, onStart, onBack }: CharacterSele
         <div style={{ width: 80 }} />
       </div>
 
-      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+      <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
         <div
+          ref={leftColRef}
           style={{
             flex: 1,
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            justifyContent: "center",
-            padding: 30,
+            padding: "24px 30px",
+            overflowY: "auto",
+            minHeight: 0,
           }}
         >
-          <BrawlerViewer3D brawlerId={brawler.id} color={brawler.color} size={340} />
+          <BrawlerViewer3D brawlerId={brawler.id} color={brawler.color} size={300} autoRotateInitial={true} />
 
           <div style={{ textAlign: "center", marginTop: 10 }}>
             <div style={{ fontSize: 32, fontWeight: 900, color: brawler.color, textShadow: `0 0 20px ${brawler.color}` }}>

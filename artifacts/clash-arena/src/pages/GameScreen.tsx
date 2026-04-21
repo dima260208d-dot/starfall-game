@@ -5,7 +5,8 @@ import { ClashHeist } from "../modes/ClashHeist";
 import { ClashGemGrab } from "../modes/ClashGemGrab";
 import { ClashSiege } from "../modes/ClashSiege";
 import { getCurrentProfile } from "../utils/localStorageAPI";
-import { loadSpriteSheet } from "../game/sprites";
+import { loadSpriteSheet, loadBrawlerImages } from "../game/sprites";
+import { BRAWLERS } from "../entities/BrawlerData";
 import type { GameMode } from "../App";
 
 interface GameScreenProps {
@@ -27,7 +28,11 @@ export default function GameScreen({ mode, brawlerId, onExit }: GameScreenProps)
 
   useEffect(() => {
     let mounted = true;
-    loadSpriteSheet("/characters.webp").then(() => {
+    const base = (import.meta as any).env?.BASE_URL ?? "/";
+    Promise.all([
+      loadSpriteSheet(`${base}characters.webp`),
+      loadBrawlerImages(BRAWLERS.map(b => b.id), base),
+    ]).then(() => {
       if (mounted) setSpriteLoaded(true);
     });
     return () => { mounted = false; };
