@@ -25,6 +25,7 @@ export default function GameScreen({ mode, brawlerId, onExit }: GameScreenProps)
   const [gameOver, setGameOver] = useState(false);
   const [won, setWon] = useState(false);
   const [spriteLoaded, setSpriteLoaded] = useState(false);
+  const [result, setResult] = useState<{ place: number; trophyDelta: number; xpGained: number } | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -76,6 +77,11 @@ export default function GameScreen({ mode, brawlerId, onExit }: GameScreenProps)
       if (game.over) {
         setGameOver(true);
         setWon(game.won);
+        // Pull result snapshot saved by the mode via recordGameResult.
+        const p = getCurrentProfile();
+        if (p?.lastResult) {
+          setResult({ place: p.lastResult.place, trophyDelta: p.lastResult.trophyDelta, xpGained: p.lastResult.xpGained });
+        }
         return;
       }
 
@@ -185,14 +191,39 @@ export default function GameScreen({ mode, brawlerId, onExit }: GameScreenProps)
           >
             {won ? "ПОБЕДА!" : "ПОРАЖЕНИЕ"}
           </div>
-          <div
-            style={{
-              fontSize: 18,
-              color: "rgba(255,255,255,0.7)",
-              marginBottom: 40,
-            }}
-          >
-            {won ? "Вы получили 100 монет!" : "Вы получили 40 монет."}
+          {result && (
+            <div
+              style={{
+                fontSize: 22,
+                color: "#FFFFFF",
+                marginBottom: 14,
+                fontWeight: 700,
+                letterSpacing: 1,
+                textShadow: "0 2px 8px rgba(0,0,0,0.6)",
+              }}
+            >
+              {mode === "showdown" ? `${result.place} место из 8` : (won ? "1 место" : "2 место")}
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 18, marginBottom: 30, flexWrap: "wrap", justifyContent: "center" }}>
+            <ResultChip
+              icon="🏆"
+              label="Кубки"
+              value={result ? (result.trophyDelta >= 0 ? `+${result.trophyDelta}` : `${result.trophyDelta}`) : "—"}
+              color={result && result.trophyDelta >= 0 ? "#FFD700" : "#FF7043"}
+            />
+            <ResultChip
+              icon="🪙"
+              label="Монеты"
+              value={`+${won ? 100 : 40}`}
+              color="#FFD700"
+            />
+            <ResultChip
+              icon="⭐"
+              label="Опыт"
+              value={result ? `+${result.xpGained}` : "—"}
+              color="#7C4DFF"
+            />
           </div>
           <button
             onClick={onExit}
@@ -244,6 +275,30 @@ export default function GameScreen({ mode, brawlerId, onExit }: GameScreenProps)
       >
         ВЫХОД
       </button>
+    </div>
+  );
+}
+
+function ResultChip({ icon, label, value, color }: { icon: string; label: string; value: string; color: string }) {
+  return (
+    <div
+      style={{
+        background: "rgba(255,255,255,0.06)",
+        border: `1px solid ${color}55`,
+        borderRadius: 14,
+        padding: "10px 18px",
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        minWidth: 130,
+        boxShadow: `0 0 20px ${color}33`,
+      }}
+    >
+      <div style={{ fontSize: 26 }}>{icon}</div>
+      <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
+        <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 11, letterSpacing: 1 }}>{label}</span>
+        <span style={{ color, fontSize: 20, fontWeight: 800 }}>{value}</span>
+      </div>
     </div>
   );
 }

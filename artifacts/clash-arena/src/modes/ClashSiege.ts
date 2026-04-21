@@ -112,7 +112,7 @@ export class ClashSiege {
       if (this.waveSpawnTimer <= 0) {
         if (this.wave > this.maxWaves) {
           this.over = true; this.won = true;
-          if (!this.resultRecorded) { recordGameResult(true, "siege"); this.resultRecorded = true; }
+          if (!this.resultRecorded) { recordGameResult({ won: true, mode: "siege", place: 1 }); this.resultRecorded = true; }
           return;
         }
         this.spawnWave();
@@ -226,7 +226,7 @@ export class ClashSiege {
     // Loss only if the base falls
     if (this.baseHp <= 0) {
       this.over = true; this.won = false;
-      if (!this.resultRecorded) { recordGameResult(false, "siege"); this.resultRecorded = true; }
+      if (!this.resultRecorded) { recordGameResult({ won: false, mode: "siege", place: 2 }); this.resultRecorded = true; }
     }
     updateDamageNumbers(dt);
   }

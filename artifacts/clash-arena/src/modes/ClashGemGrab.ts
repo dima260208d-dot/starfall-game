@@ -189,11 +189,11 @@ export class ClashGemGrab {
     }
     if (this.blueCountdown < 0 && this.blueGems >= 10) {
       this.over = true; this.won = true;
-      if (!this.resultRecorded) { recordGameResult(true, "gemgrab"); this.resultRecorded = true; }
+      if (!this.resultRecorded) { recordGameResult({ won: true, mode: "gemgrab", place: 1 }); this.resultRecorded = true; }
     }
     if (this.redCountdown < 0 && this.redGems >= 10) {
       this.over = true; this.won = false;
-      if (!this.resultRecorded) { recordGameResult(false, "gemgrab"); this.resultRecorded = true; }
+      if (!this.resultRecorded) { recordGameResult({ won: false, mode: "gemgrab", place: 2 }); this.resultRecorded = true; }
     }
     updateDamageNumbers(dt);
   }

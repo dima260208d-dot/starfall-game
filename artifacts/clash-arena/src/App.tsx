@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getCurrentUsername } from "./utils/localStorageAPI";
+import { getCurrentUsername, getCurrentProfile, setSelectedBrawler as persistBrawler, setSelectedMode as persistMode, logout } from "./utils/localStorageAPI";
 import AuthPage from "./pages/AuthPage";
 import MainMenu from "./pages/MainMenu";
 import ModeSelect from "./pages/ModeSelect";
@@ -8,6 +8,9 @@ import GameScreen from "./pages/GameScreen";
 import CollectionPage from "./pages/CollectionPage";
 import ShopPage from "./pages/ShopPage";
 import SettingsPage from "./pages/SettingsPage";
+import ProfilePage from "./pages/ProfilePage";
+import ClashPassPage from "./pages/ClashPassPage";
+import TrophyRoadPage from "./pages/TrophyRoadPage";
 import LoadingScreen from "./pages/LoadingScreen";
 
 type Screen =
@@ -18,7 +21,10 @@ type Screen =
   | "game"
   | "collection"
   | "shop"
-  | "settings";
+  | "settings"
+  | "profile"
+  | "clashpass"
+  | "trophyroad";
 
 export type GameMode = "showdown" | "crystals" | "siege" | "heist" | "gemgrab";
 
@@ -26,8 +32,21 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>(() => {
     return getCurrentUsername() ? "menu" : "auth";
   });
-  const [selectedMode, setSelectedMode] = useState<GameMode>("showdown");
-  const [selectedBrawler, setSelectedBrawler] = useState("miya");
+  const initial = getCurrentProfile();
+  const [selectedMode, setSelectedMode] = useState<GameMode>((initial?.selectedMode as GameMode) || "showdown");
+  const [selectedBrawler, setSelectedBrawler] = useState(initial?.selectedBrawlerId || "miya");
+
+  // Always rehydrate selections from the active profile when entering the menu/game,
+  // so a profile switch never carries stale picks across accounts.
+  const hydrateFromProfile = () => {
+    const p = getCurrentProfile();
+    if (!p) return { mode: "showdown" as GameMode, brawler: "miya" };
+    const m = (p.selectedMode as GameMode) || "showdown";
+    const b = p.selectedBrawlerId || "miya";
+    setSelectedMode(m);
+    setSelectedBrawler(b);
+    return { mode: m, brawler: b };
+  };
   const [bootLoading, setBootLoading] = useState(true);
   const [transitionTo, setTransitionTo] = useState<Screen | null>(null);
   const [transitionLabel, setTransitionLabel] = useState("ЗАГРУЗКА");
@@ -63,19 +82,26 @@ export default function App() {
   }
 
   if (screen === "auth") {
-    return <AuthPage onAuth={() => go("menu")} />;
+    return <AuthPage onAuth={() => { hydrateFromProfile(); go("menu"); }} />;
   }
 
   if (screen === "menu") {
     return (
       <MainMenu
-        onPlay={() => go("modeSelect")}
+        onPlay={() => {
+          // Always read latest selections from the active profile before entering battle.
+          hydrateFromProfile();
+          goWithLoad("game", "ВХОД В АРЕНУ");
+        }}
         onCollection={() => go("collection")}
         onShop={() => go("shop")}
         onSettings={() => go("settings")}
-        onLogout={() => {
-          go("auth");
-        }}
+        onProfile={() => go("profile")}
+        onClashPass={() => go("clashpass")}
+        onTrophyRoad={() => go("trophyroad")}
+        onModeSelect={() => go("modeSelect")}
+        onBrawlerSelect={() => go("characterSelect")}
+        onLogout={() => { logout(); go("auth"); }}
       />
     );
   }
@@ -83,7 +109,7 @@ export default function App() {
   if (screen === "modeSelect") {
     return (
       <ModeSelect
-        onSelect={(mode) => { setSelectedMode(mode); go("characterSelect"); }}
+        onSelect={(mode) => { setSelectedMode(mode); persistMode(mode); go("menu"); }}
         onBack={() => go("menu")}
       />
     );
@@ -93,10 +119,20 @@ export default function App() {
     return (
       <CharacterSelect
         mode={selectedMode}
-        onStart={(id) => { setSelectedBrawler(id); goWithLoad("game", "ВХОД В АРЕНУ"); }}
-        onBack={() => go("modeSelect")}
+        onStart={(id) => { setSelectedBrawler(id); persistBrawler(id); go("menu"); }}
+        onBack={() => go("menu")}
       />
     );
+  }
+
+  if (screen === "profile") {
+    return <ProfilePage onBack={() => go("menu")} />;
+  }
+  if (screen === "clashpass") {
+    return <ClashPassPage onBack={() => go("menu")} />;
+  }
+  if (screen === "trophyroad") {
+    return <TrophyRoadPage onBack={() => go("menu")} />;
   }
 
   if (screen === "game") {
@@ -121,7 +157,7 @@ export default function App() {
     return (
       <SettingsPage
         onBack={() => go("menu")}
-        onSwitchProfile={() => go("auth")}
+        onSwitchProfile={() => { logout(); go("auth"); }}
       />
     );
   }

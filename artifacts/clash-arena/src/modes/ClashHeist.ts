@@ -160,11 +160,11 @@ export class ClashHeist {
     const playerSafe = this.safes.find(s => s.team === "blue")!;
     if (enemySafe.hp <= 0) {
       this.over = true; this.won = true;
-      if (!this.resultRecorded) { recordGameResult(true, "heist"); this.resultRecorded = true; }
+      if (!this.resultRecorded) { recordGameResult({ won: true, mode: "heist", place: 1 }); this.resultRecorded = true; }
     }
     if (playerSafe.hp <= 0) {
       this.over = true; this.won = false;
-      if (!this.resultRecorded) { recordGameResult(false, "heist"); this.resultRecorded = true; }
+      if (!this.resultRecorded) { recordGameResult({ won: false, mode: "heist", place: 2 }); this.resultRecorded = true; }
     }
     updateDamageNumbers(dt);
   }

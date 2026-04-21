@@ -1,256 +1,377 @@
 import { useState, useEffect } from "react";
-import { getCurrentProfile, logout, claimDailyBonus } from "../utils/localStorageAPI";
+import { getCurrentProfile, claimDailyBonus, MAX_TROPHIES, clashPassXpForLevel, MAX_CLASHPASS_LEVEL } from "../utils/localStorageAPI";
+import { BRAWLERS } from "../entities/BrawlerData";
+import { getModeInfo } from "../data/modes";
 
 interface MainMenuProps {
   onPlay: () => void;
   onCollection: () => void;
   onShop: () => void;
   onSettings: () => void;
+  onProfile: () => void;
+  onClashPass: () => void;
+  onTrophyRoad: () => void;
+  onModeSelect: () => void;
+  onBrawlerSelect: () => void;
   onLogout: () => void;
 }
 
-export default function MainMenu({ onPlay, onCollection, onShop, onSettings, onLogout }: MainMenuProps) {
+export default function MainMenu(props: MainMenuProps) {
+  const {
+    onPlay, onCollection, onShop, onSettings,
+    onProfile, onClashPass, onTrophyRoad,
+    onModeSelect, onBrawlerSelect, onLogout,
+  } = props;
+
   const [profile, setProfile] = useState(getCurrentProfile());
-  const [dailyClaimed, setDailyClaimed] = useState(false);
   const [dailyMsg, setDailyMsg] = useState("");
+  const [notif, setNotif] = useState<string | null>(null);
 
   useEffect(() => {
     const interval = setInterval(() => setProfile(getCurrentProfile()), 500);
     return () => clearInterval(interval);
   }, []);
 
-  const handleDailyBonus = () => {
-    const result = claimDailyBonus();
-    if (result.success) {
-      setDailyClaimed(true);
-      setDailyMsg(`+${result.coins} монет!`);
-      setProfile(getCurrentProfile());
-    } else {
-      setDailyMsg("Возвращайтесь завтра!");
-    }
-    setTimeout(() => setDailyMsg(""), 3000);
+  if (!profile) return null;
+
+  const mode = getModeInfo(profile.selectedMode);
+  const brawler = BRAWLERS.find(b => b.id === profile.selectedBrawlerId) || BRAWLERS[0];
+  const base = (import.meta as any).env?.BASE_URL ?? "/";
+  const passLevel = profile.clashPassLevel;
+  const passNeed = clashPassXpForLevel(passLevel);
+  const passPct = passLevel >= MAX_CLASHPASS_LEVEL
+    ? 100
+    : Math.min(100, Math.round((profile.xp / passNeed) * 100));
+  const canClaimDaily = (Date.now() - profile.lastDailyBonus) >= 24 * 60 * 60 * 1000;
+
+  const handleDaily = () => {
+    const r = claimDailyBonus();
+    setDailyMsg(r.success ? `+${r.coins} монет!` : "Возвращайтесь завтра!");
+    setProfile(getCurrentProfile());
+    setTimeout(() => setDailyMsg(""), 2500);
   };
 
-  const canClaimDaily = profile && (Date.now() - profile.lastDailyBonus) >= 24 * 60 * 60 * 1000;
+  const handleSoonNotice = (text: string) => {
+    setNotif(text);
+    setTimeout(() => setNotif(null), 1800);
+  };
 
   return (
     <div
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(135deg, #050020 0%, #0a0040 40%, #060025 100%)",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        fontFamily: "'Segoe UI', Arial, sans-serif",
+        background: "radial-gradient(ellipse at center, #160048 0%, #060025 70%, #03001a 100%)",
         position: "relative",
         overflow: "hidden",
+        fontFamily: "'Segoe UI', Arial, sans-serif",
       }}
     >
       <style>{`
-        @keyframes pulse {
-          0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.03); }
-        }
+        @keyframes pulse { 0%,100% { transform: scale(1);} 50% { transform: scale(1.04);} }
         @keyframes shimmer {
           0% { background-position: -200% center; }
           100% { background-position: 200% center; }
         }
-        @keyframes floatChar {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-10px); }
-        }
+        @keyframes floatY { 0%,100% { transform: translateY(0);} 50% { transform: translateY(-12px);} }
         @keyframes sparkle {
-          0%, 100% { opacity: 0.3; transform: scale(0.8); }
-          50% { opacity: 1; transform: scale(1.2); }
+          0%,100% { opacity: 0.25; transform: scale(0.8);} 50% { opacity:1; transform:scale(1.2);}
+        }
+        @keyframes glow {
+          0%,100% { box-shadow: 0 0 30px rgba(206,147,216,0.3);}
+          50% { box-shadow: 0 0 60px rgba(206,147,216,0.6);}
         }
       `}</style>
-      <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
-        {Array.from({ length: 30 }, (_, i) => (
-          <div
-            key={i}
-            style={{
-              position: "absolute",
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              width: Math.random() * 3 + 1,
-              height: Math.random() * 3 + 1,
-              borderRadius: "50%",
-              background: ["#CE93D8", "#40C4FF", "#FFD700"][i % 3],
-              animation: `sparkle ${2 + Math.random() * 3}s ease-in-out infinite`,
-              animationDelay: `${Math.random() * 3}s`,
-            }}
-          />
+
+      {/* Star particles */}
+      <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
+        {Array.from({ length: 50 }).map((_, i) => (
+          <div key={i} style={{
+            position: "absolute",
+            left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%`,
+            width: Math.random() * 3 + 1, height: Math.random() * 3 + 1,
+            borderRadius: "50%",
+            background: ["#CE93D8", "#40C4FF", "#FFD700"][i % 3],
+            animation: `sparkle ${2 + Math.random() * 3}s ease-in-out infinite`,
+            animationDelay: `${Math.random() * 3}s`,
+          }} />
         ))}
       </div>
-      {profile && (
-        <div
+
+      {/* TOP-RIGHT: trophies + resources */}
+      <div style={{ position: "absolute", top: 16, right: 16, display: "flex", flexDirection: "column", gap: 8, zIndex: 5 }}>
+        <button
+          onClick={onTrophyRoad}
           style={{
-            position: "absolute",
-            top: 20,
-            right: 20,
+            display: "flex", alignItems: "center", gap: 8,
+            background: "linear-gradient(135deg, rgba(255,215,0,0.18), rgba(255,171,64,0.18))",
+            border: "1.5px solid rgba(255,215,0,0.5)",
+            borderRadius: 12, padding: "8px 14px",
+            color: "#FFD700", fontWeight: 800, fontSize: 17, cursor: "pointer",
+            boxShadow: "0 0 20px rgba(255,215,0,0.25)",
+          }}
+        >
+          🏆 {profile.trophies}
+          <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: 600, marginLeft: 4 }}>
+            / {MAX_TROPHIES}
+          </span>
+        </button>
+        <div style={{
+          display: "flex", gap: 6,
+          background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.08)",
+          borderRadius: 12, padding: "6px 10px", backdropFilter: "blur(10px)",
+        }}>
+          <Resource icon="🪙" value={profile.coins} color="#FFD700" />
+          <Resource icon="💎" value={profile.gems} color="#40C4FF" />
+          <Resource icon="✨" value={profile.powerPoints} color="#CE93D8" />
+        </div>
+      </div>
+
+      {/* TOP-LEFT: profile pill + clash pass header */}
+      <div style={{ position: "absolute", top: 16, left: 16, zIndex: 5, display: "flex", gap: 10 }}>
+        <button
+          onClick={onProfile}
+          style={{
+            display: "flex", alignItems: "center", gap: 10,
             background: "rgba(255,255,255,0.06)",
-            border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: 16,
-            padding: "12px 20px",
-            display: "flex",
-            gap: 20,
-            alignItems: "center",
+            border: "1px solid rgba(255,255,255,0.15)",
+            borderRadius: 14, padding: "6px 14px 6px 6px",
+            cursor: "pointer", color: "white",
             backdropFilter: "blur(10px)",
           }}
         >
-          <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, fontWeight: 600 }}>
-            {profile.username}
+          <div style={{
+            width: 36, height: 36, borderRadius: 10,
+            background: `radial-gradient(circle at 50% 30%, ${brawler.color}88, transparent 70%)`,
+            border: `1.5px solid ${brawler.color}`,
+            overflow: "hidden",
+          }}>
+            <img src={`${base}brawlers/${profile.favoriteBrawlerId}_front.png`} alt="" style={{ width: "100%" }} />
           </div>
-          <div style={{ display: "flex", gap: 14, fontSize: 14 }}>
-            <span style={{ color: "#FFD700" }}>🪙 {profile.coins}</span>
-            <span style={{ color: "#40C4FF" }}>💎 {profile.gems}</span>
-            <span style={{ color: "#CE93D8" }}>✨ {profile.powerPoints}</span>
+          <div style={{ textAlign: "left", lineHeight: 1.1 }}>
+            <div style={{ fontSize: 14, fontWeight: 800 }}>{profile.username}</div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>
+              Игр: {profile.totalGamesPlayed} • Побед: {profile.totalWins}
+            </div>
           </div>
-          <button
-            onClick={onLogout}
-            style={{
-              background: "rgba(255,82,82,0.2)",
-              border: "1px solid rgba(255,82,82,0.3)",
-              borderRadius: 8,
-              padding: "4px 10px",
-              color: "#FF5252",
-              fontSize: 12,
-              cursor: "pointer",
-            }}
-          >
-Сменить профиль
-          </button>
-        </div>
-      )}
-      <div style={{ textAlign: "center", marginBottom: 50, zIndex: 1 }}>
-        <div
-          style={{
-            fontSize: 80,
-            fontWeight: 900,
-            background: "linear-gradient(135deg, #CE93D8 0%, #FFD700 50%, #40C4FF 100%)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            backgroundSize: "200% auto",
-            animation: "shimmer 4s linear infinite",
-            letterSpacing: 4,
-            lineHeight: 1,
-            filter: "drop-shadow(0 0 30px rgba(206,147,216,0.5))",
-          }}
-        >
-          CLASH
-        </div>
-        <div
-          style={{
-            fontSize: 36,
-            fontWeight: 700,
-            color: "#CE93D8",
-            letterSpacing: 16,
-            marginTop: -5,
-            textShadow: "0 0 20px rgba(206,147,216,0.5)",
-          }}
-        >
-          ARENA
-        </div>
-        <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, marginTop: 8 }}>Присвой арену себе!</div>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 14, width: 320, zIndex: 1 }}>
-        <MenuButton
-          label="ИГРАТЬ"
-          gradient="linear-gradient(135deg, #7B2FBE, #CE93D8)"
-          glowColor="rgba(123,47,190,0.6)"
-          onClick={onPlay}
-          primary
-        />
-        <MenuButton
-          label="КОЛЛЕКЦИЯ"
-          gradient="linear-gradient(135deg, #1565C0, #40C4FF)"
-          glowColor="rgba(21,101,192,0.4)"
-          onClick={onCollection}
-        />
-        <MenuButton
-          label="МАГАЗИН"
-          gradient="linear-gradient(135deg, #F9A825, #FFD700)"
-          glowColor="rgba(249,168,37,0.4)"
-          onClick={onShop}
-        />
-        <MenuButton
-          label="НАСТРОЙКИ"
-          gradient="linear-gradient(135deg, #2E7D32, #69F0AE)"
-          glowColor="rgba(46,125,50,0.4)"
-          onClick={onSettings}
-        />
-      </div>
-      {canClaimDaily && (
-        <button
-          onClick={handleDailyBonus}
-          style={{
-            marginTop: 30,
-            background: "rgba(255,215,0,0.1)",
-            border: "2px solid rgba(255,215,0,0.5)",
-            borderRadius: 12,
-            padding: "10px 30px",
-            color: "#FFD700",
-            fontWeight: 700,
-            fontSize: 14,
-            cursor: "pointer",
-            animation: "pulse 2s ease-in-out infinite",
-            zIndex: 1,
-          }}
-        >
-Ежедневный бонус доступен!
         </button>
-      )}
-      {dailyMsg && (
+      </div>
+
+      {/* CENTER: brawler showcase + name */}
+      <div style={{
+        position: "absolute", inset: 0,
+        display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center",
+        pointerEvents: "none", paddingTop: 60,
+      }}>
+        <div style={{
+          fontSize: 52, fontWeight: 900,
+          background: "linear-gradient(135deg, #CE93D8 0%, #FFD700 50%, #40C4FF 100%)",
+          WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+          backgroundSize: "200% auto", animation: "shimmer 4s linear infinite",
+          letterSpacing: 6, marginBottom: 4,
+          filter: "drop-shadow(0 0 30px rgba(206,147,216,0.5))",
+        }}>CLASH</div>
+        <div style={{
+          fontSize: 22, fontWeight: 700, color: "#CE93D8",
+          letterSpacing: 14, marginTop: -6,
+          textShadow: "0 0 20px rgba(206,147,216,0.5)",
+          marginBottom: 6,
+        }}>ARENA</div>
+
         <div
+          onClick={onBrawlerSelect}
           style={{
-            marginTop: 10,
-            color: "#FFD700",
-            fontWeight: 700,
-            fontSize: 16,
-            textShadow: "0 0 10px #FFD700",
-            zIndex: 1,
+            pointerEvents: "auto", cursor: "pointer",
+            position: "relative", marginTop: 8,
+            width: 320, height: 360,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            animation: "floatY 3.5s ease-in-out infinite",
           }}
         >
-          {dailyMsg}
+          <div style={{
+            position: "absolute", inset: 0,
+            background: `radial-gradient(circle at 50% 60%, ${brawler.color}55 0%, transparent 65%)`,
+          }} />
+          <img
+            src={`${base}brawlers/${brawler.id}_front.png`}
+            alt={brawler.name}
+            style={{
+              width: "85%",
+              filter: `drop-shadow(0 12px 35px ${brawler.color})`,
+              position: "relative",
+            }}
+          />
+          <div style={{
+            position: "absolute", bottom: -4, left: "50%", transform: "translateX(-50%)",
+            background: "rgba(0,0,0,0.55)", border: `1px solid ${brawler.color}`,
+            borderRadius: 12, padding: "6px 18px",
+            fontSize: 18, fontWeight: 800, color: brawler.color,
+            letterSpacing: 2, whiteSpace: "nowrap",
+          }}>
+            {brawler.name.toUpperCase()}
+          </div>
         </div>
-      )}
-      {profile && (
-        <div style={{ marginTop: 20, color: "rgba(255,255,255,0.3)", fontSize: 12, zIndex: 1 }}>
-Игр: {profile.totalGamesPlayed} | Побед: {profile.totalWins}
+      </div>
+
+      {/* RIGHT SIDE BUTTONS */}
+      <div style={{
+        position: "absolute", right: 18, top: "50%", transform: "translateY(-50%)",
+        display: "flex", flexDirection: "column", gap: 12, zIndex: 4,
+      }}>
+        <SideButton icon="🛒" label="Магазин" onClick={onShop} color="#FFD700" />
+        <SideButton icon="🎒" label="Коллекция" onClick={onCollection} color="#40C4FF" />
+        <SideButton icon="⚙️" label="Настройки" onClick={onSettings} color="#69F0AE" />
+        <SideButton icon="👥" label="Друзья" onClick={() => handleSoonNotice("Друзья — скоро")} color="#CE93D8" />
+        <SideButton icon="🔔" label="Уведомления" onClick={() => handleSoonNotice("Новых уведомлений нет")} color="#FFAB40" />
+        <SideButton icon="🚪" label="Выйти" onClick={onLogout} color="#FF5252" />
+      </div>
+
+      {/* LEFT SIDE — character pick shortcut */}
+      <div style={{
+        position: "absolute", left: 18, top: "50%", transform: "translateY(-50%)",
+        display: "flex", flexDirection: "column", gap: 12, zIndex: 4,
+      }}>
+        <SideButton icon="🦸" label="Персонаж" onClick={onBrawlerSelect} color="#CE93D8" />
+        {canClaimDaily ? (
+          <SideButton icon="🎁" label="Бонус" onClick={handleDaily} color="#FFD700" pulse />
+        ) : (
+          <SideButton icon="🎁" label="Получено" onClick={handleDaily} color="#666" />
+        )}
+        {dailyMsg && (
+          <div style={{
+            background: "rgba(255,215,0,0.15)", color: "#FFD700",
+            border: "1px solid rgba(255,215,0,0.4)",
+            borderRadius: 10, padding: "6px 10px",
+            fontSize: 12, fontWeight: 700, textAlign: "center",
+            maxWidth: 130,
+          }}>{dailyMsg}</div>
+        )}
+      </div>
+
+      {/* BOTTOM-LEFT: Clash Pass */}
+      <button
+        onClick={onClashPass}
+        style={{
+          position: "absolute", bottom: 16, left: 16, zIndex: 5,
+          background: "linear-gradient(135deg, rgba(74,20,140,0.6), rgba(206,147,216,0.4))",
+          border: "1.5px solid rgba(206,147,216,0.6)",
+          borderRadius: 16, padding: 14,
+          width: 240, cursor: "pointer", color: "white",
+          textAlign: "left", backdropFilter: "blur(10px)",
+          animation: "glow 3s ease-in-out infinite",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+          <div style={{ fontWeight: 900, letterSpacing: 1, fontSize: 14, color: "#FFD700" }}>
+            🎟️ CLASH PASS
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "#CE93D8" }}>УР. {passLevel}</div>
+        </div>
+        <div style={{
+          marginTop: 8, height: 8, borderRadius: 4,
+          background: "rgba(0,0,0,0.4)", overflow: "hidden",
+        }}>
+          <div style={{
+            height: "100%", width: `${passPct}%`,
+            background: "linear-gradient(90deg, #FFD700, #CE93D8)",
+            transition: "width 0.4s",
+          }} />
+        </div>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginTop: 4 }}>
+          {passLevel >= MAX_CLASHPASS_LEVEL
+            ? "Максимум достигнут!"
+            : `${profile.xp} / ${passNeed} опыта`}
+        </div>
+      </button>
+
+      {/* BOTTOM-CENTER: mode selector + PLAY */}
+      <div style={{
+        position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)",
+        zIndex: 5, display: "flex", flexDirection: "column", gap: 10, alignItems: "center",
+      }}>
+        <button
+          onClick={onModeSelect}
+          style={{
+            background: `linear-gradient(135deg, ${mode.color}33, rgba(0,0,0,0.4))`,
+            border: `1.5px solid ${mode.color}`,
+            borderRadius: 14, padding: "10px 22px",
+            color: "white", cursor: "pointer",
+            display: "flex", alignItems: "center", gap: 12,
+            backdropFilter: "blur(10px)",
+            minWidth: 320,
+          }}
+        >
+          <span style={{ fontSize: 28 }}>{mode.icon}</span>
+          <span style={{ flex: 1, textAlign: "left" }}>
+            <span style={{ display: "block", color: "rgba(255,255,255,0.5)", fontSize: 10, letterSpacing: 1 }}>РЕЖИМ</span>
+            <span style={{ display: "block", fontSize: 16, fontWeight: 800, color: mode.color }}>{mode.name}</span>
+          </span>
+          <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>► СМЕНИТЬ</span>
+        </button>
+        <button
+          onClick={onPlay}
+          style={{
+            background: "linear-gradient(135deg, #7B2FBE, #CE93D8)",
+            border: "none", borderRadius: 16,
+            padding: "16px 90px",
+            color: "white", fontWeight: 900, fontSize: 24, letterSpacing: 4,
+            cursor: "pointer",
+            boxShadow: "0 8px 35px rgba(123,47,190,0.6)",
+          }}
+        >
+          ИГРАТЬ
+        </button>
+      </div>
+
+      {notif && (
+        <div style={{
+          position: "absolute", top: 90, right: 20, zIndex: 6,
+          background: "rgba(0,0,0,0.85)",
+          border: "1px solid rgba(255,255,255,0.2)",
+          borderRadius: 10, padding: "10px 16px",
+          color: "white", fontSize: 13, fontWeight: 600,
+          backdropFilter: "blur(10px)",
+        }}>
+          {notif}
         </div>
       )}
     </div>
   );
 }
 
-function MenuButton({
-  label, gradient, glowColor, onClick, primary = false
-}: {
-  label: string; gradient: string; glowColor: string; onClick: () => void; primary?: boolean;
-}) {
+function Resource({ icon, value, color }: { icon: string; value: number; color: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "0 6px", fontSize: 14 }}>
+      <span>{icon}</span>
+      <span style={{ color, fontWeight: 800 }}>{value}</span>
+    </div>
+  );
+}
+
+function SideButton({
+  icon, label, onClick, color, pulse,
+}: { icon: string; label: string; onClick: () => void; color: string; pulse?: boolean }) {
   const [hovered, setHovered] = useState(false);
   return (
     <button
       onClick={onClick}
-      onMouseOver={() => setHovered(true)}
-      onMouseOut={() => setHovered(false)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
-        border: primary ? "none" : `1px solid rgba(255,255,255,0.1)`,
-        borderRadius: 14,
-        padding: primary ? "18px 0" : "14px 0",
-        color: "white",
-        fontWeight: 800,
-        fontSize: primary ? 20 : 16,
-        cursor: "pointer",
-        letterSpacing: 2,
-        boxShadow: hovered ? `0 8px 30px ${glowColor}` : `0 4px 15px rgba(0,0,0,0.3)`,
-        transform: hovered ? "translateY(-3px)" : "none",
+        display: "flex", alignItems: "center", gap: 10,
+        background: hovered ? `${color}26` : "rgba(0,0,0,0.4)",
+        border: `1.5px solid ${hovered ? color : "rgba(255,255,255,0.1)"}`,
+        borderRadius: 14, padding: "10px 14px",
+        color: "white", cursor: "pointer", minWidth: 130,
+        backdropFilter: "blur(10px)",
         transition: "all 0.2s",
-        background: hovered && !primary ? `rgba(255,255,255,0.1)` : primary ? gradient : "rgba(255,255,255,0.05)",
+        transform: hovered ? "translateX(0)" : "translateX(0)",
+        boxShadow: hovered ? `0 0 18px ${color}66` : "none",
+        animation: pulse ? "pulse 1.6s ease-in-out infinite" : undefined,
       }}
     >
-      {label}
+      <span style={{ fontSize: 20 }}>{icon}</span>
+      <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: 1 }}>{label}</span>
     </button>
   );
 }

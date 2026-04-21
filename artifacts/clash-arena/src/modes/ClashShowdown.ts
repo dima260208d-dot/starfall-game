@@ -216,7 +216,9 @@ export class ClashShowdown {
       this.over = true;
       this.won = false;
       if (!this.resultRecorded) {
-        recordGameResult(false, "showdown");
+        const aliveBots = this.bots.filter(b => b.alive).length;
+        const place = 1 + aliveBots; // 1=alone winner, up to 1 + 7 = 8
+        recordGameResult({ won: false, mode: "showdown", place, totalPlayers: 8 });
         this.resultRecorded = true;
       }
     }
@@ -226,7 +228,7 @@ export class ClashShowdown {
       this.over = true;
       this.won = true;
       if (!this.resultRecorded) {
-        recordGameResult(true, "showdown");
+        recordGameResult({ won: true, mode: "showdown", place: 1, totalPlayers: 8 });
         this.resultRecorded = true;
       }
     }

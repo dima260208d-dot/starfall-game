@@ -221,7 +221,7 @@ export class ClashCrystals {
       this.over = true;
       this.won = playerWins;
       if (!this.resultRecorded) {
-        recordGameResult(playerWins, "crystals");
+        recordGameResult({ won: playerWins, mode: "crystals", place: playerWins ? 1 : 2 });
         this.resultRecorded = true;
       }
     }
