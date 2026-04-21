@@ -4,7 +4,7 @@ import { Projectile } from "./Projectile";
 import { GameMap } from "../game/MapRenderer";
 import { distance, angleTo, randomFloat } from "../utils/helpers";
 
-type BotState = "idle" | "chase" | "attack" | "retreat" | "wander";
+type BotState = "idle" | "chase" | "attack" | "retreat" | "wander" | "forced";
 
 export class Bot extends Brawler {
   state: BotState = "idle";
@@ -14,6 +14,7 @@ export class Bot extends Brawler {
   attackTimer = 0;
   stateTimer = 0;
   crystalTarget?: { x: number; y: number };
+  forcedTarget?: { x: number; y: number };
   
   constructor(stats: BrawlerStats, level: number, x: number, y: number, team: Team) {
     super(stats, level, x, y, team, false);
@@ -27,7 +28,6 @@ export class Bot extends Brawler {
     this.wanderTimer -= dt;
 
     const enemies = allBrawlers.filter(b => b.alive && b.team !== this.team);
-    const allies = allBrawlers.filter(b => b.alive && b.team === this.team && b.id !== this.id);
 
     let nearestEnemy: Brawler | null = null;
     let nearestDist = 9999;
@@ -42,10 +42,25 @@ export class Bot extends Brawler {
       this.activateSuper(allBrawlers, map, projectiles);
     }
 
-    const detectionRange = 350;
+    const detectionRange = this.forcedTarget ? this.stats.attackRange * 1.1 : 600;
     const attackRange = this.stats.attackRange;
 
-    if (nearestEnemy && nearestDist < detectionRange) {
+    if (this.forcedTarget) {
+      const fd = distance(this.x, this.y, this.forcedTarget.x, this.forcedTarget.y);
+      if (fd > 60) {
+        if (nearestEnemy && nearestDist < attackRange * 0.9) {
+          this.target = nearestEnemy;
+          this.angle = angleTo(this.x, this.y, nearestEnemy.x, nearestEnemy.y);
+          this.state = "attack";
+        } else {
+          this.target = null;
+          this.state = "forced";
+        }
+      } else {
+        this.state = "forced";
+        this.target = null;
+      }
+    } else if (nearestEnemy && nearestDist < detectionRange) {
       this.target = nearestEnemy;
       this.angle = angleTo(this.x, this.y, nearestEnemy.x, nearestEnemy.y);
 
@@ -106,14 +121,22 @@ export class Bot extends Brawler {
         }
         this.move(Math.cos(this.wanderAngle), Math.sin(this.wanderAngle), dt * 0.6);
         break;
+
+      case "forced":
+        if (this.forcedTarget) {
+          const dx = this.forcedTarget.x - this.x;
+          const dy = this.forcedTarget.y - this.y;
+          this.move(dx, dy, dt);
+        }
+        break;
     }
 
-    if (this.crystalTarget) {
+    if (!this.forcedTarget && this.crystalTarget && this.state === "wander") {
       const d = distance(this.x, this.y, this.crystalTarget.x, this.crystalTarget.y);
-      if (d > 60 && !nearestEnemy) {
+      if (d > 60) {
         const dx = this.crystalTarget.x - this.x;
         const dy = this.crystalTarget.y - this.y;
-        this.move(dx, dy, dt * 0.8);
+        this.move(dx, dy, dt * 0.9);
       }
     }
   }

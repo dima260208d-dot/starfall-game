@@ -12,7 +12,7 @@ export interface Projectile {
   range: number;
   distanceTraveled: number;
   ownerId: string;
-  ownerTeam: "player" | "enemy";
+  ownerTeam: string;
   color: string;
   type: "bullet" | "shuriken" | "snowball" | "fireball" | "dagger" | "chain" | "beam";
   active: boolean;

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getCurrentProfile, getCurrentUsername } from "./utils/localStorageAPI";
+import { getCurrentUsername } from "./utils/localStorageAPI";
 import AuthPage from "./pages/AuthPage";
 import MainMenu from "./pages/MainMenu";
 import ModeSelect from "./pages/ModeSelect";
@@ -19,11 +19,13 @@ type Screen =
   | "shop"
   | "settings";
 
+export type GameMode = "showdown" | "crystals" | "siege" | "heist" | "gemgrab";
+
 export default function App() {
   const [screen, setScreen] = useState<Screen>(() => {
     return getCurrentUsername() ? "menu" : "auth";
   });
-  const [selectedMode, setSelectedMode] = useState<"showdown" | "crystals">("showdown");
+  const [selectedMode, setSelectedMode] = useState<GameMode>("showdown");
   const [selectedBrawler, setSelectedBrawler] = useState("miya");
 
   useEffect(() => {

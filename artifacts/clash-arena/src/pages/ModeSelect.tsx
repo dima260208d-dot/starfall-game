@@ -1,71 +1,75 @@
 import { useState } from "react";
+import type { GameMode } from "../App";
 
 interface ModeSelectProps {
-  onSelect: (mode: "showdown" | "crystals") => void;
+  onSelect: (mode: GameMode) => void;
   onBack: () => void;
 }
 
-const modes = [
+const modes: Array<{
+  id: GameMode;
+  name: string;
+  subtitle: string;
+  desc: string;
+  players: string;
+  icon: string;
+  color: string;
+  gradient: string;
+}> = [
   {
-    id: "showdown" as const,
-    name: "Clash Showdown",
-    subtitle: "Battle Royale",
-    desc: "Last player standing wins. 1 vs 7 bots. Gas zone shrinks over time.",
-    players: "1v7 Bots",
+    id: "showdown",
+    name: "Шоудаун",
+    subtitle: "Королевская битва",
+    desc: "Последний выживший побеждает. 1 против 7 ботов. Газ сжимается со временем.",
+    players: "1 на 7 ботов",
     icon: "⚔️",
     color: "#FF5252",
     gradient: "linear-gradient(135deg, #B71C1C, #FF5252)",
-    available: true,
   },
   {
-    id: "crystals" as const,
-    name: "Clash Crystals",
-    subtitle: "3v3 Team Battle",
-    desc: "Collect crystals and bring them to your base. First to 10 wins!",
-    players: "3v3",
+    id: "crystals",
+    name: "Захват кристаллов",
+    subtitle: "3 на 3 командный бой",
+    desc: "Несите кристаллы на свою базу. Кто первый соберёт 10 — побеждает!",
+    players: "3 на 3",
     icon: "💎",
     color: "#40C4FF",
     gradient: "linear-gradient(135deg, #0D47A1, #40C4FF)",
-    available: true,
   },
   {
-    id: null,
-    name: "Clash Siege",
-    subtitle: "Coming Soon",
-    desc: "Protect your IKE robot while destroying the enemy's!",
-    players: "3v3",
+    id: "siege",
+    name: "Осада",
+    subtitle: "Защита базы",
+    desc: "Защитите свою базу от 3 волн врагов!",
+    players: "1 против волн",
     icon: "🏰",
     color: "#69F0AE",
     gradient: "linear-gradient(135deg, #1B5E20, #69F0AE)",
-    available: false,
   },
   {
-    id: null,
-    name: "Heist",
-    subtitle: "Coming Soon",
-    desc: "Break into the enemy safe before they crack yours!",
-    players: "3v3",
+    id: "heist",
+    name: "Ограбление",
+    subtitle: "Атака сейфа",
+    desc: "Уничтожьте сейф врага раньше, чем они уничтожат ваш!",
+    players: "3 на 3",
     icon: "🔐",
     color: "#FFD700",
     gradient: "linear-gradient(135deg, #F57F17, #FFD700)",
-    available: false,
   },
   {
-    id: null,
-    name: "Gem Grab",
-    subtitle: "Coming Soon",
-    desc: "Hold 10 gems without dying to claim victory!",
-    players: "3v3",
+    id: "gemgrab",
+    name: "Выноси кристаллы",
+    subtitle: "Удержи 10 секунд",
+    desc: "Соберите 10 камней и удержите их 15 секунд для победы!",
+    players: "3 на 3",
     icon: "💠",
     color: "#CE93D8",
     gradient: "linear-gradient(135deg, #4A148C, #CE93D8)",
-    available: false,
   },
 ];
 
 export default function ModeSelect({ onSelect, onBack }: ModeSelectProps) {
   const [hovered, setHovered] = useState<number | null>(null);
-  const [comingSoon, setComingSoon] = useState<string | null>(null);
 
   return (
     <div
@@ -103,7 +107,7 @@ export default function ModeSelect({ onSelect, onBack }: ModeSelectProps) {
           fontWeight: 600,
         }}
       >
-        ← Back
+        ← Назад
       </button>
 
       <div style={{ textAlign: "center", marginBottom: 50 }}>
@@ -119,10 +123,10 @@ export default function ModeSelect({ onSelect, onBack }: ModeSelectProps) {
             margin: 0,
           }}
         >
-          Choose Mode
+          Выбор режима
         </h1>
         <p style={{ color: "rgba(255,255,255,0.4)", marginTop: 8, fontSize: 14 }}>
-          Select a battle mode to begin
+          Выберите режим боя, чтобы начать
         </p>
       </div>
 
@@ -145,41 +149,15 @@ export default function ModeSelect({ onSelect, onBack }: ModeSelectProps) {
               border: `1px solid ${hovered === i ? mode.color + "60" : "rgba(255,255,255,0.08)"}`,
               borderRadius: 20,
               padding: 28,
-              cursor: mode.available ? "pointer" : "not-allowed",
+              cursor: "pointer",
               transform: hovered === i ? "translateY(-4px)" : "none",
               transition: "all 0.25s",
-              opacity: mode.available ? 1 : 0.5,
               boxShadow: hovered === i ? `0 10px 40px ${mode.color}20` : "none",
               position: "relative",
               overflow: "hidden",
             }}
-            onClick={() => {
-              if (mode.available && mode.id) onSelect(mode.id);
-              else if (!mode.available) {
-                setComingSoon(mode.name);
-                setTimeout(() => setComingSoon(null), 2500);
-              }
-            }}
+            onClick={() => onSelect(mode.id)}
           >
-            {!mode.available && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: 12,
-                  right: 14,
-                  background: "rgba(255,255,255,0.1)",
-                  borderRadius: 6,
-                  padding: "2px 10px",
-                  color: "rgba(255,255,255,0.5)",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: 1,
-                }}
-              >
-                SOON
-              </div>
-            )}
-
             <div style={{ fontSize: 48, marginBottom: 12 }}>{mode.icon}</div>
             <div
               style={{
@@ -198,49 +176,25 @@ export default function ModeSelect({ onSelect, onBack }: ModeSelectProps) {
               {mode.desc}
             </p>
 
-            {mode.available && (
-              <button
-                style={{
-                  marginTop: 20,
-                  background: mode.gradient,
-                  border: "none",
-                  borderRadius: 10,
-                  padding: "10px 24px",
-                  color: "white",
-                  fontWeight: 800,
-                  fontSize: 14,
-                  cursor: "pointer",
-                  letterSpacing: 1,
-                }}
-              >
-                START
-              </button>
-            )}
+            <button
+              style={{
+                marginTop: 20,
+                background: mode.gradient,
+                border: "none",
+                borderRadius: 10,
+                padding: "10px 24px",
+                color: "white",
+                fontWeight: 800,
+                fontSize: 14,
+                cursor: "pointer",
+                letterSpacing: 1,
+              }}
+            >
+              СТАРТ
+            </button>
           </div>
         ))}
       </div>
-
-      {comingSoon && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: 40,
-            left: "50%",
-            transform: "translateX(-50%)",
-            background: "rgba(0,0,0,0.85)",
-            border: "1px solid rgba(255,255,255,0.2)",
-            borderRadius: 12,
-            padding: "14px 28px",
-            color: "white",
-            fontWeight: 600,
-            fontSize: 15,
-            backdropFilter: "blur(10px)",
-            zIndex: 999,
-          }}
-        >
-          {comingSoon} — Coming Soon!
-        </div>
-      )}
     </div>
   );
 }

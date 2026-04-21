@@ -12,7 +12,7 @@ export default function SettingsPage({ onBack, onSwitchProfile }: SettingsPagePr
 
   const handleAddGems = () => {
     addGems(100);
-    setMsg("+100 gems added for testing!");
+setMsg("+100 кристаллов добавлено для теста!");
     setTimeout(() => setMsg(""), 3000);
   };
 
@@ -37,36 +37,36 @@ export default function SettingsPage({ onBack, onSwitchProfile }: SettingsPagePr
           onClick={onBack}
           style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, padding: "7px 16px", color: "rgba(255,255,255,0.7)", cursor: "pointer", fontSize: 13, fontWeight: 600 }}
         >
-          ← Back
+          ← Назад
         </button>
-        <h2 style={{ flex: 1, textAlign: "center", margin: 0, fontSize: 22, fontWeight: 800, color: "#69F0AE" }}>Settings</h2>
+        <h2 style={{ flex: 1, textAlign: "center", margin: 0, fontSize: 22, fontWeight: 800, color: "#69F0AE" }}>Настройки</h2>
         <div style={{ width: 80 }} />
       </div>
 
       <div style={{ flex: 1, padding: "40px 24px", maxWidth: 600, margin: "0 auto", width: "100%" }}>
-        <Section title="Profile">
+        <Section title="Профиль">
           {profile && (
             <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: 20, marginBottom: 12 }}>
               <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>{profile.username}</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 14 }}>
-                <div style={{ color: "#FFD700" }}>Coins: {profile.coins}</div>
-                <div style={{ color: "#40C4FF" }}>Gems: {profile.gems}</div>
-                <div style={{ color: "#CE93D8" }}>Power Points: {profile.powerPoints}</div>
-                <div style={{ color: "rgba(255,255,255,0.5)" }}>Wins: {profile.totalWins}/{profile.totalGamesPlayed}</div>
+                <div style={{ color: "#FFD700" }}>Монеты: {profile.coins}</div>
+                <div style={{ color: "#40C4FF" }}>Кристаллы: {profile.gems}</div>
+                <div style={{ color: "#CE93D8" }}>Очки силы: {profile.powerPoints}</div>
+                <div style={{ color: "rgba(255,255,255,0.5)" }}>Победы: {profile.totalWins}/{profile.totalGamesPlayed}</div>
               </div>
             </div>
           )}
-          <Button onClick={handleSwitchProfile} color="#FF5252" label="Switch / Change Profile" />
+<Button onClick={handleSwitchProfile} color="#FF5252" label="Сменить профиль" />
         </Section>
 
-        <Section title="Controls">
+        <Section title="Управление">
           <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: 16 }}>
             {[
-              ["Movement", "WASD or Arrow Keys"],
-              ["Aim", "Mouse"],
-              ["Attack", "LMB or Space"],
-              ["Super", "RMB or E"],
-              ["Exit Game", "ESC (top-right button)"],
+              ["Движение", "WASD или стрелки"],
+              ["Прицел", "Мышь"],
+              ["Атака", "ЛКМ или Пробел"],
+              ["Супер", "ПКМ или E"],
+              ["Выход", "ESC (кнопка справа сверху)"],
             ].map(([action, key]) => (
               <div key={action} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
                 <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 14 }}>{action}</span>
@@ -76,8 +76,8 @@ export default function SettingsPage({ onBack, onSwitchProfile }: SettingsPagePr
           </div>
         </Section>
 
-        <Section title="Testing Tools">
-          <Button onClick={handleAddGems} color="#40C4FF" label="+100 Gems (Test)" />
+        <Section title="Тестовые инструменты">
+          <Button onClick={handleAddGems} color="#40C4FF" label="+100 кристаллов (тест)" />
         </Section>
 
         {msg && (

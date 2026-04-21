@@ -57,7 +57,7 @@ export class ClashShowdown {
     this.spriteLoaded = spriteLoaded;
     
     const playerStats = getBrawlerById(playerBrawlerId) || BRAWLERS[0];
-    this.player = new Brawler(playerStats, playerLevel, 2500, 2500, "player", true);
+    this.player = new Brawler(playerStats, playerLevel, 2500, 2500, "ffa-player", true);
     
     const usedPositions = [{ x: 2500, y: 2500 }];
     const spawnPadding = 400;
@@ -79,7 +79,7 @@ export class ClashShowdown {
       );
       
       usedPositions.push({ x: bx, y: by });
-      this.bots.push(new Bot(botStats, level, bx, by, "red"));
+      this.bots.push(new Bot(botStats, level, bx, by, `ffa-${i}`));
     }
     
     this.gas = {
@@ -209,10 +209,7 @@ export class ClashShowdown {
         if (b.id === proj.ownerId) continue;
         if (proj.hitIds.has(b.id)) continue;
         
-        const isEnemy = (proj.ownerTeam === "player" && b.team !== "player") ||
-                        (proj.ownerTeam === "enemy" && b.team === "player");
-        
-        if (!isEnemy) continue;
+        if (proj.ownerTeam === b.team) continue;
         
         const d = distance(proj.x, proj.y, b.x, b.y);
         if (d < proj.radius + b.radius) {
@@ -367,7 +364,7 @@ export class ClashShowdown {
     
     ctx.fillStyle = "#FFD700";
     ctx.font = "bold 11px Arial";
-    ctx.fillText(this.player.superReady ? "SUPER READY! [E]" : "Super charging...", 20, 73);
+    ctx.fillText(this.player.superReady ? "СУПЕР ГОТОВ! [E]" : "Заряжаем супер...", 20, 73);
     
     const aliveCount = this.bots.filter(b => b.alive).length;
     ctx.fillStyle = "rgba(0,0,0,0.6)";
@@ -375,7 +372,7 @@ export class ClashShowdown {
     ctx.fillStyle = "#FF5252";
     ctx.font = "bold 14px Arial";
     ctx.textAlign = "right";
-    ctx.fillText(`Enemies: ${aliveCount}`, 1185, 36);
+    ctx.fillText(`Враги: ${aliveCount}`, 1185, 36);
     
     const charges = this.player.attackCharges;
     const maxCharges = this.player.maxAttackCharges;
@@ -393,7 +390,7 @@ export class ClashShowdown {
     ctx.fillStyle = "rgba(255,255,255,0.7)";
     ctx.font = "11px Arial";
     ctx.textAlign = "center";
-    ctx.fillText("WASD: move | LMB: attack | RMB/E: super", 600, 760);
+    ctx.fillText("WASD: движение | ЛКМ: атака | ПКМ/E: супер", 600, 760);
     
     ctx.restore();
   }

@@ -5,7 +5,7 @@ import { spawnDamageNumber } from "../utils/damageNumbers";
 import { clamp, distance, angleTo } from "../utils/helpers";
 import { drawCharacterSprite } from "../game/sprites";
 
-export type Team = "player" | "blue" | "red";
+export type Team = string;
 
 export interface StatusEffect {
   type: "slow" | "poison" | "stun" | "berserker";
@@ -251,7 +251,7 @@ export class Brawler {
             vx: Math.cos(a) * spd, vy: Math.sin(a) * spd,
             radius: 8, damage: dmg,
             speed: spd, range: this.stats.attackRange,
-            ownerId: this.id, ownerTeam: this.team === "player" ? "player" : "enemy",
+            ownerId: this.id, ownerTeam: this.team,
             color: "#CE93D8", type: "shuriken", piercing: true,
           }));
         }
@@ -263,7 +263,7 @@ export class Brawler {
           vx: Math.cos(angle) * 800, vy: Math.sin(angle) * 800,
           radius: 4, damage: dmg,
           speed: 800, range: this.stats.attackRange,
-          ownerId: this.id, ownerTeam: this.team === "player" ? "player" : "enemy",
+          ownerId: this.id, ownerTeam: this.team,
           color: "#40C4FF", type: "beam", piercing: true,
         }));
         break;
@@ -274,7 +274,7 @@ export class Brawler {
           vx: Math.cos(angle) * 300, vy: Math.sin(angle) * 300,
           radius: 12, damage: dmg,
           speed: 300, range: this.stats.attackRange,
-          ownerId: this.id, ownerTeam: this.team === "player" ? "player" : "enemy",
+          ownerId: this.id, ownerTeam: this.team,
           color: "#B3E5FC", type: "snowball", piercing: false, slow: true,
         }));
         break;
@@ -285,7 +285,7 @@ export class Brawler {
           vx: Math.cos(angle) * 350, vy: Math.sin(angle) * 350,
           radius: 12, damage: dmg,
           speed: 350, range: this.stats.attackRange,
-          ownerId: this.id, ownerTeam: this.team === "player" ? "player" : "enemy",
+          ownerId: this.id, ownerTeam: this.team,
           color: "#FF6F00", type: "fireball", piercing: false,
           explosionRadius: 60,
         }));
@@ -297,7 +297,7 @@ export class Brawler {
           vx: Math.cos(angle) * 450, vy: Math.sin(angle) * 450,
           radius: 8, damage: dmg,
           speed: 450, range: this.stats.attackRange,
-          ownerId: this.id, ownerTeam: this.team === "player" ? "player" : "enemy",
+          ownerId: this.id, ownerTeam: this.team,
           color: "#69F0AE", type: "dagger", piercing: false, poison: true,
         }));
         break;
@@ -308,7 +308,7 @@ export class Brawler {
           vx: Math.cos(angle) * 420, vy: Math.sin(angle) * 420,
           radius: 8, damage: dmg,
           speed: 420, range: this.stats.attackRange,
-          ownerId: this.id, ownerTeam: this.team === "player" ? "player" : "enemy",
+          ownerId: this.id, ownerTeam: this.team,
           color: "#FF80AB", type: "bullet", piercing: false,
         }));
         break;
@@ -319,7 +319,7 @@ export class Brawler {
           vx: Math.cos(angle) * spd, vy: Math.sin(angle) * spd,
           radius: 8, damage: dmg,
           speed: spd, range: this.stats.attackRange,
-          ownerId: this.id, ownerTeam: this.team === "player" ? "player" : "enemy",
+          ownerId: this.id, ownerTeam: this.team,
           color: this.stats.color, type: "bullet", piercing: false,
         }));
       }
@@ -387,7 +387,7 @@ export class Brawler {
           vx: Math.cos(angle) * 1000, vy: Math.sin(angle) * 1000,
           radius: 6, damage: 1200,
           speed: 1000, range: map.width + map.height,
-          ownerId: this.id, ownerTeam: this.team === "player" ? "player" : "enemy",
+          ownerId: this.id, ownerTeam: this.team,
           color: "#00E5FF", type: "beam", piercing: true,
         }));
         break;

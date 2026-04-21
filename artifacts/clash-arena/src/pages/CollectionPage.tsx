@@ -59,9 +59,9 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
     const result = upgradeBrawler(brawler.id);
     if (result.success) {
       setProfile(getCurrentProfile());
-      setMsg("Level Up!");
+      setMsg("Уровень повышен!");
     } else {
-      setMsg(result.error || "Cannot upgrade");
+      setMsg(result.error || "Невозможно улучшить");
     }
     setTimeout(() => setMsg(""), 3000);
   };
@@ -89,10 +89,10 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
           onClick={onBack}
           style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, padding: "7px 16px", color: "rgba(255,255,255,0.7)", cursor: "pointer", fontSize: 13, fontWeight: 600 }}
         >
-          ← Back
+          ← Назад
         </button>
         <h2 style={{ flex: 1, textAlign: "center", margin: 0, fontSize: 22, fontWeight: 800, color: "#CE93D8" }}>
-          Collection
+Коллекция
         </h2>
         <div style={{ display: "flex", gap: 14, fontSize: 14 }}>
           <span style={{ color: "#FFD700" }}>🪙 {profile?.coins || 0}</span>
@@ -127,7 +127,7 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
                 </div>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 14, color: isSelected ? b.color : "white" }}>{b.name}</div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>LV {lv} {b.role}</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>УР {lv} {b.role}</div>
                 </div>
               </div>
             );
@@ -147,7 +147,7 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
 
           <div style={{ textAlign: "center", marginTop: 10, marginBottom: 20 }}>
             <div style={{ fontSize: 28, fontWeight: 900, color: brawler.color }}>{brawler.name}</div>
-            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: 2 }}>{brawler.role.toUpperCase()} • LEVEL {level} / 10</div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: 2 }}>{brawler.role.toUpperCase()} • УРОВЕНЬ {level} / 10</div>
           </div>
 
           <div
@@ -161,16 +161,16 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
           >
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
               {[
-                { label: "HP", base: brawler.hp, current: scaled.hp, color: "#4CAF50" },
-                { label: "ATK DMG", base: brawler.attackDamage, current: scaled.attackDamage, color: "#FF5252" },
-                { label: "SPEED", base: brawler.speed, current: scaled.speed, color: "#40C4FF" },
-                { label: "REGEN", base: brawler.regenRate, current: brawler.regenRate, color: "#CE93D8" },
+                { label: "ЗДОРОВЬЕ", base: brawler.hp, current: scaled.hp, color: "#4CAF50" },
+                { label: "УРОН", base: brawler.attackDamage, current: scaled.attackDamage, color: "#FF5252" },
+                { label: "СКОРОСТЬ", base: brawler.speed, current: scaled.speed, color: "#40C4FF" },
+                { label: "РЕГЕН", base: brawler.regenRate, current: brawler.regenRate, color: "#CE93D8" },
               ].map(stat => (
                 <div key={stat.label} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "10px 14px" }}>
                   <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontWeight: 700, letterSpacing: 1 }}>{stat.label}</div>
                   <div style={{ fontSize: 18, fontWeight: 800, color: stat.color }}>{stat.current}</div>
-                  {nextScaled && stat.label === "HP" && <div style={{ fontSize: 10, color: "#4CAF50" }}>→ {nextScaled.hp}</div>}
-                  {nextScaled && stat.label === "ATK DMG" && <div style={{ fontSize: 10, color: "#FF5252" }}>→ {nextScaled.attackDamage}</div>}
+                  {nextScaled && stat.label === "ЗДОРОВЬЕ" && <div style={{ fontSize: 10, color: "#4CAF50" }}>→ {nextScaled.hp}</div>}
+                  {nextScaled && stat.label === "УРОН" && <div style={{ fontSize: 10, color: "#FF5252" }}>→ {nextScaled.attackDamage}</div>}
                 </div>
               ))}
             </div>
@@ -183,16 +183,16 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
                 marginBottom: 12,
               }}
             >
-              <div style={{ fontSize: 11, color: "#40C4FF", fontWeight: 700, marginBottom: 3 }}>ATTACK: {brawler.attackName}</div>
+              <div style={{ fontSize: 11, color: "#40C4FF", fontWeight: 700, marginBottom: 3 }}>АТАКА: {brawler.attackName}</div>
               <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)" }}>{brawler.attackDesc}</div>
-              <div style={{ fontSize: 11, color: "#FFD700", fontWeight: 700, marginBottom: 3, marginTop: 8 }}>SUPER: {brawler.superName}</div>
+              <div style={{ fontSize: 11, color: "#FFD700", fontWeight: 700, marginBottom: 3, marginTop: 8 }}>СУПЕР: {brawler.superName}</div>
               <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)" }}>{brawler.superDesc}</div>
             </div>
 
             {level < 10 ? (
               <div>
                 <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 8, textAlign: "center" }}>
-                  Upgrade to Level {level + 1}: {upgradeCost.coins} coins + {upgradeCost.pp} power points
+Улучшить до уровня {level + 1}: {upgradeCost.coins} монет + {upgradeCost.pp} очков
                 </div>
                 <button
                   onClick={handleUpgrade}
@@ -210,15 +210,15 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
                     letterSpacing: 1,
                   }}
                 >
-                  {canUpgrade ? "UPGRADE" : `Need ${upgradeCost.coins} coins + ${upgradeCost.pp} PP`}
+{canUpgrade ? "УЛУЧШИТЬ" : `Нужно ${upgradeCost.coins} монет + ${upgradeCost.pp} очков`}
                 </button>
               </div>
             ) : (
-              <div style={{ textAlign: "center", color: "#FFD700", fontWeight: 700, fontSize: 14 }}>MAX LEVEL REACHED!</div>
+              <div style={{ textAlign: "center", color: "#FFD700", fontWeight: 700, fontSize: 14 }}>МАКСИМАЛЬНЫЙ УРОВЕНЬ!</div>
             )}
 
             {msg && (
-              <div style={{ textAlign: "center", marginTop: 10, color: msg === "Level Up!" ? "#4CAF50" : "#FF5252", fontWeight: 700 }}>
+              <div style={{ textAlign: "center", marginTop: 10, color: msg === "Уровень повышен!" ? "#4CAF50" : "#FF5252", fontWeight: 700 }}>
                 {msg}
               </div>
             )}

@@ -23,10 +23,10 @@ export default function MainMenu({ onPlay, onCollection, onShop, onSettings, onL
     const result = claimDailyBonus();
     if (result.success) {
       setDailyClaimed(true);
-      setDailyMsg(`+${result.coins} coins!`);
+      setDailyMsg(`+${result.coins} монет!`);
       setProfile(getCurrentProfile());
     } else {
-      setDailyMsg("Come back tomorrow!");
+      setDailyMsg("Возвращайтесь завтра!");
     }
     setTimeout(() => setDailyMsg(""), 3000);
   };
@@ -121,7 +121,7 @@ export default function MainMenu({ onPlay, onCollection, onShop, onSettings, onL
               cursor: "pointer",
             }}
           >
-            Switch Profile
+Сменить профиль
           </button>
         </div>
       )}
@@ -156,32 +156,32 @@ export default function MainMenu({ onPlay, onCollection, onShop, onSettings, onL
           ARENA
         </div>
         <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, marginTop: 8 }}>
-          10 Warriors • 2 Battle Modes • Anime Style
+10 бойцов • 5 режимов • Аниме стиль
         </div>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 14, width: 320, zIndex: 1 }}>
         <MenuButton
-          label="PLAY"
+          label="ИГРАТЬ"
           gradient="linear-gradient(135deg, #7B2FBE, #CE93D8)"
           glowColor="rgba(123,47,190,0.6)"
           onClick={onPlay}
           primary
         />
         <MenuButton
-          label="COLLECTION"
+          label="КОЛЛЕКЦИЯ"
           gradient="linear-gradient(135deg, #1565C0, #40C4FF)"
           glowColor="rgba(21,101,192,0.4)"
           onClick={onCollection}
         />
         <MenuButton
-          label="SHOP"
+          label="МАГАЗИН"
           gradient="linear-gradient(135deg, #F9A825, #FFD700)"
           glowColor="rgba(249,168,37,0.4)"
           onClick={onShop}
         />
         <MenuButton
-          label="SETTINGS"
+          label="НАСТРОЙКИ"
           gradient="linear-gradient(135deg, #2E7D32, #69F0AE)"
           glowColor="rgba(46,125,50,0.4)"
           onClick={onSettings}
@@ -205,7 +205,7 @@ export default function MainMenu({ onPlay, onCollection, onShop, onSettings, onL
             zIndex: 1,
           }}
         >
-          Daily Bonus Available!
+Ежедневный бонус доступен!
         </button>
       )}
 
@@ -226,7 +226,7 @@ export default function MainMenu({ onPlay, onCollection, onShop, onSettings, onL
 
       {profile && (
         <div style={{ marginTop: 20, color: "rgba(255,255,255,0.3)", fontSize: 12, zIndex: 1 }}>
-          Games: {profile.totalGamesPlayed} | Wins: {profile.totalWins}
+Игр: {profile.totalGamesPlayed} | Побед: {profile.totalWins}
         </div>
       )}
     </div>

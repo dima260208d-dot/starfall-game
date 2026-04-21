@@ -126,7 +126,7 @@ export default function AuthPage({ onAuth }: AuthPageProps) {
             ARENA
           </div>
           <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, marginTop: 5 }}>
-            Epic Anime Battle Arena
+            Эпичная аниме арена
           </div>
         </div>
 
@@ -156,7 +156,7 @@ export default function AuthPage({ onAuth }: AuthPageProps) {
                 transition: "all 0.2s",
               }}
             >
-              {m === "login" ? "Sign In" : "Register"}
+              {m === "login" ? "Вход" : "Регистрация"}
             </button>
           ))}
         </div>
@@ -164,7 +164,7 @@ export default function AuthPage({ onAuth }: AuthPageProps) {
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <input
             type="text"
-            placeholder="Username"
+            placeholder="Имя пользователя"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
@@ -181,7 +181,7 @@ export default function AuthPage({ onAuth }: AuthPageProps) {
           />
           <input
             type="password"
-            placeholder="Password"
+            placeholder="Пароль"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
@@ -230,12 +230,12 @@ export default function AuthPage({ onAuth }: AuthPageProps) {
             onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 30px rgba(123,47,190,0.6)"; }}
             onMouseOut={(e) => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 4px 20px rgba(123,47,190,0.4)"; }}
           >
-            {mode === "login" ? "ENTER THE ARENA" : "JOIN THE FIGHT"}
+            {mode === "login" ? "ВОЙТИ НА АРЕНУ" : "ПРИСОЕДИНИТЬСЯ"}
           </button>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "4px 0" }}>
             <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.1)" }} />
-            <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 12 }}>or</span>
+            <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 12 }}>или</span>
             <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.1)" }} />
           </div>
 
@@ -255,7 +255,7 @@ export default function AuthPage({ onAuth }: AuthPageProps) {
             onMouseOver={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.12)"; e.currentTarget.style.color = "white"; }}
             onMouseOut={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.07)"; e.currentTarget.style.color = "rgba(255,255,255,0.6)"; }}
           >
-            Play as Guest (progress won't be saved)
+Играть как гость (прогресс не сохранится)
           </button>
         </div>
       </div>

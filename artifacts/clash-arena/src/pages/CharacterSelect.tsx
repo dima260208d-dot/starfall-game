@@ -1,12 +1,21 @@
 import { useState, useEffect, useRef } from "react";
-import { BRAWLERS, BrawlerStats, getScaledStats } from "../entities/BrawlerData";
+import { BRAWLERS, getScaledStats } from "../entities/BrawlerData";
 import { getCurrentProfile } from "../utils/localStorageAPI";
+import type { GameMode } from "../App";
 
 interface CharacterSelectProps {
-  mode: "showdown" | "crystals";
+  mode: GameMode;
   onStart: (brawlerId: string) => void;
   onBack: () => void;
 }
+
+const MODE_LABELS: Record<GameMode, string> = {
+  showdown: "Шоудаун",
+  crystals: "Захват кристаллов",
+  siege: "Осада",
+  heist: "Ограбление",
+  gemgrab: "Выноси кристаллы",
+};
 
 const SPRITE_COLS = 5;
 const SPRITE_ROWS = 2;
@@ -140,7 +149,7 @@ export default function CharacterSelect({ mode, onStart, onBack }: CharacterSele
           onClick={onBack}
           style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, padding: "7px 16px", color: "rgba(255,255,255,0.7)", cursor: "pointer", fontSize: 13, fontWeight: 600 }}
         >
-          ← Back
+          ← Назад
         </button>
         <h2
           style={{
@@ -154,7 +163,7 @@ export default function CharacterSelect({ mode, onStart, onBack }: CharacterSele
             WebkitTextFillColor: "transparent",
           }}
         >
-          Choose Your Fighter — {mode === "showdown" ? "Clash Showdown" : "Clash Crystals"}
+          Выберите бойца — {MODE_LABELS[mode]}
         </h2>
         <div style={{ width: 80 }} />
       </div>
@@ -186,7 +195,7 @@ export default function CharacterSelect({ mode, onStart, onBack }: CharacterSele
               {brawler.name}
             </div>
             <div style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", letterSpacing: 2, fontWeight: 600 }}>
-              {brawler.role.toUpperCase()} • LVL {level}
+              {brawler.role.toUpperCase()} • УР {level}
             </div>
           </div>
 
@@ -203,19 +212,19 @@ export default function CharacterSelect({ mode, onStart, onBack }: CharacterSele
               gap: "12px 20px",
             }}
           >
-            <Stat label="HP" value={`${scaled.hp}`} max={6200} current={scaled.hp} color="#4CAF50" />
-            <Stat label="SPD" value={`${brawler.speed.toFixed(1)}`} max={5.5} current={brawler.speed} color="#40C4FF" />
-            <Stat label="DMG" value={`${scaled.attackDamage}`} max={600} current={scaled.attackDamage} color="#FF5252" />
-            <Stat label="REGEN" value={`${brawler.regenRate}/s`} max={80} current={brawler.regenRate} color="#CE93D8" />
+            <Stat label="ЗДОР" value={`${scaled.hp}`} max={6200} current={scaled.hp} color="#4CAF50" />
+            <Stat label="СКОР" value={`${brawler.speed.toFixed(1)}`} max={5.5} current={brawler.speed} color="#40C4FF" />
+            <Stat label="УРОН" value={`${scaled.attackDamage}`} max={600} current={scaled.attackDamage} color="#FF5252" />
+            <Stat label="РЕГЕН" value={`${brawler.regenRate}/с`} max={80} current={brawler.regenRate} color="#CE93D8" />
           </div>
 
           <div style={{ marginTop: 16, width: "100%", maxWidth: 340 }}>
             <div style={{ marginBottom: 8 }}>
-              <div style={{ fontSize: 11, color: "#40C4FF", fontWeight: 700, letterSpacing: 1 }}>ATTACK: {brawler.attackName}</div>
+              <div style={{ fontSize: 11, color: "#40C4FF", fontWeight: 700, letterSpacing: 1 }}>АТАКА: {brawler.attackName}</div>
               <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>{brawler.attackDesc}</div>
             </div>
             <div>
-              <div style={{ fontSize: 11, color: "#FFD700", fontWeight: 700, letterSpacing: 1 }}>SUPER: {brawler.superName}</div>
+              <div style={{ fontSize: 11, color: "#FFD700", fontWeight: 700, letterSpacing: 1 }}>СУПЕР: {brawler.superName}</div>
               <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>{brawler.superDesc}</div>
             </div>
           </div>
@@ -239,7 +248,7 @@ export default function CharacterSelect({ mode, onStart, onBack }: CharacterSele
             onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-3px) scale(1.03)"; }}
             onMouseOut={(e) => { e.currentTarget.style.transform = ""; }}
           >
-            INTO BATTLE!
+            В БОЙ!
           </button>
         </div>
 
@@ -252,7 +261,7 @@ export default function CharacterSelect({ mode, onStart, onBack }: CharacterSele
           }}
         >
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontWeight: 700, letterSpacing: 2, marginBottom: 12 }}>
-            SELECT FIGHTER
+ВЫБОР БОЙЦА
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {BRAWLERS.map((b, i) => {
@@ -305,7 +314,7 @@ export default function CharacterSelect({ mode, onStart, onBack }: CharacterSele
                       flexShrink: 0,
                     }}
                   >
-                    LV{lv}
+                    УР{lv}
                   </div>
                 </div>
               );

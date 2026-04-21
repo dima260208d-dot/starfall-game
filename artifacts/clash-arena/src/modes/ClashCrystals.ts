@@ -128,9 +128,25 @@ export class ClashCrystals {
     
     for (const bot of [...this.allies, ...this.enemies]) {
       if (bot.alive) {
-        const crystalTarget = this.crystals.find(c => !c.carrier && !c.dropped);
-        if (crystalTarget) {
-          bot.crystalTarget = { x: crystalTarget.x, y: crystalTarget.y };
+        const carriedCount = this.crystals.filter(c => c.carrier?.id === bot.id).length;
+        if (carriedCount > 0) {
+          const base = bot.team === "blue" ? { x: 300, y: 1750 } : { x: 3200, y: 1750 };
+          bot.forcedTarget = base;
+          bot.crystalTarget = undefined;
+        } else {
+          bot.forcedTarget = undefined;
+          let nearestCrystal: Crystal | null = null;
+          let nearestDist = 99999;
+          for (const c of this.crystals) {
+            if (c.carrier || c.dropped) continue;
+            const d = distance(bot.x, bot.y, c.x, c.y);
+            if (d < nearestDist) { nearestDist = d; nearestCrystal = c; }
+          }
+          if (nearestCrystal) {
+            bot.crystalTarget = { x: nearestCrystal.x, y: nearestCrystal.y };
+          } else {
+            bot.crystalTarget = undefined;
+          }
         }
         bot.update(dt, this.map);
         bot.updateAI(dt, allBrawlers, this.map, this.projectiles);
@@ -420,7 +436,7 @@ export class ClashCrystals {
     
     ctx.fillStyle = this.player.superReady ? "#FFD700" : "rgba(255,255,255,0.5)";
     ctx.font = "bold 11px Arial";
-    ctx.fillText(this.player.superReady ? "SUPER READY! [E]" : "Super charging...", 20, 73);
+    ctx.fillText(this.player.superReady ? "СУПЕР ГОТОВ! [E]" : "Заряжаем супер...", 20, 73);
     
     const scoreW = 220;
     const scoreX = (1200 - scoreW) / 2;
@@ -446,8 +462,8 @@ export class ClashCrystals {
     
     ctx.fillStyle = "white";
     ctx.font = "11px Arial";
-    ctx.fillText("BLUE", scoreX + 45, 18);
-    ctx.fillText("RED", scoreX + 170, 18);
+    ctx.fillText("СИНИЕ", scoreX + 45, 18);
+    ctx.fillText("КРАСНЫЕ", scoreX + 170, 18);
     
     const charges = this.player.attackCharges;
     const maxCharges = this.player.maxAttackCharges;
@@ -465,7 +481,7 @@ export class ClashCrystals {
     ctx.fillStyle = "rgba(255,255,255,0.7)";
     ctx.font = "11px Arial";
     ctx.textAlign = "center";
-    ctx.fillText("Deliver crystals to your base (blue zone on left)!", 600, 760);
+    ctx.fillText("Несите кристаллы на свою базу (синяя зона слева)!", 600, 760);
     
     ctx.restore();
   }

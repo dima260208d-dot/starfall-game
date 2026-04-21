@@ -32,7 +32,7 @@ export default function ShopPage({ onBack }: ShopPageProps) {
   const handleAddGems = () => {
     addGems(100);
     setProfile(getCurrentProfile());
-    setMsg("+100 gems added!");
+setMsg("+100 кристаллов добавлено!");
     setTimeout(() => setMsg(""), 3000);
   };
 
@@ -40,9 +40,9 @@ export default function ShopPage({ onBack }: ShopPageProps) {
     const r = claimDailyBonus();
     if (r.success) {
       setProfile(getCurrentProfile());
-      setMsg(`Daily bonus: +${r.coins} coins!`);
+      setMsg(`Ежедневный бонус: +${r.coins} монет!`);
     } else {
-      setMsg("Daily bonus already claimed. Come back tomorrow!");
+      setMsg("Ежедневный бонус уже получен. Возвращайтесь завтра!");
     }
     setTimeout(() => setMsg(""), 3000);
   };
@@ -50,10 +50,10 @@ export default function ShopPage({ onBack }: ShopPageProps) {
   const canClaimDaily = profile && Date.now() - profile.lastDailyBonus >= 24 * 60 * 60 * 1000;
 
   const boxTypeLabel: Record<string, string> = {
-    coins: "Coins",
-    gems: "Gems",
-    powerPoints: "Power Points",
-    error: "Error",
+    coins: "монет",
+    gems: "кристаллов",
+    powerPoints: "очков силы",
+    error: "Ошибка",
   };
   const boxTypeColor: Record<string, string> = {
     coins: "#FFD700",
@@ -97,9 +97,9 @@ export default function ShopPage({ onBack }: ShopPageProps) {
           onClick={onBack}
           style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, padding: "7px 16px", color: "rgba(255,255,255,0.7)", cursor: "pointer", fontSize: 13, fontWeight: 600 }}
         >
-          ← Back
+          ← Назад
         </button>
-        <h2 style={{ flex: 1, textAlign: "center", margin: 0, fontSize: 22, fontWeight: 800, color: "#FFD700" }}>Shop</h2>
+        <h2 style={{ flex: 1, textAlign: "center", margin: 0, fontSize: 22, fontWeight: 800, color: "#FFD700" }}>Магазин</h2>
         <div style={{ display: "flex", gap: 14, fontSize: 14 }}>
           <span style={{ color: "#FFD700" }}>🪙 {profile?.coins || 0}</span>
           <span style={{ color: "#40C4FF" }}>💎 {profile?.gems || 0}</span>
@@ -128,9 +128,9 @@ export default function ShopPage({ onBack }: ShopPageProps) {
             >
               📦
             </div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: "#FFD700", marginBottom: 6 }}>Mystery Box</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: "#FFD700", marginBottom: 6 }}>Секретный сундук</div>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 16 }}>
-              70% Coins • 25% Power Points • 5% Gems
+              70% монеты • 25% очки силы • 5% кристаллы
             </div>
             <div style={{ fontSize: 22, fontWeight: 700, color: "#FFD700", marginBottom: 16 }}>100 🪙</div>
             <button
@@ -148,7 +148,7 @@ export default function ShopPage({ onBack }: ShopPageProps) {
                 letterSpacing: 1,
               }}
             >
-              {isOpening ? "Opening..." : "Open Box"}
+{isOpening ? "Открытие..." : "Открыть сундук"}
             </button>
 
             {boxResult && (
@@ -180,9 +180,9 @@ export default function ShopPage({ onBack }: ShopPageProps) {
               }}
             >
               <div style={{ fontSize: 32, marginBottom: 8 }}>💎</div>
-              <div style={{ fontSize: 18, fontWeight: 800, color: "#40C4FF", marginBottom: 6 }}>Get Gems</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "#40C4FF", marginBottom: 6 }}>Кристаллы</div>
               <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 14 }}>
-                Test button: add 100 gems instantly
+Тестовая кнопка: +100 кристаллов мгновенно
               </div>
               <button
                 onClick={handleAddGems}
@@ -197,7 +197,7 @@ export default function ShopPage({ onBack }: ShopPageProps) {
                   cursor: "pointer",
                 }}
               >
-                +100 Gems (Test)
++100 кристаллов (тест)
               </button>
             </div>
 
@@ -212,9 +212,9 @@ export default function ShopPage({ onBack }: ShopPageProps) {
             >
               <div style={{ fontSize: 32, marginBottom: 8 }}>🎁</div>
               <div style={{ fontSize: 18, fontWeight: 800, color: canClaimDaily ? "#4CAF50" : "rgba(255,255,255,0.4)", marginBottom: 6 }}>
-                Daily Bonus
+Ежедневный бонус
               </div>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 14 }}>+50 coins every 24 hours</div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 14 }}>+50 монет каждые 24 часа</div>
               <button
                 onClick={handleDailyBonus}
                 disabled={!canClaimDaily}
@@ -229,7 +229,7 @@ export default function ShopPage({ onBack }: ShopPageProps) {
                   cursor: canClaimDaily ? "pointer" : "not-allowed",
                 }}
               >
-                {canClaimDaily ? "Claim Now!" : "Already Claimed"}
+{canClaimDaily ? "Получить!" : "Уже получено"}
               </button>
             </div>
           </div>
