@@ -65,7 +65,6 @@ export default function MainMenu({ onPlay, onCollection, onShop, onSettings, onL
           50% { opacity: 1; transform: scale(1.2); }
         }
       `}</style>
-
       <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
         {Array.from({ length: 30 }, (_, i) => (
           <div
@@ -84,7 +83,6 @@ export default function MainMenu({ onPlay, onCollection, onShop, onSettings, onL
           />
         ))}
       </div>
-
       {profile && (
         <div
           style={{
@@ -125,7 +123,6 @@ export default function MainMenu({ onPlay, onCollection, onShop, onSettings, onL
           </button>
         </div>
       )}
-
       <div style={{ textAlign: "center", marginBottom: 50, zIndex: 1 }}>
         <div
           style={{
@@ -155,11 +152,8 @@ export default function MainMenu({ onPlay, onCollection, onShop, onSettings, onL
         >
           ARENA
         </div>
-        <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, marginTop: 8 }}>
-10 бойцов • 5 режимов • Аниме стиль
-        </div>
+        <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, marginTop: 8 }}>Присвой арену себе!</div>
       </div>
-
       <div style={{ display: "flex", flexDirection: "column", gap: 14, width: 320, zIndex: 1 }}>
         <MenuButton
           label="ИГРАТЬ"
@@ -187,7 +181,6 @@ export default function MainMenu({ onPlay, onCollection, onShop, onSettings, onL
           onClick={onSettings}
         />
       </div>
-
       {canClaimDaily && (
         <button
           onClick={handleDailyBonus}
@@ -208,7 +201,6 @@ export default function MainMenu({ onPlay, onCollection, onShop, onSettings, onL
 Ежедневный бонус доступен!
         </button>
       )}
-
       {dailyMsg && (
         <div
           style={{
@@ -223,7 +215,6 @@ export default function MainMenu({ onPlay, onCollection, onShop, onSettings, onL
           {dailyMsg}
         </div>
       )}
-
       {profile && (
         <div style={{ marginTop: 20, color: "rgba(255,255,255,0.3)", fontSize: 12, zIndex: 1 }}>
 Игр: {profile.totalGamesPlayed} | Побед: {profile.totalWins}
