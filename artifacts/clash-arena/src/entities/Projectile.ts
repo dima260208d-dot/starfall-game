@@ -85,7 +85,24 @@ export function renderProjectiles(
 
     ctx.save();
     ctx.shadowColor = proj.color;
-    ctx.shadowBlur = 10;
+    ctx.shadowBlur = 14;
+
+    // Motion trail behind every projectile (cheap and adds smoothness).
+    {
+      const len = Math.hypot(proj.vx, proj.vy);
+      if (len > 1) {
+        const trailLen = Math.min(34, len * 0.08);
+        const tx = sx - (proj.vx / len) * trailLen;
+        const ty = sy - (proj.vy / len) * trailLen;
+        const trailGrad = ctx.createLinearGradient(tx, ty, sx, sy);
+        trailGrad.addColorStop(0, "rgba(255,255,255,0)");
+        trailGrad.addColorStop(1, proj.color);
+        ctx.strokeStyle = trailGrad;
+        ctx.lineWidth = Math.max(2, proj.radius * 0.9);
+        ctx.lineCap = "round";
+        ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(sx, sy); ctx.stroke();
+      }
+    }
 
     switch (proj.type) {
       case "shuriken": {

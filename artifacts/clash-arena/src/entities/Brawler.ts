@@ -2,6 +2,7 @@ import { BrawlerStats, getScaledStats } from "./BrawlerData";
 import { GameMap, collidesWithWalls, isInBush, isInRiver } from "../game/MapRenderer";
 import { Projectile, createProjectile } from "./Projectile";
 import { spawnDamageNumber } from "../utils/damageNumbers";
+import { spawnEffect, makeZigzag } from "../utils/effects";
 import { clamp, distance, angleTo } from "../utils/helpers";
 import { drawCharacterSprite, drawBrawlerImage } from "../game/sprites";
 
@@ -258,6 +259,32 @@ export class Brawler {
     
     this.useAttackCharge();
 
+    // Generic muzzle flash so every shot has visual feedback (size keyed
+    // off accentColor — this gives each brawler a uniquely tinted burst).
+    spawnEffect({
+      kind: "burst",
+      x: this.x + Math.cos(angle) * (this.radius + 4),
+      y: this.y + Math.sin(angle) * (this.radius + 4),
+      radius: 14,
+      color: this.stats.accentColor || this.stats.color,
+      timer: 0.22, maxTimer: 0.22,
+    });
+    // A few outward sparks for kinetic punch.
+    for (let i = 0; i < 4; i++) {
+      const a = angle + (Math.random() - 0.5) * 0.7;
+      const dist = 22 + Math.random() * 14;
+      spawnEffect({
+        kind: "spark",
+        x: this.x + Math.cos(angle) * (this.radius + 4),
+        y: this.y + Math.sin(angle) * (this.radius + 4),
+        toX: this.x + Math.cos(angle) * (this.radius + 4) + Math.cos(a) * dist,
+        toY: this.y + Math.sin(angle) * (this.radius + 4) + Math.sin(a) * dist,
+        radius: 3,
+        color: this.stats.accentColor || this.stats.color,
+        timer: 0.28, maxTimer: 0.28,
+      });
+    }
+
     switch (this.stats.id) {
       case "miya": {
         for (const offset of [-0.26, 0.26]) {
@@ -346,6 +373,16 @@ export class Brawler {
 
   meleeAttack(targets: Brawler[]): void {
     this.useAttackCharge();
+    // Visual swing arc — a quick crescent burst in front of the brawler.
+    const reach = this.stats.attackRange + this.radius;
+    spawnEffect({
+      kind: "burst",
+      x: this.x + Math.cos(this.angle) * reach * 0.5,
+      y: this.y + Math.sin(this.angle) * reach * 0.5,
+      radius: reach * 0.55,
+      color: this.stats.accentColor || this.stats.color,
+      timer: 0.28, maxTimer: 0.28,
+    });
     for (const target of targets) {
       if (target.id === this.id || !target.alive) continue;
       if (target.team === this.team) continue;
@@ -378,6 +415,14 @@ export class Brawler {
     if (!this.canUseSuper()) return;
     this.useSuper();
 
+    // Generic "super-cast" flash centered on the brawler — every super
+    // gets a bright golden ring so the moment of activation is unmistakable.
+    spawnEffect({
+      kind: "shockwave", x: this.x, y: this.y,
+      radius: this.radius * 2.5, color: "#FFD700",
+      timer: 0.55, maxTimer: 0.55,
+    });
+
     switch (this.stats.id) {
       case "miya": {
         let nearest: Brawler | null = null;
@@ -388,11 +433,30 @@ export class Brawler {
           if (d < nearestDist) { nearestDist = d; nearest = t; }
         }
         if (nearest) {
+          const fromX = this.x, fromY = this.y;
           const angle = angleTo(nearest.x, nearest.y, this.x, this.y);
           this.x = clamp(nearest.x + Math.cos(angle) * 40, this.radius, map.width - this.radius);
           this.y = clamp(nearest.y + Math.sin(angle) * 40, this.radius, map.height - this.radius);
           // Teleport no longer deals damage — the player must follow up with attacks.
           nearest.addStatus("slow", 1.5, 0.5);
+          // Departure swirl
+          spawnEffect({
+            kind: "teleportFlash", x: fromX, y: fromY,
+            radius: 36, color: "#CE93D8",
+            timer: 0.6, maxTimer: 0.6,
+          });
+          // Purple trail line connecting both points
+          spawnEffect({
+            kind: "trail", x: fromX, y: fromY, toX: this.x, toY: this.y,
+            radius: 6, color: "#CE93D8", secondary: "#FFFFFF",
+            timer: 0.45, maxTimer: 0.45,
+          });
+          // Arrival swirl
+          spawnEffect({
+            kind: "teleportFlash", x: this.x, y: this.y,
+            radius: 38, color: "#CE93D8",
+            timer: 0.6, maxTimer: 0.6,
+          });
         }
         break;
       }
@@ -406,11 +470,29 @@ export class Brawler {
           ownerId: this.id, ownerTeam: this.team,
           color: "#00E5FF", type: "beam", piercing: true,
         }));
+        // Big cyan muzzle flare and a backwards recoil ring.
+        spawnEffect({
+          kind: "burst", x: this.x + Math.cos(angle) * 30, y: this.y + Math.sin(angle) * 30,
+          radius: 40, color: "#00E5FF",
+          timer: 0.4, maxTimer: 0.4,
+        });
+        spawnEffect({
+          kind: "shockwave", x: this.x, y: this.y,
+          radius: 50, color: "#40C4FF",
+          timer: 0.5, maxTimer: 0.5,
+        });
         break;
       }
       case "ronin": {
         this.addStatus("stun", 4, 0);
         this.invulnerable = false;
+        // Persistent shield dome that follows the brawler for the duration.
+        spawnEffect({
+          kind: "shieldDome", x: this.x, y: this.y,
+          radius: this.radius + 18, color: "#FFD700",
+          timer: 4, maxTimer: 4,
+          followBrawler: this,
+        });
         break;
       }
       case "yuki": {
@@ -421,6 +503,13 @@ export class Brawler {
             t.heal(900);
           }
         }
+        // Snow zone visual lasting for the buff duration.
+        spawnEffect({
+          kind: "snowZone", x: this.x, y: this.y,
+          radius: 140, color: "#B3E5FC",
+          timer: 6, maxTimer: 6,
+          particleCount: 18,
+        });
         break;
       }
       case "kenji": {
@@ -431,10 +520,28 @@ export class Brawler {
           if (distance(lastX, lastY, t.x, t.y) < 200) {
             t.takeDamage(this.scaledDamage * 2, this);
             t.addStatus("slow", 5, 0.3);
+            // Lightning chain segment from last hit to this target.
+            spawnEffect({
+              kind: "lightningBolt", x: lastX, y: lastY, toX: t.x, toY: t.y,
+              radius: 4, color: "#FFEB3B",
+              timer: 0.5, maxTimer: 0.5,
+              zigzag: makeZigzag(lastX, lastY, t.x, t.y, 7, 22),
+            });
+            spawnEffect({
+              kind: "burst", x: t.x, y: t.y,
+              radius: 28, color: "#FFEB3B",
+              timer: 0.45, maxTimer: 0.45,
+            });
             lastX = t.x; lastY = t.y;
             chain--;
           }
         }
+        // Persistent electric cage centered on the activator (5 sec).
+        spawnEffect({
+          kind: "lightCage", x: this.x, y: this.y,
+          radius: 110, color: "#FFEB3B",
+          timer: 5, maxTimer: 5,
+        });
         break;
       }
       case "hana": {
@@ -450,26 +557,44 @@ export class Brawler {
             t.takeDamage(300, this);
           }
         }
+        // Garden zone visual that lingers for 5 seconds.
+        spawnEffect({
+          kind: "petalZone", x: this.x, y: this.y,
+          radius: 160, color: "#FF80AB",
+          timer: 5, maxTimer: 5,
+          particleCount: 20,
+        });
         break;
       }
       case "goro": {
         this.addStatus("berserker", 5, 0.4);
+        // Fire aura that follows the brawler while berserker is active.
+        spawnEffect({
+          kind: "berserkAura", x: this.x, y: this.y,
+          radius: this.radius + 8, color: "#FF3D00",
+          timer: 5, maxTimer: 5,
+          followBrawler: this,
+        });
         break;
       }
       case "sora": {
         const targetX = this.x + Math.cos(this.angle) * 200;
         const targetY = this.y + Math.sin(this.angle) * 200;
+        // Spawn 5 staggered meteors with a 0.6s warning each. The meteor
+        // effect itself handles delay → damage → shockwave.
         for (let i = 0; i < 5; i++) {
-          setTimeout(() => {
-            const mx = targetX + (Math.random() - 0.5) * 200;
-            const my = targetY + (Math.random() - 0.5) * 200;
-            for (const t of targets) {
-              if (!t.alive || t.team === this.team) continue;
-              if (distance(mx, my, t.x, t.y) < 60) {
-                t.takeDamage(250, this);
-              }
-            }
-          }, i * 200);
+          const mx = targetX + (Math.random() - 0.5) * 200;
+          const my = targetY + (Math.random() - 0.5) * 200;
+          spawnEffect({
+            kind: "meteor", x: mx, y: my,
+            radius: 16, color: "#FF6F00",
+            timer: 1.6 + i * 0.25, maxTimer: 1.6 + i * 0.25,
+            delay: 0.6 + i * 0.25,
+            tickRange: 60,
+            ownerId: this.id, ownerTeam: this.team,
+            damagePerTick: 250,
+            fallHeight: 360,
+          });
         }
         break;
       }
@@ -480,9 +605,27 @@ export class Brawler {
             t.addStatus("poison", 6, 150);
           }
         }
+        // Lingering poison cloud at her feet for visual duration.
+        spawnEffect({
+          kind: "poisonZone", x: this.x, y: this.y,
+          radius: 100, color: "#69F0AE",
+          timer: 4, maxTimer: 4,
+          particleCount: 14,
+        });
         break;
       }
       case "taro": {
+        // Drop a stationary mech turret in front of the brawler.
+        const tx = clamp(this.x + Math.cos(this.angle) * 50, this.radius, map.width - this.radius);
+        const ty = clamp(this.y + Math.sin(this.angle) * 50, this.radius, map.height - this.radius);
+        spawnEffect({
+          kind: "turret", x: tx, y: ty,
+          radius: 30, color: "#FFEB3B",
+          timer: 12, maxTimer: 12,
+          ownerId: this.id, ownerTeam: this.team,
+          tickInterval: 0.55, tickTimer: 0.4,
+          tickRange: 250, damagePerTick: 150,
+        });
         break;
       }
     }

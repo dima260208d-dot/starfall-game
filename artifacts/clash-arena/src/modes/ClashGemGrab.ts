@@ -6,6 +6,7 @@ import { Projectile, updateProjectiles, renderProjectiles } from "../entities/Pr
 import { Camera } from "../game/Camera";
 import { InputHandler } from "../game/InputHandler";
 import { updateDamageNumbers, renderDamageNumbers, clearDamageNumbers } from "../utils/damageNumbers";
+import { updateEffects, renderEffects, clearEffects } from "../utils/effects";
 import { angleTo, autoAimAngle, distance, randomInt } from "../utils/helpers";
 import { recordGameResult } from "../utils/localStorageAPI";
 import { renderPlayerHUD } from "./sharedHUD";
@@ -196,6 +197,7 @@ export class ClashGemGrab {
       if (!this.resultRecorded) { recordGameResult({ won: false, mode: "gemgrab", place: 2 }); this.resultRecorded = true; }
     }
     updateDamageNumbers(dt);
+    updateEffects(dt, [this.player, ...this.allies, ...this.enemies]);
   }
 
   private handleProjectileHits(all: Brawler[]): void {
@@ -281,6 +283,7 @@ export class ClashGemGrab {
     }
 
     renderProjectiles(ctx, this.projectiles, this.camera.x, this.camera.y, this.frame);
+    renderEffects(ctx, this.camera.x, this.camera.y, this.frame);
     renderDamageNumbers(ctx, this.camera.x, this.camera.y);
 
     // Giant translucent countdown visible to everyone in the middle of the screen
@@ -349,5 +352,5 @@ export class ClashGemGrab {
     ctx.restore();
   }
 
-  destroy(): void { this.input.destroy(); clearDamageNumbers(); }
+  destroy(): void { this.input.destroy(); clearDamageNumbers(); clearEffects(); }
 }

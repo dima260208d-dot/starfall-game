@@ -6,6 +6,7 @@ import { Projectile, updateProjectiles, renderProjectiles } from "../entities/Pr
 import { Camera } from "../game/Camera";
 import { InputHandler } from "../game/InputHandler";
 import { updateDamageNumbers, renderDamageNumbers, clearDamageNumbers } from "../utils/damageNumbers";
+import { updateEffects, renderEffects, clearEffects } from "../utils/effects";
 import { angleTo, autoAimAngle, distance } from "../utils/helpers";
 import { renderPlayerHUD } from "./sharedHUD";
 
@@ -149,6 +150,7 @@ export class ClashTraining {
     }
 
     updateDamageNumbers(dt);
+    updateEffects(dt, [this.player, ...this.dummies.map(d => d.bot)]);
   }
 
   private handleProjectileHits(): void {
@@ -179,6 +181,7 @@ export class ClashTraining {
     const friendlies = [this.player].map(b => ({ x: b.x, y: b.y }));
     for (const b of allBrawlers) b.render(ctx, this.camera.x, this.camera.y, this.spriteLoaded, this.player.team, friendlies);
     renderProjectiles(ctx, this.projectiles, this.camera.x, this.camera.y, this.frame);
+    renderEffects(ctx, this.camera.x, this.camera.y, this.frame);
     renderDamageNumbers(ctx, this.camera.x, this.camera.y);
     this.renderHUD(ctx);
   }
@@ -195,5 +198,5 @@ export class ClashTraining {
     ctx.restore();
   }
 
-  destroy(): void { this.input.destroy(); clearDamageNumbers(); }
+  destroy(): void { this.input.destroy(); clearDamageNumbers(); clearEffects(); }
 }

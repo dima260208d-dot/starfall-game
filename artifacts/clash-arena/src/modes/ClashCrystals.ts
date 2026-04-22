@@ -6,6 +6,7 @@ import { Projectile, updateProjectiles, renderProjectiles } from "../entities/Pr
 import { Camera } from "../game/Camera";
 import { InputHandler } from "../game/InputHandler";
 import { updateDamageNumbers, renderDamageNumbers, clearDamageNumbers } from "../utils/damageNumbers";
+import { updateEffects, renderEffects, clearEffects } from "../utils/effects";
 import { renderMap } from "../game/MapRenderer";
 import { angleTo, autoAimAngle, distance, randomInt } from "../utils/helpers";
 import { recordGameResult } from "../utils/localStorageAPI";
@@ -227,6 +228,7 @@ export class ClashCrystals {
     }
     
     updateDamageNumbers(dt);
+    updateEffects(dt, [this.player, ...this.allies, ...this.enemies]);
   }
 
   private findValidCrystalPos(): { x: number; y: number } {
@@ -410,6 +412,7 @@ export class ClashCrystals {
     }
 
     renderProjectiles(ctx, this.projectiles, this.camera.x, this.camera.y, this.frame);
+    renderEffects(ctx, this.camera.x, this.camera.y, this.frame);
     renderDamageNumbers(ctx, this.camera.x, this.camera.y);
     
     this.renderHUD(ctx);
@@ -568,5 +571,6 @@ export class ClashCrystals {
   destroy(): void {
     this.input.destroy();
     clearDamageNumbers();
+    clearEffects();
   }
 }

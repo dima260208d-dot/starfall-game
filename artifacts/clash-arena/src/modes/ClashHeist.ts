@@ -6,6 +6,7 @@ import { Projectile, updateProjectiles, renderProjectiles } from "../entities/Pr
 import { Camera } from "../game/Camera";
 import { InputHandler } from "../game/InputHandler";
 import { updateDamageNumbers, renderDamageNumbers, clearDamageNumbers, spawnDamageNumber } from "../utils/damageNumbers";
+import { updateEffects, renderEffects, clearEffects } from "../utils/effects";
 import { angleTo, autoAimAngle, distance, randomInt } from "../utils/helpers";
 import { recordGameResult } from "../utils/localStorageAPI";
 import { renderPlayerHUD } from "./sharedHUD";
@@ -167,6 +168,7 @@ export class ClashHeist {
       if (!this.resultRecorded) { recordGameResult({ won: false, mode: "heist", place: 2 }); this.resultRecorded = true; }
     }
     updateDamageNumbers(dt);
+    updateEffects(dt, [this.player, ...this.allies, ...this.enemies]);
   }
 
   private handleProjectileHits(allBrawlers: Brawler[]): void {
@@ -210,6 +212,7 @@ export class ClashHeist {
     const _friendlies = [this.player, ...this.allies].filter(b => b.alive).map(b => ({ x: b.x, y: b.y }));
     for (const b of allBrawlers) b.render(ctx, this.camera.x, this.camera.y, this.spriteLoaded, this.player.team, _friendlies);
     renderProjectiles(ctx, this.projectiles, this.camera.x, this.camera.y, this.frame);
+    renderEffects(ctx, this.camera.x, this.camera.y, this.frame);
     renderDamageNumbers(ctx, this.camera.x, this.camera.y);
     this.renderHUD(ctx);
   }
@@ -278,5 +281,5 @@ export class ClashHeist {
     ctx.restore();
   }
 
-  destroy(): void { this.input.destroy(); clearDamageNumbers(); }
+  destroy(): void { this.input.destroy(); clearDamageNumbers(); clearEffects(); }
 }

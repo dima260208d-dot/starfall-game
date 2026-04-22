@@ -6,6 +6,7 @@ import { Projectile, updateProjectiles, renderProjectiles } from "../entities/Pr
 import { Camera } from "../game/Camera";
 import { InputHandler } from "../game/InputHandler";
 import { updateDamageNumbers, renderDamageNumbers, clearDamageNumbers } from "../utils/damageNumbers";
+import { updateEffects, renderEffects, clearEffects } from "../utils/effects";
 import { renderMap } from "../game/MapRenderer";
 import { angleTo, autoAimAngle, distance, randomInt } from "../utils/helpers";
 import { recordGameResult } from "../utils/localStorageAPI";
@@ -225,6 +226,7 @@ export class ClashShowdown {
     this.handleDropPickups();
     
     updateDamageNumbers(dt);
+    updateEffects(dt, [this.player, ...this.bots]);
     
     if (!this.player.alive) {
       this.over = true;
@@ -336,6 +338,7 @@ export class ClashShowdown {
     }
     
     renderProjectiles(ctx, this.projectiles, this.camera.x, this.camera.y, this.frame);
+    renderEffects(ctx, this.camera.x, this.camera.y, this.frame);
     renderDamageNumbers(ctx, this.camera.x, this.camera.y);
     
     this.renderHUD(ctx);
@@ -458,5 +461,6 @@ export class ClashShowdown {
   destroy(): void {
     this.input.destroy();
     clearDamageNumbers();
+    clearEffects();
   }
 }
