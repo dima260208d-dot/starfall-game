@@ -13,6 +13,7 @@ import ClashPassPage from "./pages/ClashPassPage";
 import TrophyRoadPage from "./pages/TrophyRoadPage";
 import ChestsPage from "./pages/ChestsPage";
 import LoadingScreen from "./pages/LoadingScreen";
+import RotateDeviceOverlay from "./components/RotateDeviceOverlay";
 
 type Screen =
   | "auth"
@@ -69,6 +70,15 @@ export default function App() {
     setTransitionTo(s);
   };
 
+  const content = renderContent();
+  return (
+    <>
+      {content}
+      <RotateDeviceOverlay />
+    </>
+  );
+
+  function renderContent() {
   if (bootLoading) {
     return <LoadingScreen onDone={() => setBootLoading(false)} duration={4500} label="ДОБРО ПОЖАЛОВАТЬ" />;
   }
@@ -193,4 +203,5 @@ export default function App() {
   }
 
   return null;
+  }
 }
