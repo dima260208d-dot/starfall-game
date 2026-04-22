@@ -566,13 +566,13 @@ export function addGems(amount: number): void {
   updateProfile({ gems: profile.gems + amount });
 }
 
-// Trophy delta by Showdown placement (8 brawlers total)
-const SHOWDOWN_TROPHIES = [12, 8, 5, 2, -2, -4, -6, -8];
+// Trophy delta by Showdown placement (10 brawlers total)
+const SHOWDOWN_TROPHIES = [16, 12, 9, 6, 3, -2, -4, -6, -8, -10];
 
 export function recordGameResult(opts: {
   won: boolean;
   mode: string;
-  place?: number; // 1..8 for showdown, 1 or 2 for team modes
+  place?: number; // 1..10 for showdown, 1 or 2 for team modes
   totalPlayers?: number;
 }): { trophyDelta: number; xpGained: number; coinsEarned: number; place: number; clashPassUp: boolean } {
   const profile = getCurrentProfile();
@@ -581,7 +581,7 @@ export function recordGameResult(opts: {
   }
   const { won, mode } = opts;
   const place = opts.place ?? (won ? 1 : 2);
-  const totalPlayers = opts.totalPlayers ?? (mode === "showdown" ? 8 : 2);
+  const totalPlayers = opts.totalPlayers ?? (mode === "showdown" ? 10 : 2);
 
   // Trophies
   let trophyDelta: number;

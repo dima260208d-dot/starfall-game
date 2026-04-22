@@ -6,7 +6,7 @@ import {
   getBrawlerTrophies, getBrawlerRank, MAX_BRAWLER_RANK,
 } from "../utils/localStorageAPI";
 import { BRAWLERS } from "../entities/BrawlerData";
-import { getModeInfo } from "../data/modes";
+import { getModeInfo, type ModeInfo } from "../data/modes";
 import DailyRewardModal from "../components/DailyRewardModal";
 import QuestsModal from "../components/QuestsModal";
 import BrawlerRankRewardsModal from "../components/BrawlerRankRewardsModal";
@@ -36,6 +36,7 @@ export default function MainMenu(props: MainMenuProps) {
   const [notif, setNotif] = useState<string | null>(null);
   const [showDaily, setShowDaily] = useState(false);
   const [showQuests, setShowQuests] = useState(false);
+  const [showModeInfo, setShowModeInfo] = useState(false);
   const [rankModalBrawlerId, setRankModalBrawlerId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -377,28 +378,53 @@ export default function MainMenu(props: MainMenuProps) {
       </button>
 
       {/* BOTTOM-CENTER: mode selector pinned to the bottom edge */}
-      <button
-        onClick={onModeSelect}
+      <div
         style={{
           position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)",
           zIndex: 5,
-          background: `linear-gradient(135deg, ${mode.color}33, rgba(0,0,0,0.5))`,
-          border: `1.5px solid ${mode.color}`,
-          borderRadius: 14, padding: "10px 22px",
-          color: "white", cursor: "pointer",
-          display: "flex", alignItems: "center", gap: 12,
-          backdropFilter: "blur(10px)",
-          minWidth: 320,
-          boxShadow: `0 4px 22px ${mode.color}55`,
         }}
       >
-        <span style={{ fontSize: 28 }}>{mode.icon}</span>
-        <span style={{ flex: 1, textAlign: "left" }}>
-          <span style={{ display: "block", color: "rgba(255,255,255,0.55)", fontSize: 10, letterSpacing: 1 }}>РЕЖИМ</span>
-          <span style={{ display: "block", fontSize: 16, fontWeight: 800, color: mode.color }}>{mode.name}</span>
-        </span>
-        <span style={{ color: "rgba(255,255,255,0.45)", fontSize: 12 }}>► СМЕНИТЬ</span>
-      </button>
+        <button
+          onClick={onModeSelect}
+          style={{
+            position: "relative",
+            background: `linear-gradient(135deg, ${mode.color}33, rgba(0,0,0,0.5))`,
+            border: `1.5px solid ${mode.color}`,
+            borderRadius: 14, padding: "10px 22px",
+            color: "white", cursor: "pointer",
+            display: "flex", alignItems: "center", gap: 12,
+            backdropFilter: "blur(10px)",
+            minWidth: 320,
+            boxShadow: `0 4px 22px ${mode.color}55`,
+            fontFamily: "inherit",
+          }}
+        >
+          <span style={{ fontSize: 28 }}>{mode.icon}</span>
+          <span style={{ flex: 1, textAlign: "left" }}>
+            <span style={{ display: "block", color: "rgba(255,255,255,0.55)", fontSize: 10, letterSpacing: 1 }}>РЕЖИМ</span>
+            <span style={{ display: "block", fontSize: 16, fontWeight: 800, color: mode.color }}>{mode.name}</span>
+          </span>
+          <span style={{ color: "rgba(255,255,255,0.45)", fontSize: 12 }}>► СМЕНИТЬ</span>
+          <span
+            role="button"
+            title="О режиме"
+            onClick={(e) => { e.stopPropagation(); setShowModeInfo(true); }}
+            style={{
+              position: "absolute", top: -8, right: -8,
+              width: 26, height: 26, borderRadius: "50%",
+              background: "rgba(0,0,0,0.85)",
+              border: `1.5px solid ${mode.color}`,
+              color: mode.color,
+              fontSize: 14, fontWeight: 900, fontStyle: "italic",
+              fontFamily: "Georgia, serif",
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer",
+              boxShadow: `0 0 10px ${mode.color}88`,
+              lineHeight: 1,
+            }}
+          >i</span>
+        </button>
+      </div>
 
       {/* BOTTOM-RIGHT: massive PLAY button anchored in the corner */}
       <button
@@ -420,6 +446,9 @@ export default function MainMenu(props: MainMenuProps) {
 
       {showDaily && <DailyRewardModal onClose={() => { setShowDaily(false); setProfile(getCurrentProfile()); }} />}
       {showQuests && <QuestsModal onClose={() => { setShowQuests(false); setProfile(getCurrentProfile()); }} />}
+      {showModeInfo && (
+        <ModeInfoModal mode={mode} onClose={() => setShowModeInfo(false)} />
+      )}
       {rankModalBrawlerId && (
         <BrawlerRankRewardsModal
           brawlerId={rankModalBrawlerId}
@@ -439,6 +468,91 @@ export default function MainMenu(props: MainMenuProps) {
           {notif}
         </div>
       )}
+    </div>
+  );
+}
+
+function ModeInfoModal({ mode, onClose }: { mode: ModeInfo; onClose: () => void }) {
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 50,
+        background: "rgba(0,0,0,0.75)",
+        backdropFilter: "blur(6px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 20,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "linear-gradient(160deg, #160048 0%, #060025 100%)",
+          border: `2px solid ${mode.color}`,
+          borderRadius: 18, padding: 24,
+          maxWidth: 460, width: "100%",
+          boxShadow: `0 0 50px ${mode.color}66, 0 10px 40px rgba(0,0,0,0.7)`,
+          color: "white",
+          position: "relative",
+        }}
+      >
+        <button
+          onClick={onClose}
+          style={{
+            position: "absolute", top: 10, right: 12,
+            background: "transparent", border: "none",
+            color: "rgba(255,255,255,0.6)", fontSize: 22,
+            cursor: "pointer", lineHeight: 1,
+          }}
+        >×</button>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
+          <div
+            style={{
+              width: 56, height: 56, borderRadius: 14,
+              background: mode.gradient,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 32,
+              boxShadow: `0 4px 14px ${mode.color}88`,
+            }}
+          >{mode.icon}</div>
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 900, color: mode.color, letterSpacing: 1 }}>
+              {mode.name}
+            </div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", letterSpacing: 1 }}>
+              {mode.subtitle.toUpperCase()}
+            </div>
+          </div>
+        </div>
+
+        <div
+          style={{
+            background: "rgba(0,0,0,0.4)",
+            border: "1px solid rgba(255,255,255,0.1)",
+            borderRadius: 12, padding: "10px 14px",
+            display: "flex", alignItems: "center", gap: 10,
+            marginBottom: 14,
+          }}
+        >
+          <span style={{ fontSize: 22 }}>🗺️</span>
+          <div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", letterSpacing: 1 }}>КАРТА</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "#FFD700" }}>{mode.mapName}</div>
+          </div>
+          <div style={{ marginLeft: "auto", textAlign: "right" }}>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", letterSpacing: 1 }}>ИГРОКИ</div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: mode.color }}>{mode.players}</div>
+          </div>
+        </div>
+
+        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", letterSpacing: 1, marginBottom: 6 }}>
+          КАК ИГРАТЬ
+        </div>
+        <div style={{ fontSize: 14, lineHeight: 1.55, color: "rgba(255,255,255,0.92)" }}>
+          {mode.desc}
+        </div>
+      </div>
     </div>
   );
 }

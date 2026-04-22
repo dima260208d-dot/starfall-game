@@ -64,7 +64,7 @@ export class ClashShowdown {
     // random one of those slots — no longer always at dead center.
     const spawnPadding = 350;
     const usedPositions: Array<{ x: number; y: number }> = [];
-    const totalSlots = 8;
+    const totalSlots = 10;
     const slotOffset = Math.random() * Math.PI * 2;
     const allPositions: Array<{ x: number; y: number }> = [];
     for (let i = 0; i < totalSlots; i++) {
@@ -184,16 +184,49 @@ export class ClashShowdown {
             x: this.gas.centerX + Math.cos(angleFromCenter) * targetR,
             y: this.gas.centerY + Math.sin(angleFromCenter) * targetR,
           };
-        } else if (bot.forcedTarget) {
-          // Clear the forced target only if it was a gas-flee target (no crystal mode here)
-          bot.forcedTarget = undefined;
+        } else {
+          // No gas threat — let the bot hunt power cubes when no enemy is in
+          // sight. Bots head toward the nearest dropped powerup or, failing
+          // that, the nearest unbroken crate (which yields cubes when smashed).
+          let nearestEnemyDist = 9999;
+          for (const other of allBrawlers) {
+            if (!other.alive || other === bot) continue;
+            const d = distance(bot.x, bot.y, other.x, other.y);
+            if (d < nearestEnemyDist) nearestEnemyDist = d;
+          }
+          // Only seek cubes when not already busy fighting nearby
+          if (nearestEnemyDist > 500) {
+            let bestX = 0, bestY = 0, bestD = 1200;
+            for (const drop of this.drops) {
+              if (drop.type !== "powerup") continue;
+              const d = distance(bot.x, bot.y, drop.x, drop.y);
+              if (d < bestD) { bestD = d; bestX = drop.x; bestY = drop.y; }
+            }
+            if (bestD === 1200) {
+              for (const crate of this.map.crates) {
+                if (crate.destroyed) continue;
+                const cx = crate.x + crate.w / 2;
+                const cy = crate.y + crate.h / 2;
+                const d = distance(bot.x, bot.y, cx, cy);
+                // Stop short of the crate so the bot has room to shoot it.
+                if (d < bestD) { bestD = d; bestX = cx; bestY = cy; }
+              }
+            }
+            if (bestD < 1200) {
+              bot.forcedTarget = { x: bestX, y: bestY };
+            } else if (bot.forcedTarget) {
+              bot.forcedTarget = undefined;
+            }
+          } else if (bot.forcedTarget) {
+            bot.forcedTarget = undefined;
+          }
         }
         bot.update(dt, this.map);
         bot.updateAI(dt, allBrawlers, this.map, this.projectiles);
       }
       if (wasAlive && !bot.alive) {
-        // Drop power cubes equal to (bot's cubes + 1)
-        const cubeCount = bot.powerCubes + 1;
+        // Drop the bot's stash of power cubes; if the bot had none, drop 1.
+        const cubeCount = Math.max(1, bot.powerCubes);
         for (let i = 0; i < cubeCount; i++) {
           const a = Math.random() * Math.PI * 2;
           const r = 20 + Math.random() * 40;
@@ -240,7 +273,7 @@ export class ClashShowdown {
     if (!this.player.alive) {
       // Drop the player's stash of power cubes (+1) where they fell, just like bots do.
       if (!this.playerDropsSpawned) {
-        const cubeCount = this.player.powerCubes + 1;
+        const cubeCount = Math.max(1, this.player.powerCubes);
         for (let i = 0; i < cubeCount; i++) {
           const a = Math.random() * Math.PI * 2;
           const r = 20 + Math.random() * 40;
@@ -258,7 +291,7 @@ export class ClashShowdown {
       if (!this.resultRecorded) {
         const aliveBots = this.bots.filter(b => b.alive).length;
         const place = 1 + aliveBots;
-        recordGameResult({ won: false, mode: "showdown", place, totalPlayers: 8 });
+        recordGameResult({ won: false, mode: "showdown", place, totalPlayers: 10 });
         this.resultRecorded = true;
       }
     }
@@ -268,7 +301,7 @@ export class ClashShowdown {
       this.over = true;
       this.won = true;
       if (!this.resultRecorded) {
-        recordGameResult({ won: true, mode: "showdown", place: 1, totalPlayers: 8 });
+        recordGameResult({ won: true, mode: "showdown", place: 1, totalPlayers: 10 });
         this.resultRecorded = true;
       }
     }
@@ -333,17 +366,26 @@ export class ClashShowdown {
   }
 
   private handleDropPickups(): void {
+    // Anyone alive — player or bot — can grab dropped items by walking over
+    // them. This lets bots collect power cubes from crates or fallen rivals.
+    const pickers: Brawler[] = [this.player, ...this.bots];
     for (let i = this.drops.length - 1; i >= 0; i--) {
       const drop = this.drops[i];
-      const d = distance(this.player.x, this.player.y, drop.x, drop.y);
-      if (d < drop.radius + this.player.radius) {
-        if (drop.type === "health") {
-          this.player.heal(300);
-        } else if (drop.type === "powerup") {
-          this.player.collectPowerCube();
+      let claimed = false;
+      for (const b of pickers) {
+        if (!b.alive) continue;
+        const d = distance(b.x, b.y, drop.x, drop.y);
+        if (d < drop.radius + b.radius) {
+          if (drop.type === "health") {
+            b.heal(300);
+          } else if (drop.type === "powerup") {
+            b.collectPowerCube();
+          }
+          claimed = true;
+          break;
         }
-        this.drops.splice(i, 1);
       }
+      if (claimed) this.drops.splice(i, 1);
     }
   }
 
