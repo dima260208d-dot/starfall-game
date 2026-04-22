@@ -81,15 +81,17 @@ export default function MobileControls({ getInput, getPlayerInfo }: MobileContro
               info.brawlerId, scale, info.attackRange,
             );
           }
-          if (
-            superStick.current.pointerId !== null &&
-            superStick.current.magnitude > TAP_THRESHOLD
-          ) {
-            const ang = Math.atan2(superStick.current.dy, superStick.current.dx);
+          // Super indicator appears the moment the button is touched (not
+          // only on drag) so the player can preview the zone before deciding
+          // to release vs slide-aim.
+          if (superStick.current.pointerId !== null) {
+            const m = superStick.current.magnitude;
+            const ang = m > 0.01
+              ? Math.atan2(superStick.current.dy, superStick.current.dx)
+              : 0;
             drawSuperIndicator(
               ctx, screenX, screenY, ang,
-              info.brawlerId, scale,
-              superStick.current.magnitude,
+              info.brawlerId, scale, m,
               cssW, cssH,
             );
           }
