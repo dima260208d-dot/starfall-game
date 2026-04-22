@@ -48,6 +48,28 @@ export interface UserProfile {
   brawlerTrophies: Record<string, number>;
   // Per-brawler list of claimed rank rewards (rank numbers 1..100).
   brawlerRankClaimed: Record<string, number[]>;
+
+  // "pc": keyboard + mouse. "mobile": on-screen joysticks (move / attack /
+  // super). Defaults to "mobile" on touch devices, "pc" otherwise.
+  controlMode: "pc" | "mobile";
+}
+
+export type ControlMode = "pc" | "mobile";
+
+function detectDefaultControlMode(): ControlMode {
+  if (typeof window === "undefined") return "pc";
+  const touch =
+    "ontouchstart" in window ||
+    (typeof navigator !== "undefined" && (navigator as any).maxTouchPoints > 0);
+  return touch && window.innerWidth < 900 ? "mobile" : "pc";
+}
+
+export function getControlMode(): ControlMode {
+  return getCurrentProfile()?.controlMode ?? detectDefaultControlMode();
+}
+
+export function setControlMode(mode: ControlMode): void {
+  updateProfile({ controlMode: mode });
 }
 
 export const MAX_TROPHIES = 10000;
@@ -230,6 +252,9 @@ function normalizeProfile(p: UserProfile): UserProfile {
     unlockedBrawlers,
     brawlerTrophies: { ...(p.brawlerTrophies || {}) },
     brawlerRankClaimed: { ...(p.brawlerRankClaimed || {}) },
+    controlMode: p.controlMode === "mobile" || p.controlMode === "pc"
+      ? p.controlMode
+      : detectDefaultControlMode(),
   };
 }
 

@@ -1,5 +1,8 @@
 import { useState } from "react";
-import { getCurrentProfile, getAllProfiles, setCurrentUsername, addGems } from "../utils/localStorageAPI";
+import {
+  getCurrentProfile, getAllProfiles, setCurrentUsername, addGems,
+  getControlMode, setControlMode, type ControlMode,
+} from "../utils/localStorageAPI";
 
 interface SettingsPageProps {
   onBack: () => void;
@@ -9,6 +12,14 @@ interface SettingsPageProps {
 export default function SettingsPage({ onBack, onSwitchProfile }: SettingsPageProps) {
   const [profile] = useState(getCurrentProfile());
   const [msg, setMsg] = useState("");
+  const [ctrl, setCtrl] = useState<ControlMode>(getControlMode());
+
+  const pickControlMode = (m: ControlMode) => {
+    setControlMode(m);
+    setCtrl(m);
+    setMsg(m === "mobile" ? "Управление: Телефон (джойстики)" : "Управление: ПК (клавиатура + мышь)");
+    setTimeout(() => setMsg(""), 2500);
+  };
 
   const handleAddGems = () => {
     addGems(100);
@@ -59,18 +70,46 @@ setMsg("+100 кристаллов добавлено для теста!");
 <Button onClick={handleSwitchProfile} color="#FF5252" label="Сменить профиль" />
         </Section>
 
-        <Section title="Управление">
+        <Section title="Режим управления">
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+            <ModeCard
+              active={ctrl === "pc"}
+              icon="🖥️"
+              title="ПК"
+              subtitle="Клавиатура + мышь"
+              onClick={() => pickControlMode("pc")}
+              color="#40C4FF"
+            />
+            <ModeCard
+              active={ctrl === "mobile"}
+              icon="📱"
+              title="Телефон"
+              subtitle="Джойстики на экране"
+              onClick={() => pickControlMode("mobile")}
+              color="#FFD54F"
+            />
+          </div>
+
           <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: 16 }}>
-            {[
-              ["Движение", "WASD или стрелки"],
-              ["Прицел", "Мышь"],
-              ["Атака", "ЛКМ или Пробел"],
-              ["Супер", "ПКМ или E"],
-              ["Выход", "ESC (кнопка справа сверху)"],
-            ].map(([action, key]) => (
+            {(ctrl === "pc"
+              ? [
+                  ["Движение", "WASD или стрелки"],
+                  ["Прицел", "Мышь"],
+                  ["Атака", "ЛКМ или Пробел"],
+                  ["Супер", "ПКМ или E"],
+                  ["Выход", "ESC (кнопка справа сверху)"],
+                ]
+              : [
+                  ["Движение", "Синий джойстик справа"],
+                  ["Атака", "Красный джойстик слева"],
+                  ["Супер", "Жёлтый джойстик возле атаки"],
+                  ["Прицел", "Тяни джойстик в нужную сторону"],
+                  ["Авто-прицел", "Короткое нажатие на джойстик атаки/супера"],
+                ]
+            ).map(([action, key]) => (
               <div key={action} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
                 <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 14 }}>{action}</span>
-                <span style={{ color: "white", fontWeight: 700, fontSize: 14, background: "rgba(255,255,255,0.1)", padding: "2px 10px", borderRadius: 6 }}>{key}</span>
+                <span style={{ color: "white", fontWeight: 700, fontSize: 13, background: "rgba(255,255,255,0.1)", padding: "2px 10px", borderRadius: 6, textAlign: "right" }}>{key}</span>
               </div>
             ))}
           </div>
@@ -96,6 +135,34 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontWeight: 700, letterSpacing: 2, marginBottom: 10 }}>{title.toUpperCase()}</div>
       {children}
     </div>
+  );
+}
+
+function ModeCard({
+  active, icon, title, subtitle, onClick, color,
+}: { active: boolean; icon: string; title: string; subtitle: string; onClick: () => void; color: string }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        background: active ? `${color}28` : "rgba(255,255,255,0.04)",
+        border: `2px solid ${active ? color : "rgba(255,255,255,0.08)"}`,
+        borderRadius: 14,
+        padding: "14px 12px",
+        color: "white",
+        cursor: "pointer",
+        textAlign: "center",
+        boxShadow: active ? `0 0 18px ${color}55` : "none",
+        transition: "transform 0.12s",
+      }}
+    >
+      <div style={{ fontSize: 32, lineHeight: 1 }}>{icon}</div>
+      <div style={{ marginTop: 6, fontWeight: 800, fontSize: 14, color: active ? color : "white" }}>{title}</div>
+      <div style={{ marginTop: 2, fontSize: 11, color: "rgba(255,255,255,0.55)" }}>{subtitle}</div>
+      {active && (
+        <div style={{ marginTop: 6, fontSize: 10, fontWeight: 800, letterSpacing: 1, color }}>✓ ВЫБРАНО</div>
+      )}
+    </button>
   );
 }
 

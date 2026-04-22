@@ -25,6 +25,17 @@ export class InputHandler {
     mouseWorldY: 0,
   };
 
+  // Joystick (mobile) overrides. When `active`, the corresponding aim
+  // direction supersedes the mouse-derived aim used by all modes.
+  attackJoystick: { active: boolean; angle: number } = { active: false, angle: 0 };
+  superJoystick:  { active: boolean; angle: number } = { active: false, angle: 0 };
+  // Tracks whether mobile controls are currently driving movement.
+  // While true, keyboard movement keys are ignored so a stuck `WASD` value
+  // can never linger between modes.
+  movementJoystick: { active: boolean; angle: number; magnitude: number } = {
+    active: false, angle: 0, magnitude: 0,
+  };
+
   private canvas: HTMLCanvasElement;
   private onAttack?: () => void;
   private onSuper?: () => void;
@@ -98,9 +109,108 @@ export class InputHandler {
     e.preventDefault();
   };
 
-  updateWorldMouse(camX: number, camY: number): void {
+  /**
+   * Updates the world-space cursor every frame.
+   *
+   * If a joystick is currently steering aim, the world cursor is anchored
+   * relative to the player's world position so that downstream `angleTo`
+   * computations produce the joystick's chosen angle. Otherwise the mouse
+   * position (in screen coords) is mapped through the camera offset as
+   * before. The optional `playerX/Y` arguments allow modes to opt into
+   * joystick aiming without restructuring their update loop.
+   */
+  updateWorldMouse(camX: number, camY: number, playerX?: number, playerY?: number): void {
+    if (
+      typeof playerX === "number" && typeof playerY === "number" &&
+      (this.attackJoystick.active || this.superJoystick.active)
+    ) {
+      // Active super takes priority for the visible aim while held — release
+      // restores the attack joystick's choice (or last mouse pos).
+      const angle = this.superJoystick.active ? this.superJoystick.angle : this.attackJoystick.angle;
+      this.state.mouseWorldX = playerX + Math.cos(angle) * 1000;
+      this.state.mouseWorldY = playerY + Math.sin(angle) * 1000;
+      return;
+    }
     this.state.mouseWorldX = this.state.mouseX + camX;
     this.state.mouseWorldY = this.state.mouseY + camY;
+  }
+
+  // ------------------ Mobile joystick API ------------------
+
+  /**
+   * Sets the analog movement joystick. Magnitude > deadzone activates the
+   * 4 movement booleans by quadrant decomposition (sign of dx/dy).
+   * Magnitude 0 / inactive clears all four. Keyboard movement keeps working
+   * while the movement joystick is idle.
+   */
+  setMovementJoystick(dx: number, dy: number): void {
+    const mag = Math.hypot(dx, dy);
+    if (mag < 0.18) {
+      this.movementJoystick.active = false;
+      this.movementJoystick.magnitude = 0;
+      this.state.up = false;
+      this.state.down = false;
+      this.state.left = false;
+      this.state.right = false;
+      return;
+    }
+    const angle = Math.atan2(dy, dx);
+    this.movementJoystick.active = true;
+    this.movementJoystick.angle = angle;
+    this.movementJoystick.magnitude = Math.min(1, mag);
+    this.state.right = dx >  0.18;
+    this.state.left  = dx < -0.18;
+    this.state.down  = dy >  0.18;
+    this.state.up    = dy < -0.18;
+  }
+
+  /** Updates the attack joystick's aim. When `active` is true the world
+   * cursor anchors to the player + cos/sin(angle) on the next update. */
+  setAttackJoystick(active: boolean, angle: number): void {
+    this.attackJoystick.active = active;
+    if (active) this.attackJoystick.angle = angle;
+  }
+
+  setSuperJoystick(active: boolean, angle: number): void {
+    this.superJoystick.active = active;
+    if (active) this.superJoystick.angle = angle;
+  }
+
+  /**
+   * Fire the attack callback exactly once. When called from the mobile
+   * joystick, pass the player's current world position so the world-space
+   * cursor is committed synchronously from the joystick angle — eliminating
+   * the up-to-one-frame staleness that would otherwise occur between the
+   * pointer-up event and the next `updateWorldMouse` tick.
+   */
+  triggerAttack(playerX?: number, playerY?: number): void {
+    if (!this.onAttack) return;
+    if (
+      typeof playerX === "number" && typeof playerY === "number" &&
+      this.attackJoystick.active
+    ) {
+      const angle = this.attackJoystick.angle;
+      this.state.mouseWorldX = playerX + Math.cos(angle) * 1000;
+      this.state.mouseWorldY = playerY + Math.sin(angle) * 1000;
+    }
+    this.state.attack = true;
+    this.onAttack();
+    queueMicrotask(() => { this.state.attack = false; });
+  }
+
+  triggerSuper(playerX?: number, playerY?: number): void {
+    if (!this.onSuper) return;
+    if (
+      typeof playerX === "number" && typeof playerY === "number" &&
+      this.superJoystick.active
+    ) {
+      const angle = this.superJoystick.angle;
+      this.state.mouseWorldX = playerX + Math.cos(angle) * 1000;
+      this.state.mouseWorldY = playerY + Math.sin(angle) * 1000;
+    }
+    this.state.super = true;
+    this.onSuper();
+    queueMicrotask(() => { this.state.super = false; });
   }
 
   destroy(): void {

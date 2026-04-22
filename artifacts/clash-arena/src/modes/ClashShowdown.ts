@@ -118,7 +118,7 @@ export class ClashShowdown {
   handleAttack(): void {
     if (!this.player.canAttack()) return;
     const mouseAngle = angleTo(this.player.x, this.player.y, this.input.state.mouseWorldX, this.input.state.mouseWorldY);
-    const angle = autoAimAngle(this.player, this.bots, mouseAngle);
+    const angle = this.input.attackJoystick.active ? mouseAngle : autoAimAngle(this.player, this.bots, mouseAngle);
     this.player.angle = angle;
     
     const isMelee = ["goro", "ronin", "taro"].includes(this.player.stats.id);
@@ -140,7 +140,7 @@ export class ClashShowdown {
       this.player.x, this.player.y,
       this.input.state.mouseWorldX, this.input.state.mouseWorldY,
     );
-    this.player.angle = autoAimAngle(this.player, this.bots, mouseAngle);
+    this.player.angle = this.input.superJoystick.active ? mouseAngle : autoAimAngle(this.player, this.bots, mouseAngle);
     this.player.activateSuper(allBrawlers, this.map, this.projectiles);
   }
 
@@ -161,7 +161,7 @@ export class ClashShowdown {
     }
     
     this.camera.follow(this.player.x, this.player.y);
-    this.input.updateWorldMouse(this.camera.x, this.camera.y);
+    this.input.updateWorldMouse(this.camera.x, this.camera.y, this.player.x, this.player.y);
     
     const mouseAngle = angleTo(this.player.x, this.player.y, this.input.state.mouseWorldX, this.input.state.mouseWorldY);
     this.player.angle = mouseAngle;

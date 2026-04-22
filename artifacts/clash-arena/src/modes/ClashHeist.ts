@@ -63,7 +63,7 @@ export class ClashHeist {
   handleAttack(): void {
     if (!this.player.canAttack()) return;
     const mouseAngle = angleTo(this.player.x, this.player.y, this.input.state.mouseWorldX, this.input.state.mouseWorldY);
-    const angle = autoAimAngle(this.player, this.enemies, mouseAngle);
+    const angle = this.input.attackJoystick.active ? mouseAngle : autoAimAngle(this.player, this.enemies, mouseAngle);
     this.player.angle = angle;
     const isMelee = ["goro", "ronin", "taro"].includes(this.player.stats.id);
     const allBrawlers = [this.player, ...this.allies, ...this.enemies];
@@ -90,7 +90,7 @@ export class ClashHeist {
       this.player.x, this.player.y,
       this.input.state.mouseWorldX, this.input.state.mouseWorldY,
     );
-    this.player.angle = autoAimAngle(this.player, this.enemies, mouseAngle);
+    this.player.angle = this.input.superJoystick.active ? mouseAngle : autoAimAngle(this.player, this.enemies, mouseAngle);
     this.player.activateSuper(allBrawlers, this.map, this.projectiles);
   }
 
@@ -103,7 +103,7 @@ export class ClashHeist {
     if (dx !== 0 || dy !== 0) this.player.move(dx, dy, dt);
 
     this.camera.follow(this.player.x, this.player.y);
-    this.input.updateWorldMouse(this.camera.x, this.camera.y);
+    this.input.updateWorldMouse(this.camera.x, this.camera.y, this.player.x, this.player.y);
     this.player.angle = angleTo(this.player.x, this.player.y, this.input.state.mouseWorldX, this.input.state.mouseWorldY);
 
     const allBrawlers = [this.player, ...this.allies, ...this.enemies];

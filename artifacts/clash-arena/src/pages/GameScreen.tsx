@@ -5,9 +5,10 @@ import { ClashHeist } from "../modes/ClashHeist";
 import { ClashGemGrab } from "../modes/ClashGemGrab";
 import { ClashSiege } from "../modes/ClashSiege";
 import { ClashTraining } from "../modes/ClashTraining";
-import { getCurrentProfile } from "../utils/localStorageAPI";
+import { getCurrentProfile, getControlMode } from "../utils/localStorageAPI";
 import { loadSpriteSheet, loadBrawlerImages } from "../game/sprites";
 import { BRAWLERS } from "../entities/BrawlerData";
+import MobileControls from "../components/MobileControls";
 import type { GameMode } from "../App";
 
 interface GameScreenProps {
@@ -27,6 +28,8 @@ export default function GameScreen({ mode, brawlerId, onExit }: GameScreenProps)
   const [won, setWon] = useState(false);
   const [spriteLoaded, setSpriteLoaded] = useState(false);
   const [result, setResult] = useState<{ place: number; trophyDelta: number; xpGained: number } | null>(null);
+  const [controlMode] = useState(getControlMode());
+  const brawlerStats = BRAWLERS.find(b => b.id === brawlerId) || BRAWLERS[0];
 
   useEffect(() => {
     let mounted = true;
@@ -122,8 +125,21 @@ export default function GameScreen({ mode, brawlerId, onExit }: GameScreenProps)
           maxHeight: "100vh",
           objectFit: "contain",
           display: "block",
+          touchAction: "none",
         }}
       />
+
+      {controlMode === "mobile" && !gameOver && (
+        <MobileControls
+          getInput={() => gameRef.current?.input ?? null}
+          getPlayerInfo={() => ({
+            attackRange: brawlerStats.attackRange,
+            canvas: canvasRef.current,
+            playerX: gameRef.current?.player?.x,
+            playerY: gameRef.current?.player?.y,
+          })}
+        />
+      )}
 
       {mode === "training" && !gameOver && (
         <button
