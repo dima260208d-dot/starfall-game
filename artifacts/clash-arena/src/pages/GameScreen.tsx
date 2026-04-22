@@ -135,6 +135,7 @@ export default function GameScreen({ mode, brawlerId, onExit }: GameScreenProps)
           getPlayerInfo={() => ({
             attackRange: brawlerStats.attackRange,
             canvas: canvasRef.current,
+            brawlerId: gameRef.current?.player?.id ?? brawlerStats.id,
             playerX: gameRef.current?.player?.x,
             playerY: gameRef.current?.player?.y,
           })}
