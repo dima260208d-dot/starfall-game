@@ -5,6 +5,14 @@ import { spawnDamageNumber } from "../utils/damageNumbers";
 import { spawnEffect, makeZigzag } from "../utils/effects";
 import { clamp, distance, angleTo } from "../utils/helpers";
 import { drawCharacterSprite, drawBrawlerImage } from "../game/sprites";
+import { miyaTopDown, type MiyaAnim } from "../game/miyaTopDownRenderer";
+
+// Kick off loading the Miya 3D model the first time this module is imported
+// in the browser. The renderer is a singleton; subsequent calls are no-ops.
+if (typeof window !== "undefined") {
+  const base = (import.meta as any).env?.BASE_URL ?? "/";
+  miyaTopDown.init(`${base}models/miya.glb`).catch(() => { /* fall back to sprite */ });
+}
 
 export type Team = string;
 
@@ -54,6 +62,12 @@ export class Brawler {
   superAnim = 0;
   deathAnim = 0;
   isAttacking = false;
+
+  // Tracked between frames so we can detect "is moving" for 3D-model brawlers
+  // without changing the call sites that mutate position directly.
+  private _lastRenderX = 0;
+  private _lastRenderY = 0;
+  private _movingSmoothed = 0; // 0 = idle, 1 = running, smoothed via lerp
   
   inBush = false;
   inRiver = false;
@@ -775,16 +789,50 @@ export class Brawler {
     const glowColor = this.statusEffects.some(e => e.type === "berserker") ? "#FF0000" :
                       this.statusEffects.some(e => e.type === "stun") ? "#FFD700" : undefined;
 
-    const drewImage = drawBrawlerImage(
-      ctx,
-      this.stats.id,
-      sx,
-      sy + 10,
-      this.radius * 2.2,
-      this.angle,
-      alpha,
-      glowColor,
-    );
+    // Miya has a real 3D model — render via the off-screen WebGL renderer
+    // and blit the resulting frame onto the 2D canvas at her screen position.
+    let drewImage = false;
+    if (this.stats.id === "miya" && miyaTopDown.isReady()) {
+      // Detect movement by diffing position against last frame.
+      const dx = this.x - this._lastRenderX;
+      const dy = this.y - this._lastRenderY;
+      const moved = Math.hypot(dx, dy);
+      // moved > ~0.3 px/frame at 60fps ≈ 18 px/s → clearly walking.
+      const isMovingNow = moved > 0.3 ? 1 : 0;
+      this._movingSmoothed = this._movingSmoothed * 0.7 + isMovingNow * 0.3;
+      this._lastRenderX = this.x;
+      this._lastRenderY = this.y;
+
+      const anim: MiyaAnim = this.attackAnim > 0.05
+        ? "attack"
+        : this._movingSmoothed > 0.5 ? "run" : "idle";
+      const off = miyaTopDown.render(this.id, anim, this.angle);
+      if (off) {
+        const drawSize = this.radius * 4.6;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        if (glowColor) {
+          ctx.shadowColor = glowColor;
+          ctx.shadowBlur = 24;
+        }
+        ctx.drawImage(off, sx - drawSize / 2, sy - drawSize * 0.62, drawSize, drawSize);
+        ctx.restore();
+        drewImage = true;
+      }
+    }
+
+    if (!drewImage) {
+      drewImage = drawBrawlerImage(
+        ctx,
+        this.stats.id,
+        sx,
+        sy + 10,
+        this.radius * 2.2,
+        this.angle,
+        alpha,
+        glowColor,
+      );
+    }
 
     if (drewImage) {
       // image rendered

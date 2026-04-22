@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import Brawler3DModel from "./Brawler3DModel";
 
 interface BrawlerViewer3DProps {
   brawlerId: string;
@@ -7,7 +8,48 @@ interface BrawlerViewer3DProps {
   autoRotateInitial?: boolean;
 }
 
+// Brawlers that have a real 3D GLB model in /public/models. Anyone listed here
+// renders via the GLTF viewer instead of the 2D billboard fallback.
+const MODEL_URLS: Record<string, { url: string; idleAnim: string }> = {
+  miya: { url: "models/miya.glb", idleAnim: "Thoughtful_Walk" },
+};
+
+// Cached one-shot WebGL availability check. We try to create a tiny WebGL
+// context once; if it fails (e.g. headless preview, hardware blocklisted),
+// we treat 3D-model brawlers as if they had no GLB and render their 2D
+// billboard fallback so the user always sees the character.
+let _webglOk: boolean | null = null;
+function isWebGLAvailable(): boolean {
+  if (_webglOk !== null) return _webglOk;
+  if (typeof document === "undefined") return (_webglOk = false);
+  try {
+    const c = document.createElement("canvas");
+    const gl = c.getContext("webgl2") || c.getContext("webgl");
+    _webglOk = !!gl;
+  } catch {
+    _webglOk = false;
+  }
+  return _webglOk;
+}
+
 export default function BrawlerViewer3D({ brawlerId, color, size = 320, autoRotateInitial = false }: BrawlerViewer3DProps) {
+  const model = MODEL_URLS[brawlerId];
+  if (model && isWebGLAvailable()) {
+    const base = (import.meta as any).env?.BASE_URL ?? "/";
+    return (
+      <Brawler3DModel
+        modelUrl={`${base}${model.url}`}
+        animation={model.idleAnim}
+        color={color}
+        size={size}
+        autoRotateInitial={autoRotateInitial}
+      />
+    );
+  }
+  return <BrawlerViewer3DBillboard brawlerId={brawlerId} color={color} size={size} autoRotateInitial={autoRotateInitial} />;
+}
+
+function BrawlerViewer3DBillboard({ brawlerId, color, size = 320, autoRotateInitial = false }: BrawlerViewer3DProps) {
   const [angle, setAngle] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [autoRotate, setAutoRotate] = useState(autoRotateInitial);
