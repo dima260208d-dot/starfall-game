@@ -52,6 +52,10 @@ export default function App() {
   const [bootLoading, setBootLoading] = useState(true);
   const [transitionTo, setTransitionTo] = useState<Screen | null>(null);
   const [transitionLabel, setTransitionLabel] = useState("ЗАГРУЗКА");
+  // Transient one-shot mode override (used by "Испытать" → training).
+  // Cleared automatically as soon as the player exits the game so the
+  // persisted lobby mode is restored on the next "Играть".
+  const [forceMode, setForceMode] = useState<GameMode | null>(null);
 
   useEffect(() => {
     document.title = "Clash Arena";
@@ -133,10 +137,11 @@ export default function App() {
         onTraining={(id) => {
           // For training we use the brawler locally without persisting it as
           // the player's active pick — locked brawlers are testable but
-          // cannot become the lobby selection.
+          // cannot become the lobby selection. We also use a transient mode
+          // override instead of touching the persisted lobby mode, so the
+          // main-menu "Играть" button keeps launching the user's chosen mode.
           setSelectedBrawler(id);
-          setSelectedMode("training");
-          persistMode("training");
+          setForceMode("training");
           goWithLoad("game", "ВХОД В ТРЕНИРОВКУ");
         }}
         onBack={() => go("menu")}
@@ -160,9 +165,12 @@ export default function App() {
   if (screen === "game") {
     return (
       <GameScreen
-        mode={selectedMode}
+        mode={forceMode ?? selectedMode}
         brawlerId={selectedBrawler}
-        onExit={() => goWithLoad("menu", "ВОЗВРАТ В ЛОББИ")}
+        onExit={() => {
+          setForceMode(null);
+          goWithLoad("menu", "ВОЗВРАТ В ЛОББИ");
+        }}
       />
     );
   }

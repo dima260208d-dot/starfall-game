@@ -164,14 +164,12 @@ export default function LoadingScreen({ onDone, duration = 4500, label = "ЗАГ
         >
           <div
             style={{
-              width: `${Math.max(2, progress * 100)}%`,
+              width: `${percent}%`,
               height: "100%",
               background:
                 "linear-gradient(90deg, #7B2FBE 0%, #FF5252 50%, #FFD700 100%)",
-              transition: "width 80ms linear",
               boxShadow: "0 0 20px rgba(255,215,0,0.9)",
               position: "relative",
-              minWidth: 4,
             }}
           >
             <div
