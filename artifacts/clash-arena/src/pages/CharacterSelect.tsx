@@ -13,6 +13,7 @@ import {
   MAX_BRAWLER_RANK,
 } from "../utils/localStorageAPI";
 import BrawlerViewer3D from "../components/BrawlerViewer3D";
+import BrawlerRankRewardsModal from "../components/BrawlerRankRewardsModal";
 
 export type BrawlerSortKey = "rarity" | "name" | "level" | "hp" | "damage" | "speed" | "range";
 
@@ -59,6 +60,7 @@ export default function CharacterSelect({ onPickAsActive, onTraining, onBack }: 
   const [profile, setProfile] = useState(getCurrentProfile());
   const [openId, setOpenId] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<BrawlerSortKey>("rarity");
+  const [rankModalBrawlerId, setRankModalBrawlerId] = useState<string | null>(null);
 
   useEffect(() => {
     const t = setInterval(() => setProfile(getCurrentProfile()), 500);
@@ -69,38 +71,50 @@ export default function CharacterSelect({ onPickAsActive, onTraining, onBack }: 
 
   const detailBrawler = openId ? BRAWLERS.find(b => b.id === openId) || null : null;
 
-  return detailBrawler ? (
-    <CharacterDetail
-      brawler={detailBrawler}
-      level={profile.brawlerLevels[detailBrawler.id] || 1}
-      coins={profile.coins}
-      gems={profile.gems}
-      powerPoints={profile.powerPoints}
-      isActive={profile.selectedBrawlerId === detailBrawler.id}
-      isUnlocked={isBrawlerUnlocked(profile, detailBrawler.id)}
-      onClose={() => setOpenId(null)}
-      onHome={onBack}
-      onPickAsActive={() => { onPickAsActive(detailBrawler.id); }}
-      onTraining={() => onTraining(detailBrawler.id)}
-      onUpgrade={() => {
-        const r = upgradeBrawler(detailBrawler.id);
-        if (r.success) setProfile(getCurrentProfile());
-        return r;
-      }}
-      onUnlock={() => {
-        const r = unlockBrawlerWithGems(detailBrawler.id);
-        if (r.success) setProfile(getCurrentProfile());
-        return r;
-      }}
-    />
-  ) : (
-    <CharacterGrid
-      profile={profile}
-      sortKey={sortKey}
-      onChangeSort={setSortKey}
-      onBack={onBack}
-      onOpen={(id) => setOpenId(id)}
-    />
+  return (
+    <>
+      {detailBrawler ? (
+        <CharacterDetail
+          brawler={detailBrawler}
+          level={profile.brawlerLevels[detailBrawler.id] || 1}
+          coins={profile.coins}
+          gems={profile.gems}
+          powerPoints={profile.powerPoints}
+          isActive={profile.selectedBrawlerId === detailBrawler.id}
+          isUnlocked={isBrawlerUnlocked(profile, detailBrawler.id)}
+          onClose={() => setOpenId(null)}
+          onHome={onBack}
+          onPickAsActive={() => { onPickAsActive(detailBrawler.id); }}
+          onTraining={() => onTraining(detailBrawler.id)}
+          onOpenRankModal={() => setRankModalBrawlerId(detailBrawler.id)}
+          onUpgrade={() => {
+            const r = upgradeBrawler(detailBrawler.id);
+            if (r.success) setProfile(getCurrentProfile());
+            return r;
+          }}
+          onUnlock={() => {
+            const r = unlockBrawlerWithGems(detailBrawler.id);
+            if (r.success) setProfile(getCurrentProfile());
+            return r;
+          }}
+        />
+      ) : (
+        <CharacterGrid
+          profile={profile}
+          sortKey={sortKey}
+          onChangeSort={setSortKey}
+          onBack={onBack}
+          onOpen={(id) => setOpenId(id)}
+          onOpenRankModal={(id) => setRankModalBrawlerId(id)}
+        />
+      )}
+      {rankModalBrawlerId && (
+        <BrawlerRankRewardsModal
+          brawlerId={rankModalBrawlerId}
+          onClose={() => { setRankModalBrawlerId(null); setProfile(getCurrentProfile()); }}
+        />
+      )}
+    </>
   );
 }
 
@@ -114,9 +128,10 @@ interface CharacterGridProps {
   onChangeSort: (key: BrawlerSortKey) => void;
   onBack: () => void;
   onOpen: (id: string) => void;
+  onOpenRankModal: (id: string) => void;
 }
 
-function CharacterGrid({ profile, sortKey, onChangeSort, onBack, onOpen }: CharacterGridProps) {
+function CharacterGrid({ profile, sortKey, onChangeSort, onBack, onOpen, onOpenRankModal }: CharacterGridProps) {
   if (!profile) return null;
   const base = (import.meta as any).env?.BASE_URL ?? "/";
   const sorted = sortBrawlers(BRAWLERS, sortKey, profile.brawlerLevels);
@@ -181,15 +196,19 @@ function CharacterGrid({ profile, sortKey, onChangeSort, onBack, onOpen }: Chara
           const isActive = profile.selectedBrawlerId === b.id;
           const unlocked = profile.unlockedBrawlers.includes(b.id);
           const rarityColor = CHESTS[b.rarity].borderColor;
-          const bRank = unlocked ? getBrawlerRank(getBrawlerTrophies(profile, b.id)) : 0;
+          const bTrophies = unlocked ? getBrawlerTrophies(profile, b.id) : 0;
+          const bRank = unlocked ? getBrawlerRank(bTrophies) : 0;
           const borderColor = unlocked
             ? (isActive ? b.color : rarityColor)
             : "rgba(255,255,255,0.18)";
 
           return (
-            <button
+            <div
               key={b.id}
+              role="button"
+              tabIndex={0}
               onClick={() => onOpen(b.id)}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(b.id); } }}
               style={{
                 background: `linear-gradient(180deg, ${rarityColor}22 0%, rgba(0,0,0,0.5) 80%)`,
                 border: `2px solid ${borderColor}`,
@@ -229,15 +248,21 @@ function CharacterGrid({ profile, sortKey, onChangeSort, onBack, onOpen }: Chara
               )}
 
               {unlocked && (
-                <div style={{
-                  position: "absolute", top: isActive ? 32 : 8, right: 10,
-                  background: "linear-gradient(135deg, #F9A825, #FFD700)",
-                  color: "#000",
-                  fontSize: 10, fontWeight: 900, letterSpacing: 0.5,
-                  borderRadius: 8, padding: "2px 8px",
-                  border: "1px solid rgba(0,0,0,0.4)",
-                  boxShadow: "0 2px 6px rgba(0,0,0,0.45)",
-                }}>РАНГ {bRank}/{MAX_BRAWLER_RANK}</div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onOpenRankModal(b.id); }}
+                  title="Награды за ранги"
+                  style={{
+                    position: "absolute", top: isActive ? 32 : 8, right: 10,
+                    background: "linear-gradient(135deg, #F9A825, #FFD700)",
+                    color: "#000",
+                    fontSize: 10, fontWeight: 900, letterSpacing: 0.5,
+                    borderRadius: 8, padding: "2px 8px",
+                    border: "1px solid rgba(0,0,0,0.4)",
+                    boxShadow: "0 2px 6px rgba(0,0,0,0.45)",
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                  }}
+                >РАНГ {bRank}/{MAX_BRAWLER_RANK}</button>
               )}
 
               <div style={{
@@ -288,9 +313,9 @@ function CharacterGrid({ profile, sortKey, onChangeSort, onBack, onOpen }: Chara
                 color: unlocked ? "#FFD700" : "rgba(255,255,255,0.5)",
                 letterSpacing: 1,
               }}>
-                {unlocked ? `УРОВЕНЬ ${lv}` : `💎 ${BRAWLER_GEM_COST[b.rarity]}`}
+                {unlocked ? `УР ${lv} • 🏆 ${bTrophies}` : `💎 ${BRAWLER_GEM_COST[b.rarity]}`}
               </div>
-            </button>
+            </div>
           );
         })}
       </div>
@@ -314,13 +339,14 @@ interface CharacterDetailProps {
   onHome: () => void;
   onPickAsActive: () => void;
   onTraining: () => void;
+  onOpenRankModal: () => void;
   onUpgrade: () => { success: boolean; error?: string };
   onUnlock: () => { success: boolean; error?: string };
 }
 
 function CharacterDetail({
   brawler, level, coins, gems, powerPoints, isActive, isUnlocked,
-  onClose, onHome, onPickAsActive, onTraining, onUpgrade, onUnlock,
+  onClose, onHome, onPickAsActive, onTraining, onOpenRankModal, onUpgrade, onUnlock,
 }: CharacterDetailProps) {
   const unlockCost = BRAWLER_GEM_COST[brawler.rarity];
   const canAffordUnlock = gems >= unlockCost;
@@ -400,14 +426,19 @@ function CharacterDetail({
         </div>
 
         {isUnlocked && (
-          <div style={{
-            display: "inline-flex", alignItems: "center", gap: 10,
-            background: "rgba(0,0,0,0.55)",
-            border: "1px solid rgba(255,215,0,0.5)",
-            borderRadius: 12, padding: "8px 14px",
-            backdropFilter: "blur(8px)",
-            boxShadow: "0 0 16px rgba(255,215,0,0.25)",
-          }}>
+          <button
+            onClick={onOpenRankModal}
+            title="Награды за ранги"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 10,
+              background: "rgba(0,0,0,0.55)",
+              border: "1px solid rgba(255,215,0,0.5)",
+              borderRadius: 12, padding: "8px 14px",
+              backdropFilter: "blur(8px)",
+              boxShadow: "0 0 16px rgba(255,215,0,0.25)",
+              cursor: "pointer", fontFamily: "inherit", color: "white",
+            }}
+          >
             <span style={{
               background: "linear-gradient(135deg, #F9A825, #FFD700)",
               color: "#000",
@@ -424,7 +455,7 @@ function CharacterDetail({
             <span style={{ color: "#FFD700", fontSize: 12, fontWeight: 800 }}>
               🏆 {detailTrophies}
             </span>
-          </div>
+          </button>
         )}
 
         {!isUnlocked && (

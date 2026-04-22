@@ -9,6 +9,7 @@ import {
   MAX_BRAWLER_RANK,
 } from "../utils/localStorageAPI";
 import { BRAWLERS } from "../entities/BrawlerData";
+import BrawlerRankRewardsModal from "../components/BrawlerRankRewardsModal";
 
 interface Props {
   onBack: () => void;
@@ -19,6 +20,7 @@ export default function ProfilePage({ onBack }: Props) {
   const [renaming, setRenaming] = useState(false);
   const [newName, setNewName] = useState("");
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [rankModalBrawlerId, setRankModalBrawlerId] = useState<string | null>(null);
 
   const refresh = () => setProfile(getCurrentProfile());
 
@@ -73,9 +75,15 @@ export default function ProfilePage({ onBack }: Props) {
         >
           {/* Left: avatar */}
           <div style={card}>
-            <div style={{
-              display: "flex", justifyContent: "center", gap: 8, marginBottom: 10, flexWrap: "wrap",
-            }}>
+            <button
+              onClick={() => setRankModalBrawlerId(fav.id)}
+              title="Награды за ранги"
+              style={{
+                display: "flex", justifyContent: "center", gap: 8, marginBottom: 10, flexWrap: "wrap",
+                background: "transparent", border: "none", padding: 0, cursor: "pointer",
+                width: "100%",
+              }}
+            >
               <span style={{
                 background: "linear-gradient(135deg, #F9A825, #FFD700)",
                 color: "#000", borderRadius: 8, padding: "4px 10px",
@@ -100,7 +108,7 @@ export default function ProfilePage({ onBack }: Props) {
               }}>
                 🏆 {favTrophies}
               </span>
-            </div>
+            </button>
             <div style={{
               width: "100%", aspectRatio: "1/1", borderRadius: 16,
               background: `radial-gradient(circle at 50% 30%, ${fav.color}55, transparent 70%)`,
@@ -216,6 +224,13 @@ export default function ProfilePage({ onBack }: Props) {
           </div>
         </div>
       </div>
+
+      {rankModalBrawlerId && (
+        <BrawlerRankRewardsModal
+          brawlerId={rankModalBrawlerId}
+          onClose={() => { setRankModalBrawlerId(null); refresh(); }}
+        />
+      )}
     </div>
   );
 }

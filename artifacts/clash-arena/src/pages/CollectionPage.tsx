@@ -1,13 +1,14 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { BRAWLERS, BRAWLER_RARITY_LABEL, getScaledStats } from "../entities/BrawlerData";
 import { CHESTS } from "../utils/chests";
 import {
   getCurrentProfile, upgradeBrawler,
-  getBrawlerTrophies, getBrawlerRank, getBrawlerRankClaimed,
-  getUnclaimedBrawlerRankCount, claimBrawlerRankReward,
+  getBrawlerTrophies, getBrawlerRank,
+  getUnclaimedBrawlerRankCount,
   BRAWLER_RANK_TABLE, MAX_BRAWLER_RANK,
 } from "../utils/localStorageAPI";
 import BrawlerViewer3D from "../components/BrawlerViewer3D";
+import BrawlerRankRewardsModal from "../components/BrawlerRankRewardsModal";
 import { sortBrawlers, type BrawlerSortKey } from "./CharacterSelect";
 
 interface CollectionPageProps {
@@ -29,9 +30,7 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<BrawlerSortKey>("rarity");
   const [msg, setMsg] = useState("");
-  const [rankModalOpen, setRankModalOpen] = useState(false);
-
-  useEffect(() => {}, []);
+  const [rankModalBrawlerId, setRankModalBrawlerId] = useState<string | null>(null);
 
   const ownedSorted = useMemo(() => {
     if (!profile) return [];
@@ -89,7 +88,6 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
   const trophies = getBrawlerTrophies(profile, brawler.id);
   const rank = getBrawlerRank(trophies);
   const unclaimed = getUnclaimedBrawlerRankCount(profile, brawler.id);
-  const claimedSet = new Set(getBrawlerRankClaimed(profile, brawler.id));
   const nextReward = rank < MAX_BRAWLER_RANK ? BRAWLER_RANK_TABLE[rank] : null;
   const trophiesIntoNext = nextReward
     ? Math.max(0, trophies - (rank > 0 ? BRAWLER_RANK_TABLE[rank - 1].trophies : 0))
@@ -97,18 +95,6 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
   const trophiesNeededForNext = nextReward
     ? nextReward.trophies - (rank > 0 ? BRAWLER_RANK_TABLE[rank - 1].trophies : 0)
     : 0;
-  const rewardIcon = (type: string) => type === "coins" ? "🪙" : type === "gems" ? "✨" : type === "powerPoints" ? "⭐" : "🎁";
-
-  const handleClaim = (r: number) => {
-    const result = claimBrawlerRankReward(brawler.id, r);
-    if (result.success) {
-      setProfile(getCurrentProfile());
-      setMsg(`Получено: ${result.reward?.label ?? ""}`);
-    } else {
-      setMsg(result.error || "Не удалось получить");
-    }
-    setTimeout(() => setMsg(""), 3000);
-  };
 
   return (
     <div
@@ -164,7 +150,8 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
               const lv = profile.brawlerLevels[b.id] || 1;
               const isSelected = b.id === activeId;
               const rarityColor = CHESTS[b.rarity].borderColor;
-              const bRank = getBrawlerRank(getBrawlerTrophies(profile, b.id));
+              const bTrophies = getBrawlerTrophies(profile, b.id);
+              const bRank = getBrawlerRank(bTrophies);
               return (
                 <div
                   key={b.id}
@@ -196,20 +183,25 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
                         filter: `drop-shadow(0 2px 4px ${b.color}80)`,
                       }}
                     />
-                    <div style={{
-                      position: "absolute", bottom: -4, left: "50%", transform: "translateX(-50%)",
-                      background: "linear-gradient(135deg, #F9A825, #FFD700)",
-                      color: "#000",
-                      fontSize: 9, fontWeight: 900, letterSpacing: 0.5,
-                      borderRadius: 6, padding: "1px 6px",
-                      border: "1px solid rgba(0,0,0,0.4)",
-                      boxShadow: "0 2px 6px rgba(0,0,0,0.5)",
-                      minWidth: 16, textAlign: "center", whiteSpace: "nowrap",
-                    }}>Р{bRank}</div>
+                    <div
+                      onClick={(e) => { e.stopPropagation(); setRankModalBrawlerId(b.id); }}
+                      title="Награды за ранги"
+                      style={{
+                        position: "absolute", bottom: -4, left: "50%", transform: "translateX(-50%)",
+                        background: "linear-gradient(135deg, #F9A825, #FFD700)",
+                        color: "#000",
+                        fontSize: 9, fontWeight: 900, letterSpacing: 0.5,
+                        borderRadius: 6, padding: "1px 6px",
+                        border: "1px solid rgba(0,0,0,0.4)",
+                        boxShadow: "0 2px 6px rgba(0,0,0,0.5)",
+                        minWidth: 16, textAlign: "center", whiteSpace: "nowrap",
+                        cursor: "pointer",
+                      }}
+                    >Р{bRank}</div>
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: 14, color: isSelected ? b.color : "white" }}>{b.name}</div>
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>УР {lv} • {b.role}</div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>УР {lv} • 🏆 {bTrophies}</div>
                   </div>
                   <div style={{
                     fontSize: 9, fontWeight: 800, letterSpacing: 1,
@@ -230,7 +222,7 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
               <div style={{ fontSize: 32, fontWeight: 900, color: brawler.color }}>{brawler.name}</div>
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: 2 }}>{brawler.role.toUpperCase()} • УРОВЕНЬ {level} / 10</div>
               <button
-                onClick={() => setRankModalOpen(true)}
+                onClick={() => setRankModalBrawlerId(brawler.id)}
                 style={{
                   marginTop: 12,
                   position: "relative",
@@ -367,105 +359,11 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
         </div>
       </div>
 
-      {rankModalOpen && (
-        <div
-          onClick={() => setRankModalOpen(false)}
-          style={{
-            position: "fixed", inset: 0, zIndex: 50,
-            background: "rgba(0,0,0,0.7)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            padding: 24,
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: "min(720px, 100%)",
-              maxHeight: "min(80vh, 720px)",
-              background: "linear-gradient(135deg, #0f0050, #1a0078)",
-              border: "1px solid rgba(255,215,0,0.4)",
-              borderRadius: 18,
-              display: "flex",
-              flexDirection: "column",
-              overflow: "hidden",
-              boxShadow: "0 18px 60px rgba(0,0,0,0.6)",
-            }}
-          >
-            <div style={{ padding: "16px 22px", borderBottom: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", gap: 14 }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 18, fontWeight: 800, color: brawler.color }}>{brawler.name} — Награды за ранги</div>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)" }}>
-                  🏆 {trophies} кубков • Ранг {rank} / {MAX_BRAWLER_RANK}
-                </div>
-              </div>
-              <button
-                onClick={() => setRankModalOpen(false)}
-                style={{ background: "rgba(255,255,255,0.1)", border: "none", borderRadius: 8, padding: "6px 12px", color: "white", cursor: "pointer", fontWeight: 700 }}
-              >Закрыть</button>
-            </div>
-            <div style={{ flex: 1, overflowY: "auto", padding: 14 }}>
-              {BRAWLER_RANK_TABLE.map((row) => {
-                const reached = trophies >= row.trophies;
-                const claimed = claimedSet.has(row.rank);
-                const canClaim = reached && !claimed;
-                return (
-                  <div
-                    key={row.rank}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      padding: "10px 14px",
-                      marginBottom: 6,
-                      borderRadius: 10,
-                      background: claimed
-                        ? "rgba(76,175,80,0.10)"
-                        : canClaim
-                          ? "rgba(255,215,0,0.12)"
-                          : "rgba(255,255,255,0.04)",
-                      border: `1px solid ${claimed ? "rgba(76,175,80,0.35)" : canClaim ? "rgba(255,215,0,0.5)" : "rgba(255,255,255,0.06)"}`,
-                      opacity: reached || canClaim ? 1 : 0.55,
-                    }}
-                  >
-                    <div style={{
-                      width: 38, height: 38, borderRadius: 10,
-                      background: "rgba(0,0,0,0.35)",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontWeight: 800, color: "#FFD700",
-                    }}>{row.rank}</div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "white" }}>
-                        {rewardIcon(row.type)} {row.label}
-                      </div>
-                      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
-                        🏆 {row.trophies} кубков
-                      </div>
-                    </div>
-                    {claimed ? (
-                      <div style={{ fontSize: 11, fontWeight: 800, color: "#A5D6A7", letterSpacing: 1 }}>ПОЛУЧЕНО</div>
-                    ) : (
-                      <button
-                        disabled={!canClaim}
-                        onClick={() => handleClaim(row.rank)}
-                        style={{
-                          background: canClaim ? "linear-gradient(135deg, #F9A825, #FFD700)" : "rgba(255,255,255,0.08)",
-                          border: "none",
-                          borderRadius: 8,
-                          padding: "7px 14px",
-                          color: canClaim ? "#000" : "rgba(255,255,255,0.4)",
-                          fontWeight: 800,
-                          fontSize: 12,
-                          cursor: canClaim ? "pointer" : "not-allowed",
-                          letterSpacing: 1,
-                        }}
-                      >{canClaim ? "ЗАБРАТЬ" : "ЗАБЛОКИРОВАНО"}</button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
+      {rankModalBrawlerId && (
+        <BrawlerRankRewardsModal
+          brawlerId={rankModalBrawlerId}
+          onClose={() => { setRankModalBrawlerId(null); setProfile(getCurrentProfile()); }}
+        />
       )}
     </div>
   );

@@ -9,6 +9,7 @@ import { BRAWLERS } from "../entities/BrawlerData";
 import { getModeInfo } from "../data/modes";
 import DailyRewardModal from "../components/DailyRewardModal";
 import QuestsModal from "../components/QuestsModal";
+import BrawlerRankRewardsModal from "../components/BrawlerRankRewardsModal";
 
 interface MainMenuProps {
   onPlay: () => void;
@@ -35,6 +36,7 @@ export default function MainMenu(props: MainMenuProps) {
   const [notif, setNotif] = useState<string | null>(null);
   const [showDaily, setShowDaily] = useState(false);
   const [showQuests, setShowQuests] = useState(false);
+  const [rankModalBrawlerId, setRankModalBrawlerId] = useState<string | null>(null);
 
   useEffect(() => {
     const interval = setInterval(() => setProfile(getCurrentProfile()), 500);
@@ -52,7 +54,8 @@ export default function MainMenu(props: MainMenuProps) {
   const brawlerTrophies = getBrawlerTrophies(profile, brawler.id);
   const brawlerRank = getBrawlerRank(brawlerTrophies);
   const favBrawler = BRAWLERS.find(b => b.id === profile.favoriteBrawlerId) || BRAWLERS[0];
-  const favRank = getBrawlerRank(getBrawlerTrophies(profile, favBrawler.id));
+  const favTrophies = getBrawlerTrophies(profile, favBrawler.id);
+  const favRank = getBrawlerRank(favTrophies);
   const base = (import.meta as any).env?.BASE_URL ?? "/";
   const passLevel = profile.clashPassLevel;
   const passNeed = clashPassXpForLevel(passLevel);
@@ -137,21 +140,25 @@ export default function MainMenu(props: MainMenuProps) {
             <div style={{ width: "100%", height: "100%", borderRadius: 9, overflow: "hidden" }}>
               <img src={`${base}brawlers/${profile.favoriteBrawlerId}_front.png`} alt="" style={{ width: "100%" }} />
             </div>
-            <div style={{
-              position: "absolute", bottom: -6, left: "50%", transform: "translateX(-50%)",
-              background: "linear-gradient(135deg, #F9A825, #FFD700)",
-              color: "#000",
-              fontSize: 9, fontWeight: 900, letterSpacing: 0.5,
-              borderRadius: 6, padding: "1px 5px",
-              border: "1px solid rgba(0,0,0,0.4)",
-              boxShadow: "0 2px 6px rgba(0,0,0,0.4)",
-              minWidth: 16, textAlign: "center",
-            }}>{favRank}</div>
+            <div
+              onClick={(e) => { e.stopPropagation(); setRankModalBrawlerId(favBrawler.id); }}
+              title="Награды за ранги"
+              style={{
+                position: "absolute", bottom: -6, left: "50%", transform: "translateX(-50%)",
+                background: "linear-gradient(135deg, #F9A825, #FFD700)",
+                color: "#000",
+                fontSize: 9, fontWeight: 900, letterSpacing: 0.5,
+                borderRadius: 6, padding: "1px 5px",
+                border: "1px solid rgba(0,0,0,0.4)",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.4)",
+                minWidth: 16, textAlign: "center", cursor: "pointer",
+              }}
+            >{favRank}</div>
           </div>
           <div style={{ textAlign: "left", lineHeight: 1.1 }}>
             <div style={{ fontSize: 14, fontWeight: 800 }}>{profile.username}</div>
             <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>
-              Игр: {profile.totalGamesPlayed} • Побед: {profile.totalWins}
+              🏆 {favTrophies} • Игр: {profile.totalGamesPlayed} • Побед: {profile.totalWins}
             </div>
           </div>
         </button>
@@ -246,19 +253,26 @@ export default function MainMenu(props: MainMenuProps) {
               position: "relative",
             }}
           />
-          <div style={{
-            position: "absolute", top: -8, left: "50%", transform: "translateX(-50%)",
-            display: "inline-flex", alignItems: "center", gap: 8,
-            background: "rgba(0,0,0,0.55)",
-            border: "1px solid rgba(255,215,0,0.5)",
-            borderRadius: 10, padding: "4px 10px",
-            boxShadow: "0 0 12px rgba(255,215,0,0.25)",
-            whiteSpace: "nowrap",
-          }}>
+          <button
+            onClick={(e) => { e.stopPropagation(); setRankModalBrawlerId(brawler.id); }}
+            style={{
+              position: "absolute", top: -8, left: "50%", transform: "translateX(-50%)",
+              display: "inline-flex", alignItems: "center", gap: 8,
+              background: "rgba(0,0,0,0.55)",
+              border: "1px solid rgba(255,215,0,0.5)",
+              borderRadius: 10, padding: "4px 10px",
+              boxShadow: "0 0 12px rgba(255,215,0,0.25)",
+              whiteSpace: "nowrap",
+              pointerEvents: "auto",
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+            title="Награды за ранги"
+          >
             <RankPill rank={brawlerRank} />
             <PowerPill level={brawlerLevel} />
             <span style={{ color: "#FFD700", fontSize: 12, fontWeight: 800 }}>🏆 {brawlerTrophies}</span>
-          </div>
+          </button>
           <div style={{
             position: "absolute", bottom: -4, left: "50%", transform: "translateX(-50%)",
             background: "rgba(0,0,0,0.55)", border: `1px solid ${brawler.color}`,
@@ -406,6 +420,12 @@ export default function MainMenu(props: MainMenuProps) {
 
       {showDaily && <DailyRewardModal onClose={() => { setShowDaily(false); setProfile(getCurrentProfile()); }} />}
       {showQuests && <QuestsModal onClose={() => { setShowQuests(false); setProfile(getCurrentProfile()); }} />}
+      {rankModalBrawlerId && (
+        <BrawlerRankRewardsModal
+          brawlerId={rankModalBrawlerId}
+          onClose={() => { setRankModalBrawlerId(null); setProfile(getCurrentProfile()); }}
+        />
+      )}
 
       {notif && (
         <div style={{
