@@ -294,7 +294,8 @@ export default function MainMenu(props: MainMenuProps) {
           style={{
             pointerEvents: "auto", cursor: "pointer",
             position: "relative",
-            width: 300, height: 320,
+            width: compact ? 243 : 270,
+            height: compact ? 259 : 288,
             display: "flex", alignItems: "center", justifyContent: "center",
             animation: "floatY 3.5s ease-in-out infinite",
           }}
@@ -380,14 +381,15 @@ export default function MainMenu(props: MainMenuProps) {
           onClick={() => setShowQuests(true)}
           title="Ежедневные квесты"
           style={{
-            position: "absolute", top: 56, left: 8, zIndex: 5,
-            width: 38, height: 38,
+            position: "absolute", bottom: 8, left: 64, zIndex: 5,
+            width: 48, height: 44,
             background: hasUnclaimedQuest
               ? "linear-gradient(135deg, rgba(255,215,0,0.3), rgba(255,138,0,0.3))"
               : "rgba(0,0,0,0.4)",
             border: `1.5px solid ${hasUnclaimedQuest ? "#FFD700" : "rgba(206,147,216,0.5)"}`,
             borderRadius: 10,
-            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            display: "inline-flex", flexDirection: "column",
+            alignItems: "center", justifyContent: "center",
             color: "white", cursor: "pointer",
             backdropFilter: "blur(10px)",
             animation: hasUnclaimedQuest ? "pulse 1.6s ease-in-out infinite" : undefined,
@@ -396,6 +398,7 @@ export default function MainMenu(props: MainMenuProps) {
         >
           <NotificationBadge count={questsBadge} />
           <span style={{ fontSize: 18, lineHeight: 1 }}>📋</span>
+          <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: 0.4, marginTop: 1, color: hasUnclaimedQuest ? "#FFD700" : "#CE93D8" }}>КВЕСТЫ</span>
         </button>
       ) : (
         <button
@@ -429,18 +432,20 @@ export default function MainMenu(props: MainMenuProps) {
           onClick={onClashPass}
           title="Clash Pass"
           style={{
-            position: "absolute", top: 56, left: 54, zIndex: 5,
-            width: 38, height: 38,
+            position: "absolute", bottom: 8, left: 8, zIndex: 5,
+            width: 48, height: 44,
             background: "linear-gradient(135deg, rgba(74,20,140,0.6), rgba(206,147,216,0.4))",
             border: "1.5px solid rgba(206,147,216,0.6)",
             borderRadius: 10,
-            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            display: "inline-flex", flexDirection: "column",
+            alignItems: "center", justifyContent: "center",
             color: "white", cursor: "pointer",
             backdropFilter: "blur(10px)",
           }}
         >
           <NotificationBadge count={clashPassBadge} />
           <span style={{ fontSize: 16, lineHeight: 1 }}>🎟️</span>
+          <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: 0.4, marginTop: 1, color: "#FFD700" }}>УР.{passLevel}</span>
         </button>
       ) : (
         <button
@@ -485,8 +490,8 @@ export default function MainMenu(props: MainMenuProps) {
         style={{
           position: "absolute",
           bottom: compact ? 8 : 16,
-          left: compact ? 8 : "50%",
-          transform: compact ? "none" : "translateX(-50%)",
+          left: "50%",
+          transform: "translateX(-50%)",
           zIndex: 5,
         }}
       >
@@ -733,25 +738,31 @@ function SideButton({
       title={compact ? label : undefined}
       style={{
         position: "relative",
-        display: "flex", alignItems: "center",
-        justifyContent: compact ? "center" : "flex-start",
+        display: "flex",
+        flexDirection: compact ? "column" : "row",
+        alignItems: "center",
+        justifyContent: "center",
         gap: compact ? 0 : 10,
         background: hovered ? `${color}26` : "rgba(0,0,0,0.4)",
         border: `1.5px solid ${hovered ? color : "rgba(255,255,255,0.1)"}`,
         borderRadius: compact ? 10 : 14,
-        padding: compact ? "6px 8px" : "10px 14px",
+        padding: compact ? "4px 4px" : "10px 14px",
         color: "white", cursor: "pointer",
         minWidth: compact ? 0 : 130,
-        width: compact ? 38 : undefined,
-        height: compact ? 38 : undefined,
+        width: compact ? 50 : undefined,
         backdropFilter: "blur(10px)",
         transition: "all 0.2s",
         boxShadow: hovered ? `0 0 18px ${color}66` : "none",
         animation: pulse ? "pulse 1.6s ease-in-out infinite" : undefined,
       }}
     >
-      <span style={{ fontSize: compact ? 18 : 20, lineHeight: 1 }}>{icon}</span>
-      {!compact && (
+      <span style={{ fontSize: compact ? 20 : 20, lineHeight: 1 }}>{icon}</span>
+      {compact ? (
+        <span style={{
+          fontSize: 8, fontWeight: 700, letterSpacing: 0.4, marginTop: 2,
+          color: "rgba(255,255,255,0.85)", whiteSpace: "nowrap",
+        }}>{label}</span>
+      ) : (
         <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: 1 }}>{label}</span>
       )}
       <NotificationBadge count={badge ?? 0} />
