@@ -3,6 +3,7 @@ import {
   getCurrentProfile, MAX_TROPHIES, clashPassXpForLevel, MAX_CLASHPASS_LEVEL,
   canClaimDailyLadder, getOrRollDailyQuests,
   getUnclaimedTrophyRoadCount, getUnclaimedClashPassCount, getUnopenedChestCount,
+  getBrawlerTrophies, getBrawlerRank, MAX_BRAWLER_RANK,
 } from "../utils/localStorageAPI";
 import { BRAWLERS } from "../entities/BrawlerData";
 import { getModeInfo } from "../data/modes";
@@ -47,6 +48,11 @@ export default function MainMenu(props: MainMenuProps) {
 
   const mode = getModeInfo(profile.selectedMode);
   const brawler = BRAWLERS.find(b => b.id === profile.selectedBrawlerId) || BRAWLERS[0];
+  const brawlerLevel = profile.brawlerLevels[brawler.id] || 1;
+  const brawlerTrophies = getBrawlerTrophies(profile, brawler.id);
+  const brawlerRank = getBrawlerRank(brawlerTrophies);
+  const favBrawler = BRAWLERS.find(b => b.id === profile.favoriteBrawlerId) || BRAWLERS[0];
+  const favRank = getBrawlerRank(getBrawlerTrophies(profile, favBrawler.id));
   const base = (import.meta as any).env?.BASE_URL ?? "/";
   const passLevel = profile.clashPassLevel;
   const passNeed = clashPassXpForLevel(passLevel);
@@ -122,12 +128,25 @@ export default function MainMenu(props: MainMenuProps) {
           }}
         >
           <div style={{
+            position: "relative",
             width: 36, height: 36, borderRadius: 10,
-            background: `radial-gradient(circle at 50% 30%, ${brawler.color}88, transparent 70%)`,
-            border: `1.5px solid ${brawler.color}`,
-            overflow: "hidden",
+            background: `radial-gradient(circle at 50% 30%, ${favBrawler.color}88, transparent 70%)`,
+            border: `1.5px solid ${favBrawler.color}`,
+            overflow: "visible",
           }}>
-            <img src={`${base}brawlers/${profile.favoriteBrawlerId}_front.png`} alt="" style={{ width: "100%" }} />
+            <div style={{ width: "100%", height: "100%", borderRadius: 9, overflow: "hidden" }}>
+              <img src={`${base}brawlers/${profile.favoriteBrawlerId}_front.png`} alt="" style={{ width: "100%" }} />
+            </div>
+            <div style={{
+              position: "absolute", bottom: -6, left: "50%", transform: "translateX(-50%)",
+              background: "linear-gradient(135deg, #F9A825, #FFD700)",
+              color: "#000",
+              fontSize: 9, fontWeight: 900, letterSpacing: 0.5,
+              borderRadius: 6, padding: "1px 5px",
+              border: "1px solid rgba(0,0,0,0.4)",
+              boxShadow: "0 2px 6px rgba(0,0,0,0.4)",
+              minWidth: 16, textAlign: "center",
+            }}>{favRank}</div>
           </div>
           <div style={{ textAlign: "left", lineHeight: 1.1 }}>
             <div style={{ fontSize: 14, fontWeight: 800 }}>{profile.username}</div>
@@ -229,12 +248,28 @@ export default function MainMenu(props: MainMenuProps) {
           />
           <div style={{
             position: "absolute", bottom: -4, left: "50%", transform: "translateX(-50%)",
-            background: "rgba(0,0,0,0.55)", border: `1px solid ${brawler.color}`,
-            borderRadius: 12, padding: "6px 18px",
-            fontSize: 18, fontWeight: 800, color: brawler.color,
-            letterSpacing: 2, whiteSpace: "nowrap",
+            display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+            whiteSpace: "nowrap",
           }}>
-            {brawler.name.toUpperCase()}
+            <div style={{
+              background: "rgba(0,0,0,0.55)", border: `1px solid ${brawler.color}`,
+              borderRadius: 12, padding: "6px 18px",
+              fontSize: 18, fontWeight: 800, color: brawler.color,
+              letterSpacing: 2,
+            }}>
+              {brawler.name.toUpperCase()}
+            </div>
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 8,
+              background: "rgba(0,0,0,0.55)",
+              border: "1px solid rgba(255,215,0,0.5)",
+              borderRadius: 10, padding: "4px 10px",
+              boxShadow: "0 0 12px rgba(255,215,0,0.25)",
+            }}>
+              <RankPill rank={brawlerRank} />
+              <PowerPill level={brawlerLevel} />
+              <span style={{ color: "#FFD700", fontSize: 12, fontWeight: 800 }}>🏆 {brawlerTrophies}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -388,6 +423,36 @@ export default function MainMenu(props: MainMenuProps) {
         </div>
       )}
     </div>
+  );
+}
+
+function RankPill({ rank }: { rank: number }) {
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 4,
+      background: "linear-gradient(135deg, #F9A825, #FFD700)",
+      color: "#000",
+      borderRadius: 6, padding: "2px 7px",
+      fontSize: 11, fontWeight: 900, letterSpacing: 0.5,
+      boxShadow: "0 2px 6px rgba(0,0,0,0.4)",
+    }}>
+      РАНГ {rank}/{MAX_BRAWLER_RANK}
+    </span>
+  );
+}
+
+function PowerPill({ level }: { level: number }) {
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 4,
+      background: "linear-gradient(135deg, #311B92, #7B2FBE)",
+      color: "white",
+      borderRadius: 6, padding: "2px 7px",
+      fontSize: 11, fontWeight: 900, letterSpacing: 0.5,
+      border: "1px solid rgba(206,147,216,0.6)",
+    }}>
+      ⚡ СИЛА {level}
+    </span>
   );
 }
 

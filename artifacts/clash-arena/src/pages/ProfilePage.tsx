@@ -4,6 +4,9 @@ import {
   setFavoriteBrawler,
   renamePlayer,
   RENAME_GEM_COST,
+  getBrawlerTrophies,
+  getBrawlerRank,
+  MAX_BRAWLER_RANK,
 } from "../utils/localStorageAPI";
 import { BRAWLERS } from "../entities/BrawlerData";
 
@@ -22,6 +25,9 @@ export default function ProfilePage({ onBack }: Props) {
   if (!profile) return null;
   const base = (import.meta as any).env?.BASE_URL ?? "/";
   const fav = BRAWLERS.find(b => b.id === profile.favoriteBrawlerId) || BRAWLERS[0];
+  const favLevel = profile.brawlerLevels[fav.id] || 1;
+  const favTrophies = getBrawlerTrophies(profile, fav.id);
+  const favRank = getBrawlerRank(favTrophies);
   const winrate = profile.totalGamesPlayed
     ? Math.round((profile.totalWins / profile.totalGamesPlayed) * 100)
     : 0;
@@ -67,6 +73,34 @@ export default function ProfilePage({ onBack }: Props) {
         >
           {/* Left: avatar */}
           <div style={card}>
+            <div style={{
+              display: "flex", justifyContent: "center", gap: 8, marginBottom: 10, flexWrap: "wrap",
+            }}>
+              <span style={{
+                background: "linear-gradient(135deg, #F9A825, #FFD700)",
+                color: "#000", borderRadius: 8, padding: "4px 10px",
+                fontSize: 12, fontWeight: 900, letterSpacing: 0.5,
+                boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+              }}>
+                РАНГ {favRank}/{MAX_BRAWLER_RANK}
+              </span>
+              <span style={{
+                background: "linear-gradient(135deg, #311B92, #7B2FBE)",
+                color: "white", borderRadius: 8, padding: "4px 10px",
+                fontSize: 12, fontWeight: 900, letterSpacing: 0.5,
+                border: "1px solid rgba(206,147,216,0.6)",
+              }}>
+                ⚡ СИЛА {favLevel}
+              </span>
+              <span style={{
+                background: "rgba(0,0,0,0.45)",
+                color: "#FFD700", borderRadius: 8, padding: "4px 10px",
+                fontSize: 12, fontWeight: 900, letterSpacing: 0.5,
+                border: "1px solid rgba(255,215,0,0.5)",
+              }}>
+                🏆 {favTrophies}
+              </span>
+            </div>
             <div style={{
               width: "100%", aspectRatio: "1/1", borderRadius: 16,
               background: `radial-gradient(circle at 50% 30%, ${fav.color}55, transparent 70%)`,
