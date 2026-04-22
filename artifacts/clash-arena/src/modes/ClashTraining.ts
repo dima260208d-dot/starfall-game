@@ -46,20 +46,23 @@ export class ClashTraining {
     this.map = createCrystalsMap();
     this.spriteLoaded = spriteLoaded;
     const playerStats = getBrawlerById(playerBrawlerId) || BRAWLERS[0];
-    this.player = new Brawler(playerStats, playerLevel, this.map.width / 2, this.map.height - 600, "blue", true);
+    // Player spawns dead-center; dummies form a ring around them.
+    const cx = this.map.width / 2;
+    const cy = this.map.height / 2;
+    this.player = new Brawler(playerStats, playerLevel, cx, cy, "blue", true);
     this.player.setIdentity(getCurrentUsername() ?? "Игрок", false);
 
-    // Five stationary training dummies arranged in an arc opposite the player.
+    // Five training dummies in an evenly-spaced ring around the player.
     const dummyStats = pickBotStats(playerBrawlerId, 5);
-    const baseX = this.map.width / 2;
-    const baseY = 700;
-    const positions = [
-      { x: baseX - 600, y: baseY + 200 },
-      { x: baseX - 300, y: baseY },
-      { x: baseX,       y: baseY - 60 },
-      { x: baseX + 300, y: baseY },
-      { x: baseX + 600, y: baseY + 200 },
-    ];
+    const ringRadius = 320;
+    const positions = Array.from({ length: 5 }, (_, i) => {
+      // Start the first dummy slightly above the player and rotate clockwise.
+      const angle = -Math.PI / 2 + (i * 2 * Math.PI) / 5;
+      return {
+        x: cx + Math.cos(angle) * ringRadius,
+        y: cy + Math.sin(angle) * ringRadius,
+      };
+    });
     for (let i = 0; i < positions.length; i++) {
       const pos = positions[i];
       // Dummies are on team "red" so the player can damage them; level 5 for healthy HP bags.

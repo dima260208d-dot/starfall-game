@@ -151,25 +151,27 @@ export default function LoadingScreen({ onDone, duration = 4500, label = "ЗАГ
         <div
           style={{
             width: "100%",
-            height: 24,
+            height: 26,
             borderRadius: 99,
-            background: "rgba(255,255,255,0.08)",
+            background:
+              "linear-gradient(180deg, rgba(20,8,40,0.9), rgba(40,20,70,0.85))",
             overflow: "hidden",
-            border: "2px solid rgba(255,255,255,0.18)",
+            border: "2px solid rgba(255,255,255,0.55)",
             boxShadow:
-              "0 0 30px rgba(123,47,190,0.5), inset 0 2px 6px rgba(0,0,0,0.4)",
+              "0 0 30px rgba(123,47,190,0.6), inset 0 2px 8px rgba(0,0,0,0.7)",
             position: "relative",
           }}
         >
           <div
             style={{
-              width: `${progress * 100}%`,
+              width: `${Math.max(2, progress * 100)}%`,
               height: "100%",
               background:
                 "linear-gradient(90deg, #7B2FBE 0%, #FF5252 50%, #FFD700 100%)",
               transition: "width 80ms linear",
-              boxShadow: "0 0 20px rgba(255,215,0,0.8)",
+              boxShadow: "0 0 20px rgba(255,215,0,0.9)",
               position: "relative",
+              minWidth: 4,
             }}
           >
             <div
