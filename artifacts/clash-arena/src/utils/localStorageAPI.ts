@@ -41,6 +41,13 @@ export interface UserProfile {
   // List of brawler IDs the player has unlocked. Locked brawlers can still
   // be tried in Training mode but cannot be set as the active brawler.
   unlockedBrawlers: string[];
+
+  // Per-brawler trophy count (0..MAX_BRAWLER_TROPHIES). Awarded alongside
+  // the global trophy count on every match end, scoped to whichever brawler
+  // the player used. Drives the per-brawler rank ladder (1..100).
+  brawlerTrophies: Record<string, number>;
+  // Per-brawler list of claimed rank rewards (rank numbers 1..100).
+  brawlerRankClaimed: Record<string, number[]>;
 }
 
 export const MAX_TROPHIES = 10000;
@@ -221,7 +228,140 @@ function normalizeProfile(p: UserProfile): UserProfile {
     dailyQuests: p.dailyQuests,
     chestInventory: { ...defaultChestInventory(), ...(p.chestInventory || {}) },
     unlockedBrawlers,
+    brawlerTrophies: { ...(p.brawlerTrophies || {}) },
+    brawlerRankClaimed: { ...(p.brawlerRankClaimed || {}) },
   };
+}
+
+// =========================================================================
+// Per-brawler trophy ranks (1..100)
+// =========================================================================
+
+export const MAX_BRAWLER_RANK = 100;
+export const MAX_BRAWLER_TROPHIES = 5000;
+
+export interface BrawlerRankReward {
+  rank: number;
+  trophies: number; // cumulative trophies needed to reach this rank
+  type: "coins" | "gems" | "powerPoints" | "chest";
+  amount: number;
+  label: string;
+  chestRarity?: ChestRarity;
+}
+
+function buildBrawlerRankTable(): BrawlerRankReward[] {
+  const out: BrawlerRankReward[] = [];
+  for (let rank = 1; rank <= MAX_BRAWLER_RANK; rank++) {
+    // Cumulative trophy threshold: gentle early curve, steeper late game.
+    // rank 1 → 10, rank 10 → ~135, rank 50 → ~1525, rank 100 → ~5000.
+    const trophies = Math.round(10 * rank + 0.4 * rank * rank);
+
+    let reward: Omit<BrawlerRankReward, "rank" | "trophies">;
+    if (rank === MAX_BRAWLER_RANK) {
+      reward = { type: "chest", amount: 1, chestRarity: "mythic", label: "Мифический сундук" };
+    } else if (rank === 75) {
+      reward = { type: "chest", amount: 1, chestRarity: "legendary", label: "Легендарный сундук" };
+    } else if (rank === 50) {
+      reward = { type: "chest", amount: 1, chestRarity: "mega", label: "Мега-сундук" };
+    } else if (rank === 25) {
+      reward = { type: "chest", amount: 1, chestRarity: "epic", label: "Эпический сундук" };
+    } else if (rank % 10 === 0) {
+      const rarity: ChestRarity = rank >= 60 ? "epic" : rank >= 30 ? "rare" : "common";
+      const labelMap: Record<ChestRarity, string> = {
+        common: "Обычный сундук", rare: "Редкий сундук", epic: "Эпический сундук",
+        mega: "Мега-сундук", legendary: "Легендарный сундук", mythic: "Мифический сундук",
+      };
+      reward = { type: "chest", amount: 1, chestRarity: rarity, label: labelMap[rarity] };
+    } else {
+      // Rotate gems / power points / coins.
+      const cycle = rank % 5;
+      if (cycle === 0) {
+        const amount = 5 + Math.floor(rank / 5);
+        reward = { type: "gems", amount, label: `${amount} кристаллов` };
+      } else if (cycle === 3) {
+        const amount = 3 + Math.floor(rank / 4);
+        reward = { type: "powerPoints", amount, label: `${amount} очков прокачки` };
+      } else {
+        const amount = 30 + rank * 5;
+        reward = { type: "coins", amount, label: `${amount} монет` };
+      }
+    }
+    out.push({ rank, trophies, ...reward });
+  }
+  return out;
+}
+
+export const BRAWLER_RANK_TABLE: BrawlerRankReward[] = buildBrawlerRankTable();
+
+export function getBrawlerTrophies(profile: UserProfile | null, brawlerId: string): number {
+  if (!profile) return 0;
+  return profile.brawlerTrophies[brawlerId] || 0;
+}
+
+export function getBrawlerRank(trophies: number): number {
+  // Highest rank whose trophy threshold is satisfied. Rank 0 if no rank yet.
+  let rank = 0;
+  for (const r of BRAWLER_RANK_TABLE) {
+    if (trophies >= r.trophies) rank = r.rank;
+    else break;
+  }
+  return rank;
+}
+
+export function getBrawlerRankClaimed(profile: UserProfile | null, brawlerId: string): number[] {
+  if (!profile) return [];
+  return profile.brawlerRankClaimed[brawlerId] || [];
+}
+
+export function getUnclaimedBrawlerRankCount(profile: UserProfile | null, brawlerId: string): number {
+  if (!profile) return 0;
+  const trophies = getBrawlerTrophies(profile, brawlerId);
+  const rank = getBrawlerRank(trophies);
+  const claimed = new Set(getBrawlerRankClaimed(profile, brawlerId));
+  let n = 0;
+  for (let r = 1; r <= rank; r++) if (!claimed.has(r)) n++;
+  return n;
+}
+
+export function getTotalUnclaimedBrawlerRankCount(profile: UserProfile | null): number {
+  if (!profile) return 0;
+  let total = 0;
+  for (const id of Object.keys(profile.brawlerTrophies)) {
+    total += getUnclaimedBrawlerRankCount(profile, id);
+  }
+  return total;
+}
+
+export function claimBrawlerRankReward(
+  brawlerId: string,
+  rank: number,
+): { success: boolean; reward?: BrawlerRankReward; error?: string } {
+  const profile = getCurrentProfile();
+  if (!profile) return { success: false, error: "Не авторизован" };
+  if (rank < 1 || rank > MAX_BRAWLER_RANK) return { success: false, error: "Неверный ранг" };
+  const reward = BRAWLER_RANK_TABLE[rank - 1];
+  const trophies = getBrawlerTrophies(profile, brawlerId);
+  if (trophies < reward.trophies) return { success: false, error: "Недостаточно кубков" };
+  const claimed = new Set(getBrawlerRankClaimed(profile, brawlerId));
+  if (claimed.has(rank)) return { success: false, error: "Уже получено" };
+  claimed.add(rank);
+  const updates: Partial<UserProfile> = {
+    brawlerRankClaimed: {
+      ...profile.brawlerRankClaimed,
+      [brawlerId]: Array.from(claimed),
+    },
+  };
+  if (reward.type === "coins") updates.coins = profile.coins + reward.amount;
+  else if (reward.type === "gems") updates.gems = profile.gems + reward.amount;
+  else if (reward.type === "powerPoints") updates.powerPoints = profile.powerPoints + reward.amount;
+  else if (reward.type === "chest" && reward.chestRarity) {
+    updates.chestInventory = {
+      ...profile.chestInventory,
+      [reward.chestRarity]: (profile.chestInventory[reward.chestRarity] || 0) + reward.amount,
+    };
+  }
+  updateProfile(updates);
+  return { success: true, reward };
 }
 
 // ─── Notification badges ────────────────────────────────────────────────────
@@ -461,6 +601,18 @@ export function recordGameResult(opts: {
     },
   };
 
+  // Per-brawler trophies — awarded to whichever brawler the player used.
+  const usedId = profile.selectedBrawlerId;
+  const prevBrawlerTrophies = profile.brawlerTrophies[usedId] || 0;
+  const newBrawlerTrophies = Math.max(
+    0,
+    Math.min(MAX_BRAWLER_TROPHIES, prevBrawlerTrophies + actualDelta),
+  );
+  const updatedBrawlerTrophies = {
+    ...profile.brawlerTrophies,
+    [usedId]: newBrawlerTrophies,
+  };
+
   updateProfile({
     totalGamesPlayed: profile.totalGamesPlayed + 1,
     totalWins: won ? profile.totalWins + 1 : profile.totalWins,
@@ -471,6 +623,7 @@ export function recordGameResult(opts: {
     xp: newXp,
     clashPassLevel: newLevel,
     modeStats: newModeStats,
+    brawlerTrophies: updatedBrawlerTrophies,
     lastResult: { place, trophyDelta: actualDelta, xpGained, mode, won },
   });
 

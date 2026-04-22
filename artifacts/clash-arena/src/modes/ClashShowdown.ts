@@ -9,7 +9,7 @@ import { updateDamageNumbers, renderDamageNumbers, clearDamageNumbers } from "..
 import { updateEffects, renderEffects, clearEffects } from "../utils/effects";
 import { renderMap } from "../game/MapRenderer";
 import { angleTo, autoAimAngle, distance, randomInt } from "../utils/helpers";
-import { recordGameResult } from "../utils/localStorageAPI";
+import { recordGameResult, getCurrentUsername } from "../utils/localStorageAPI";
 
 export interface DropItem {
   x: number;
@@ -44,6 +44,7 @@ export class ClashShowdown {
   spriteLoaded: boolean;
   
   private resultRecorded = false;
+  private playerDropsSpawned = false;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -89,6 +90,7 @@ export class ClashShowdown {
     const playerSlot = randomInt(0, totalSlots - 1);
     const playerSpawn = allPositions[playerSlot];
     this.player = new Brawler(playerStats, playerLevel, playerSpawn.x, playerSpawn.y, "ffa-player", true);
+    this.player.setIdentity(getCurrentUsername() ?? "Игрок", false);
 
     const botPicks = pickBotStats(playerBrawlerId, totalSlots - 1);
     let botIdx = 0;
@@ -132,6 +134,13 @@ export class ClashShowdown {
   handleSuper(): void {
     if (!this.player.canUseSuper()) return;
     const allBrawlers = [this.player, ...this.bots];
+    // Auto-aim the super at the closest enemy in range so it never fires
+    // straight into a wall when the player just slams the button.
+    const mouseAngle = angleTo(
+      this.player.x, this.player.y,
+      this.input.state.mouseWorldX, this.input.state.mouseWorldY,
+    );
+    this.player.angle = autoAimAngle(this.player, this.bots, mouseAngle);
     this.player.activateSuper(allBrawlers, this.map, this.projectiles);
   }
 
@@ -227,18 +236,33 @@ export class ClashShowdown {
     
     updateDamageNumbers(dt);
     updateEffects(dt, [this.player, ...this.bots]);
-    
+
     if (!this.player.alive) {
+      // Drop the player's stash of power cubes (+1) where they fell, just like bots do.
+      if (!this.playerDropsSpawned) {
+        const cubeCount = this.player.powerCubes + 1;
+        for (let i = 0; i < cubeCount; i++) {
+          const a = Math.random() * Math.PI * 2;
+          const r = 20 + Math.random() * 40;
+          this.drops.push({
+            x: this.player.x + Math.cos(a) * r,
+            y: this.player.y + Math.sin(a) * r,
+            type: "powerup",
+            radius: 14,
+          });
+        }
+        this.playerDropsSpawned = true;
+      }
       this.over = true;
       this.won = false;
       if (!this.resultRecorded) {
         const aliveBots = this.bots.filter(b => b.alive).length;
-        const place = 1 + aliveBots; // 1=alone winner, up to 1 + 7 = 8
+        const place = 1 + aliveBots;
         recordGameResult({ won: false, mode: "showdown", place, totalPlayers: 8 });
         this.resultRecorded = true;
       }
     }
-    
+
     const aliveEnemies = this.bots.filter(b => b.alive);
     if (aliveEnemies.length === 0 && this.player.alive) {
       this.over = true;
@@ -437,19 +461,8 @@ export class ClashShowdown {
     ctx.textAlign = "right";
     ctx.fillText(`Враги: ${aliveCount}`, 1185, 36);
     
-    const charges = this.player.attackCharges;
-    const maxCharges = this.player.maxAttackCharges;
-    const chargeX = 600 - (maxCharges * 25) / 2;
-    for (let i = 0; i < maxCharges; i++) {
-      ctx.fillStyle = i < charges ? this.player.stats.accentColor : "rgba(255,255,255,0.2)";
-      ctx.beginPath();
-      ctx.arc(chargeX + i * 30, 775, 10, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = "rgba(255,255,255,0.5)";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    }
-    
+    // Ammo dots are now drawn above the brawler (under the HP bar) by Brawler.render().
+
     ctx.fillStyle = "rgba(255,255,255,0.7)";
     ctx.font = "11px Arial";
     ctx.textAlign = "center";

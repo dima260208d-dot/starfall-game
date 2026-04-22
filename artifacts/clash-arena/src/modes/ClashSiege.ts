@@ -8,7 +8,7 @@ import { InputHandler } from "../game/InputHandler";
 import { updateDamageNumbers, renderDamageNumbers, clearDamageNumbers, spawnDamageNumber } from "../utils/damageNumbers";
 import { updateEffects, renderEffects, clearEffects } from "../utils/effects";
 import { angleTo, autoAimAngle, distance, randomInt } from "../utils/helpers";
-import { recordGameResult } from "../utils/localStorageAPI";
+import { recordGameResult, getCurrentUsername } from "../utils/localStorageAPI";
 import { renderPlayerHUD } from "./sharedHUD";
 
 export class ClashSiege {
@@ -44,6 +44,7 @@ export class ClashSiege {
     this.spriteLoaded = spriteLoaded;
     const playerStats = getBrawlerById(playerBrawlerId) || BRAWLERS[0];
     this.player = new Brawler(playerStats, playerLevel, 1750, 1900, "blue", true);
+    this.player.setIdentity(getCurrentUsername() ?? "Игрок", false);
     // Spawn 3 allied bots to defend the base together with the player
     const allyStats = BRAWLERS.filter(b => b.id !== playerBrawlerId);
     const allyPos: Array<{ x: number; y: number }> = [
@@ -71,6 +72,11 @@ export class ClashSiege {
   }
   handleSuper(): void {
     if (!this.player.canUseSuper()) return;
+    const mouseAngle = angleTo(
+      this.player.x, this.player.y,
+      this.input.state.mouseWorldX, this.input.state.mouseWorldY,
+    );
+    this.player.angle = autoAimAngle(this.player, this.enemies, mouseAngle);
     this.player.activateSuper([this.player, ...this.allies, ...this.enemies], this.map, this.projectiles);
   }
 
@@ -215,12 +221,7 @@ export class ClashSiege {
       } else {
         this.playerRespawnTimer -= dt;
         if (this.playerRespawnTimer <= 0) {
-          this.player.alive = true;
-          this.player.hp = this.player.maxHp;
-          this.player.x = 1750;
-          this.player.y = 1900;
-          this.player.superCharge = 0;
-          this.player.superReady = false;
+          this.player.respawn(1750, 1900);
         }
       }
     }

@@ -3,6 +3,7 @@ import { BrawlerStats } from "./BrawlerData";
 import { Projectile } from "./Projectile";
 import { GameMap, collidesWithWalls } from "../game/MapRenderer";
 import { distance, angleTo, randomFloat, lineBlockedByWalls } from "../utils/helpers";
+import { pickBotName } from "../utils/botNames";
 
 type BotState = "idle" | "chase" | "attack" | "retreat" | "wander" | "forced";
 
@@ -15,9 +16,10 @@ export class Bot extends Brawler {
   stateTimer = 0;
   crystalTarget?: { x: number; y: number };
   forcedTarget?: { x: number; y: number };
-  
+
   constructor(stats: BrawlerStats, level: number, x: number, y: number, team: Team) {
     super(stats, level, x, y, team, false);
+    this.setIdentity(pickBotName(), true);
   }
 
   updateAI(dt: number, allBrawlers: Brawler[], map: GameMap, projectiles: Projectile[]): void {

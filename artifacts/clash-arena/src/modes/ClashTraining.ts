@@ -9,6 +9,7 @@ import { updateDamageNumbers, renderDamageNumbers, clearDamageNumbers } from "..
 import { updateEffects, renderEffects, clearEffects } from "../utils/effects";
 import { angleTo, autoAimAngle, distance } from "../utils/helpers";
 import { renderPlayerHUD } from "./sharedHUD";
+import { getCurrentUsername } from "../utils/localStorageAPI";
 
 interface Dummy {
   bot: Bot;
@@ -46,6 +47,7 @@ export class ClashTraining {
     this.spriteLoaded = spriteLoaded;
     const playerStats = getBrawlerById(playerBrawlerId) || BRAWLERS[0];
     this.player = new Brawler(playerStats, playerLevel, this.map.width / 2, this.map.height - 600, "blue", true);
+    this.player.setIdentity(getCurrentUsername() ?? "Игрок", false);
 
     // Five stationary training dummies arranged in an arc opposite the player.
     const dummyStats = pickBotStats(playerBrawlerId, 5);
@@ -89,6 +91,11 @@ export class ClashTraining {
     if (!this.player.canUseSuper()) return;
     const enemies = this.dummies.map(d => d.bot).filter(b => b.alive);
     const allBrawlers = [this.player, ...enemies];
+    const mouseAngle = angleTo(
+      this.player.x, this.player.y,
+      this.input.state.mouseWorldX, this.input.state.mouseWorldY,
+    );
+    this.player.angle = autoAimAngle(this.player, enemies, mouseAngle);
     this.player.activateSuper(allBrawlers, this.map, this.projectiles);
   }
 

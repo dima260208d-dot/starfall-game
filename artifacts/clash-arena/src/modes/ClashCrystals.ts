@@ -9,7 +9,7 @@ import { updateDamageNumbers, renderDamageNumbers, clearDamageNumbers } from "..
 import { updateEffects, renderEffects, clearEffects } from "../utils/effects";
 import { renderMap } from "../game/MapRenderer";
 import { angleTo, autoAimAngle, distance, randomInt } from "../utils/helpers";
-import { recordGameResult } from "../utils/localStorageAPI";
+import { recordGameResult, getCurrentUsername } from "../utils/localStorageAPI";
 
 export interface Crystal {
   x: number;
@@ -65,6 +65,7 @@ export class ClashCrystals {
     
     const playerStats = getBrawlerById(playerBrawlerId) || BRAWLERS[0];
     this.player = new Brawler(playerStats, playerLevel, 600, 1750, "blue", true);
+    this.player.setIdentity(getCurrentUsername() ?? "Игрок", false);
     
     const allStats = pickBotStats(playerBrawlerId, 5);
 
@@ -99,6 +100,11 @@ export class ClashCrystals {
   handleSuper(): void {
     if (!this.player.canUseSuper()) return;
     const allBrawlers = [this.player, ...this.allies, ...this.enemies];
+    const mouseAngle = angleTo(
+      this.player.x, this.player.y,
+      this.input.state.mouseWorldX, this.input.state.mouseWorldY,
+    );
+    this.player.angle = autoAimAngle(this.player, this.enemies, mouseAngle);
     this.player.activateSuper(allBrawlers, this.map, this.projectiles);
   }
 
@@ -206,12 +212,7 @@ export class ClashCrystals {
       } else {
         this.playerRespawnTimer -= dt;
         if (this.playerRespawnTimer <= 0) {
-          this.player.alive = true;
-          this.player.hp = this.player.maxHp;
-          this.player.x = this.playerSpawnX;
-          this.player.y = this.playerSpawnY;
-          this.player.superCharge = 0;
-          this.player.superReady = false;
+          this.player.respawn(this.playerSpawnX, this.playerSpawnY);
         }
       }
     }

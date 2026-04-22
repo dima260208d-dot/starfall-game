@@ -8,7 +8,7 @@ import { InputHandler } from "../game/InputHandler";
 import { updateDamageNumbers, renderDamageNumbers, clearDamageNumbers, spawnDamageNumber } from "../utils/damageNumbers";
 import { updateEffects, renderEffects, clearEffects } from "../utils/effects";
 import { angleTo, autoAimAngle, distance, randomInt } from "../utils/helpers";
-import { recordGameResult } from "../utils/localStorageAPI";
+import { recordGameResult, getCurrentUsername } from "../utils/localStorageAPI";
 import { renderPlayerHUD } from "./sharedHUD";
 
 interface Safe {
@@ -42,6 +42,7 @@ export class ClashHeist {
     this.spriteLoaded = spriteLoaded;
     const playerStats = getBrawlerById(playerBrawlerId) || BRAWLERS[0];
     this.player = new Brawler(playerStats, playerLevel, 600, 1750, "blue", true);
+    this.player.setIdentity(getCurrentUsername() ?? "Игрок", false);
 
     const allStats = pickBotStats(playerBrawlerId, 5);
     this.allies.push(new Bot(allStats[0], randomInt(1, 4), 600, 1300, "blue"));
@@ -85,6 +86,11 @@ export class ClashHeist {
   handleSuper(): void {
     if (!this.player.canUseSuper()) return;
     const allBrawlers = [this.player, ...this.allies, ...this.enemies];
+    const mouseAngle = angleTo(
+      this.player.x, this.player.y,
+      this.input.state.mouseWorldX, this.input.state.mouseWorldY,
+    );
+    this.player.angle = autoAimAngle(this.player, this.enemies, mouseAngle);
     this.player.activateSuper(allBrawlers, this.map, this.projectiles);
   }
 
@@ -148,12 +154,7 @@ export class ClashHeist {
       } else {
         this.playerRespawnTimer -= dt;
         if (this.playerRespawnTimer <= 0) {
-          this.player.alive = true;
-          this.player.hp = this.player.maxHp;
-          this.player.x = 600;
-          this.player.y = 1750;
-          this.player.superCharge = 0;
-          this.player.superReady = false;
+          this.player.respawn(600, 1750);
         }
       }
     }

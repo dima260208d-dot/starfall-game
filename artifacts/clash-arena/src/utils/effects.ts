@@ -53,6 +53,11 @@ export interface Effect {
   particleCount?: number;
   // Cached zigzag points for a lightning bolt.
   zigzag?: { x: number; y: number }[];
+
+  // For followBrawler shields/auras: if set, the effect is removed when the
+  // brawler no longer has the named status. If unset, the effect simply runs
+  // its timer (used by the spawn shield, which has no underlying status).
+  linkedStatus?: "stun" | "berserker";
 }
 
 const effects: Effect[] = [];
@@ -105,10 +110,7 @@ export function updateEffects(dt: number, allBrawlers: Brawler[]): void {
       if (!e.followBrawler.alive) { effects.splice(i, 1); continue; }
       e.x = e.followBrawler.x;
       e.y = e.followBrawler.y;
-      if (e.kind === "berserkAura" && !e.followBrawler.statusEffects.some(s => s.type === "berserker")) {
-        effects.splice(i, 1); continue;
-      }
-      if (e.kind === "shieldDome" && !e.followBrawler.statusEffects.some(s => s.type === "stun")) {
+      if (e.linkedStatus && !e.followBrawler.statusEffects.some(s => s.type === e.linkedStatus)) {
         effects.splice(i, 1); continue;
       }
     }

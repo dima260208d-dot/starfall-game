@@ -27,18 +27,7 @@ export function renderPlayerHUD(ctx: CanvasRenderingContext2D, player: Brawler):
   ctx.font = "bold 11px Arial";
   ctx.fillText(player.superReady ? "СУПЕР ГОТОВ! [E]" : "Заряжаем супер...", 20, 73);
 
-  const charges = player.attackCharges;
-  const maxCharges = player.maxAttackCharges;
-  const chargeX = 600 - (maxCharges * 25) / 2;
-  for (let i = 0; i < maxCharges; i++) {
-    ctx.fillStyle = i < charges ? player.stats.accentColor : "rgba(255,255,255,0.2)";
-    ctx.beginPath();
-    ctx.arc(chargeX + i * 30, 775, 10, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = "rgba(255,255,255,0.5)";
-    ctx.lineWidth = 2;
-    ctx.stroke();
-  }
+  // Ammo dots are now drawn above the brawler (under the HP bar) by Brawler.render().
 
   ctx.fillStyle = "rgba(255,255,255,0.7)";
   ctx.font = "11px Arial";

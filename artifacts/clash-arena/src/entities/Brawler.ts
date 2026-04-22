@@ -61,7 +61,13 @@ export class Brawler {
   turret: Brawler | null = null;
   
   powerCubes = 0;
-  
+
+  // Display name shown above the brawler in match. For bots this is set to a
+  // Russian-sounding nickname; for the local player it is set to the active
+  // account username at match start.
+  displayName: string = "";
+  isBot: boolean = false;
+
   constructor(stats: BrawlerStats, level: number, x: number, y: number, team: Team, isPlayer = false) {
     this.id = `brawler_${Math.random().toString(36).slice(2)}`;
     this.stats = stats;
@@ -78,6 +84,45 @@ export class Brawler {
     this.attackCharges = scaled.attackCharges;
     this.maxAttackCharges = scaled.attackCharges;
     this.attackCooldown = scaled.attackCooldown;
+
+    // Initial spawn shield: 100% damage immunity for 5 seconds.
+    this.grantSpawnShield(5);
+  }
+
+  setIdentity(displayName: string, isBot: boolean): void {
+    this.displayName = displayName;
+    this.isBot = isBot;
+  }
+
+  /** Restore this brawler at (x,y) with full HP, no statuses, charges reset
+   *  and a 3-second invulnerability shield (used by team modes on respawn). */
+  respawn(x: number, y: number): void {
+    this.x = x;
+    this.y = y;
+    this.hp = this.maxHp;
+    this.alive = true;
+    this.deathAnim = 0;
+    this.statusEffects = [];
+    this.attackCharges = this.maxAttackCharges;
+    this.attackCooldownTimer = 0;
+    this.superCharge = 0;
+    this.superReady = false;
+    this.hitFlash = 0;
+    this.grantSpawnShield(3);
+  }
+
+  /** Grant a damage-immunity bubble for `seconds` and spawn its visual ring. */
+  grantSpawnShield(seconds: number): void {
+    this.invulnerable = true;
+    this.invulnerableTimer = seconds;
+    spawnEffect({
+      kind: "shieldDome",
+      x: this.x, y: this.y,
+      radius: this.radius + 14,
+      color: "#80D8FF",
+      timer: seconds, maxTimer: seconds,
+      followBrawler: this,
+    });
   }
 
   get scaledDamage(): number {
@@ -437,7 +482,8 @@ export class Brawler {
           const angle = angleTo(nearest.x, nearest.y, this.x, this.y);
           this.x = clamp(nearest.x + Math.cos(angle) * 40, this.radius, map.width - this.radius);
           this.y = clamp(nearest.y + Math.sin(angle) * 40, this.radius, map.height - this.radius);
-          // Teleport no longer deals damage — the player must follow up with attacks.
+          // Teleport strike: Miya deals her standard super burst on arrival.
+          nearest.takeDamage(this.scaledDamage * 1.6, this);
           nearest.addStatus("slow", 1.5, 0.5);
           // Departure swirl
           spawnEffect({
@@ -492,6 +538,7 @@ export class Brawler {
           radius: this.radius + 18, color: "#FFD700",
           timer: 4, maxTimer: 4,
           followBrawler: this,
+          linkedStatus: "stun",
         });
         break;
       }
@@ -574,6 +621,7 @@ export class Brawler {
           radius: this.radius + 8, color: "#FF3D00",
           timer: 5, maxTimer: 5,
           followBrawler: this,
+          linkedStatus: "berserker",
         });
         break;
       }
@@ -780,13 +828,15 @@ export class Brawler {
     }
 
     if (this.alive) {
+      this.renderNameLabel(ctx, sx, sy, viewerTeam);
       this.renderHPBar(ctx, sx, sy, viewerTeam);
+      this.renderAmmoBar(ctx, sx, sy);
     }
-    
+
     if (this.alive && this.isPlayer) {
       this.renderSuperBar(ctx, sx, sy);
     }
-    
+
     if (this.alive && this.powerCubes > 0) {
       ctx.save();
       ctx.fillStyle = "#FFD700";
@@ -794,16 +844,88 @@ export class Brawler {
       ctx.textAlign = "center";
       ctx.shadowColor = "rgba(0,0,0,0.8)";
       ctx.shadowBlur = 3;
-      ctx.fillText(`◆${this.powerCubes}`, sx, sy - this.radius - 30);
+      ctx.fillText(`◆${this.powerCubes}`, sx, sy - this.radius - 70);
       ctx.restore();
     }
+  }
+
+  private renderNameLabel(ctx: CanvasRenderingContext2D, sx: number, sy: number, viewerTeam?: string): void {
+    if (!this.displayName) return;
+    const labelY = sy - this.radius - 56;
+    ctx.save();
+    ctx.font = "bold 11px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.shadowColor = "rgba(0,0,0,0.9)";
+    ctx.shadowBlur = 4;
+
+    if (this.isBot) {
+      // Yellow "БОТ" tag, then a duller name beside it.
+      const tag = "БОТ";
+      const nm = ` ${this.displayName}`;
+      const tagW = ctx.measureText(tag).width;
+      const nmW = ctx.measureText(nm).width;
+      const totalW = tagW + nmW;
+      const startX = sx - totalW / 2;
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#FFD740";
+      ctx.fillText(tag, startX, labelY);
+      ctx.fillStyle = viewerTeam !== undefined && this.team !== viewerTeam
+        ? "#FF8A80"
+        : "rgba(255,255,255,0.92)";
+      ctx.fillText(nm, startX + tagW, labelY);
+    } else {
+      ctx.fillStyle = this.isPlayer
+        ? "#FFFFFF"
+        : (viewerTeam !== undefined && this.team !== viewerTeam ? "#FF8A80" : "#A5D6A7");
+      ctx.fillText(this.displayName, sx, labelY);
+    }
+    ctx.restore();
+  }
+
+  private renderAmmoBar(ctx: CanvasRenderingContext2D, sx: number, sy: number): void {
+    if (this.maxAttackCharges <= 0) return;
+    // Sit just below the HP bar, which now lives at sy - radius - 38.
+    const by = sy - this.radius - 26;
+    const totalW = this.radius * 2.6;
+    const segGap = 2;
+    const segW = (totalW - segGap * (this.maxAttackCharges - 1)) / this.maxAttackCharges;
+    const segH = 4;
+    const startX = sx - totalW / 2;
+    ctx.save();
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    ctx.fillRect(startX - 1, by - 1, totalW + 2, segH + 2);
+    for (let i = 0; i < this.maxAttackCharges; i++) {
+      const x = startX + i * (segW + segGap);
+      const filled = i < this.attackCharges;
+      if (filled) {
+        ctx.fillStyle = this.stats.accentColor;
+      } else {
+        // Show recharge progress on the next-empty slot.
+        const isNext = i === Math.floor(this.attackCharges);
+        const partial = isNext ? 1 - (this.attackCooldownTimer / this.attackCooldown) : 0;
+        ctx.fillStyle = "rgba(255,255,255,0.18)";
+        ctx.fillRect(x, by, segW, segH);
+        if (partial > 0) {
+          ctx.fillStyle = `${this.stats.accentColor}`;
+          ctx.globalAlpha = 0.55;
+          ctx.fillRect(x, by, segW * partial, segH);
+          ctx.globalAlpha = 1;
+        }
+        continue;
+      }
+      ctx.fillRect(x, by, segW, segH);
+    }
+    ctx.restore();
   }
 
   private renderHPBar(ctx: CanvasRenderingContext2D, sx: number, sy: number, viewerTeam?: string): void {
     const bw = this.radius * 2.6;
     const bh = 7;
     const bx = sx - bw / 2;
-    const by = sy - this.radius - 20;
+    // Raised so the HP bar (and the ammo row right under it) no longer
+    // overlaps the brawler sprite. Was sy-radius-20.
+    const by = sy - this.radius - 38;
     const ratio = Math.max(0, Math.min(1, this.hp / this.maxHp));
     
     ctx.save();
@@ -836,7 +958,8 @@ export class Brawler {
     const bw = this.radius * 2.5;
     const bh = 4;
     const bx = sx - bw / 2;
-    const by = sy - this.radius - 26;
+    // Slim super-charge bar tucked just above the HP/ammo cluster.
+    const by = sy - this.radius - 46;
     const ratio = this.superCharge / this.maxSuperCharge;
     
     ctx.fillStyle = "rgba(0,0,0,0.5)";
