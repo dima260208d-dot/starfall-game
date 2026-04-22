@@ -247,29 +247,26 @@ export default function MainMenu(props: MainMenuProps) {
             }}
           />
           <div style={{
-            position: "absolute", bottom: -4, left: "50%", transform: "translateX(-50%)",
-            display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+            position: "absolute", top: -8, left: "50%", transform: "translateX(-50%)",
+            display: "inline-flex", alignItems: "center", gap: 8,
+            background: "rgba(0,0,0,0.55)",
+            border: "1px solid rgba(255,215,0,0.5)",
+            borderRadius: 10, padding: "4px 10px",
+            boxShadow: "0 0 12px rgba(255,215,0,0.25)",
             whiteSpace: "nowrap",
           }}>
-            <div style={{
-              background: "rgba(0,0,0,0.55)", border: `1px solid ${brawler.color}`,
-              borderRadius: 12, padding: "6px 18px",
-              fontSize: 18, fontWeight: 800, color: brawler.color,
-              letterSpacing: 2,
-            }}>
-              {brawler.name.toUpperCase()}
-            </div>
-            <div style={{
-              display: "inline-flex", alignItems: "center", gap: 8,
-              background: "rgba(0,0,0,0.55)",
-              border: "1px solid rgba(255,215,0,0.5)",
-              borderRadius: 10, padding: "4px 10px",
-              boxShadow: "0 0 12px rgba(255,215,0,0.25)",
-            }}>
-              <RankPill rank={brawlerRank} />
-              <PowerPill level={brawlerLevel} />
-              <span style={{ color: "#FFD700", fontSize: 12, fontWeight: 800 }}>🏆 {brawlerTrophies}</span>
-            </div>
+            <RankPill rank={brawlerRank} />
+            <PowerPill level={brawlerLevel} />
+            <span style={{ color: "#FFD700", fontSize: 12, fontWeight: 800 }}>🏆 {brawlerTrophies}</span>
+          </div>
+          <div style={{
+            position: "absolute", bottom: -4, left: "50%", transform: "translateX(-50%)",
+            background: "rgba(0,0,0,0.55)", border: `1px solid ${brawler.color}`,
+            borderRadius: 12, padding: "6px 18px",
+            fontSize: 18, fontWeight: 800, color: brawler.color,
+            letterSpacing: 2, whiteSpace: "nowrap",
+          }}>
+            {brawler.name.toUpperCase()}
           </div>
         </div>
       </div>
