@@ -41,11 +41,22 @@ export default function MainMenu(props: MainMenuProps) {
   const [isFullscreen, setIsFullscreen] = useState<boolean>(
     typeof document !== "undefined" && !!document.fullscreenElement,
   );
+  const [vw, setVw] = useState<number>(typeof window !== "undefined" ? window.innerWidth : 1280);
+  const [vh, setVh] = useState<number>(typeof window !== "undefined" ? window.innerHeight : 720);
+  // "Compact" applies the mobile-optimised layout: smaller buttons, tighter
+  // spacing, no overlapping panels. Triggered on phones (short side ≤ 500)
+  // OR narrow desktop windows (width < 900).
+  const compact = vw < 900 || vh < 500;
 
   useEffect(() => {
     const onFs = () => setIsFullscreen(!!document.fullscreenElement);
+    const onResize = () => { setVw(window.innerWidth); setVh(window.innerHeight); };
     document.addEventListener("fullscreenchange", onFs);
-    return () => document.removeEventListener("fullscreenchange", onFs);
+    window.addEventListener("resize", onResize);
+    return () => {
+      document.removeEventListener("fullscreenchange", onFs);
+      window.removeEventListener("resize", onResize);
+    };
   }, []);
 
   const toggleFullscreen = async () => {
@@ -211,42 +222,61 @@ export default function MainMenu(props: MainMenuProps) {
         </button>
       </div>
 
-      {/* TOP-RIGHT: resources */}
-      <div style={{ position: "absolute", top: 16, right: 16, zIndex: 5 }}>
+      {/* TOP-RIGHT: fullscreen toggle + resources */}
+      <div style={{
+        position: "absolute", top: 16, right: 16, zIndex: 5,
+        display: "flex", alignItems: "center", gap: 8,
+      }}>
+        <button
+          onClick={toggleFullscreen}
+          title={isFullscreen ? "Выйти из полного экрана" : "Полный экран"}
+          style={{
+            width: compact ? 30 : 34, height: compact ? 30 : 34,
+            borderRadius: 10,
+            background: "rgba(0,0,0,0.35)",
+            border: "1px solid rgba(64,196,255,0.55)",
+            color: "#40C4FF",
+            fontSize: compact ? 14 : 16, fontWeight: 900,
+            cursor: "pointer", lineHeight: 1,
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            backdropFilter: "blur(10px)",
+            boxShadow: "0 0 10px rgba(64,196,255,0.25)",
+          }}
+        >{isFullscreen ? "🗗" : "⛶"}</button>
         <div style={{
-          display: "flex", gap: 6,
+          display: "flex", gap: compact ? 2 : 6,
           background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.08)",
-          borderRadius: 12, padding: "6px 10px", backdropFilter: "blur(10px)",
+          borderRadius: 12, padding: compact ? "4px 6px" : "6px 10px", backdropFilter: "blur(10px)",
         }}>
-          <Resource icon="🪙" value={profile.coins} color="#FFD700" />
-          <Resource icon="💎" value={profile.gems} color="#40C4FF" />
-          <Resource icon="✨" value={profile.powerPoints} color="#CE93D8" />
+          <Resource icon="🪙" value={profile.coins} color="#FFD700" compact={compact} />
+          <Resource icon="💎" value={profile.gems} color="#40C4FF" compact={compact} />
+          <Resource icon="✨" value={profile.powerPoints} color="#CE93D8" compact={compact} />
         </div>
       </div>
 
       {/* TOP-CENTER: title on a bright panel so it pops against the radial bg */}
       <div style={{
-        position: "absolute", top: 14, left: "50%", transform: "translateX(-50%)",
+        position: "absolute", top: compact ? 8 : 14, left: "50%", transform: "translateX(-50%)",
         zIndex: 5, pointerEvents: "none",
         textAlign: "center",
       }}>
         <div style={{
           display: "inline-flex", flexDirection: "column", alignItems: "center",
-          padding: "10px 32px 12px",
+          padding: compact ? "5px 16px 6px" : "10px 32px 12px",
           background: "linear-gradient(135deg, #CE93D8 0%, #FFD700 50%, #40C4FF 100%)",
           backgroundSize: "200% auto", animation: "shimmer 4s linear infinite",
-          borderRadius: 18,
+          borderRadius: compact ? 12 : 18,
           boxShadow: "0 0 50px rgba(206,147,216,0.55), 0 6px 22px rgba(0,0,0,0.5)",
           border: "2px solid rgba(255,255,255,0.35)",
         }}>
           <div style={{
-            fontSize: 44, fontWeight: 900, color: "white",
-            letterSpacing: 8, lineHeight: 1,
+            fontSize: compact ? 22 : 44, fontWeight: 900, color: "white",
+            letterSpacing: compact ? 4 : 8, lineHeight: 1,
             textShadow: "0 2px 10px rgba(0,0,0,0.55), 0 0 18px rgba(255,255,255,0.4)",
           }}>CLASH</div>
           <div style={{
-            fontSize: 16, fontWeight: 800, color: "white",
-            letterSpacing: 12, marginTop: 2,
+            fontSize: compact ? 9 : 16, fontWeight: 800, color: "white",
+            letterSpacing: compact ? 6 : 12, marginTop: 2,
             textShadow: "0 2px 8px rgba(0,0,0,0.55)",
           }}>ARENA</div>
         </div>
@@ -316,105 +346,147 @@ export default function MainMenu(props: MainMenuProps) {
 
       {/* RIGHT SIDE BUTTONS */}
       <div style={{
-        position: "absolute", right: 18, top: "50%", transform: "translateY(-50%)",
-        display: "flex", flexDirection: "column", gap: 12, zIndex: 4,
+        position: "absolute", right: compact ? 8 : 18, top: "50%", transform: "translateY(-50%)",
+        display: "flex", flexDirection: "column", gap: compact ? 6 : 12, zIndex: 4,
       }}>
-        <SideButton icon="🛒" label="Магазин" onClick={onShop} color="#FFD700" />
-        <SideButton icon="🎒" label="Коллекция" onClick={onCollection} color="#40C4FF" />
-        <SideButton icon="⚙️" label="Настройки" onClick={onSettings} color="#69F0AE" />
-        <SideButton
-          icon={isFullscreen ? "🗗" : "⛶"}
-          label={isFullscreen ? "Выйти из ПЭ" : "Полный экран"}
-          onClick={toggleFullscreen}
-          color="#40C4FF"
-        />
-        <SideButton icon="👥" label="Друзья" onClick={() => handleSoonNotice("Друзья — скоро")} color="#CE93D8" />
-        <SideButton icon="🔔" label="Уведомления" onClick={() => handleSoonNotice("Новых уведомлений нет")} color="#FFAB40" />
-        <SideButton icon="🚪" label="Выйти" onClick={onLogout} color="#FF5252" />
+        <SideButton icon="🛒" label="Магазин" onClick={onShop} color="#FFD700" compact={compact} />
+        <SideButton icon="🎒" label="Коллекция" onClick={onCollection} color="#40C4FF" compact={compact} />
+        <SideButton icon="⚙️" label="Настройки" onClick={onSettings} color="#69F0AE" compact={compact} />
+        <SideButton icon="👥" label="Друзья" onClick={() => handleSoonNotice("Друзья — скоро")} color="#CE93D8" compact={compact} />
+        <SideButton icon="🔔" label="Сообщения" onClick={() => handleSoonNotice("Новых уведомлений нет")} color="#FFAB40" compact={compact} />
+        <SideButton icon="🚪" label="Выйти" onClick={onLogout} color="#FF5252" compact={compact} />
       </div>
 
       {/* LEFT SIDE — character pick shortcut */}
       <div style={{
-        position: "absolute", left: 18, top: "50%", transform: "translateY(-50%)",
-        display: "flex", flexDirection: "column", gap: 12, zIndex: 4,
+        position: "absolute", left: compact ? 8 : 18, top: "50%", transform: "translateY(-50%)",
+        display: "flex", flexDirection: "column", gap: compact ? 6 : 12, zIndex: 4,
       }}>
-        <SideButton icon="🦸" label="Персонаж" onClick={onBrawlerSelect} color="#CE93D8" />
+        <SideButton icon="🦸" label="Персонаж" onClick={onBrawlerSelect} color="#CE93D8" compact={compact} />
         <SideButton
           icon="🎁"
-          label={canClaimDaily ? "Бонус дня" : "Бонус дня"}
+          label="Бонус дня"
           onClick={() => setShowDaily(true)}
           color={canClaimDaily ? "#FFD700" : "#888"}
           pulse={canClaimDaily}
+          compact={compact}
         />
-        <SideButton icon="🗝️" label="Сундуки" onClick={onChests} color="#FF7043" badge={chestsBadge} />
+        <SideButton icon="🗝️" label="Сундуки" onClick={onChests} color="#FF7043" badge={chestsBadge} compact={compact} />
       </div>
 
       {/* BOTTOM-LEFT: Quests button + Clash Pass card */}
-      <button
-        onClick={() => setShowQuests(true)}
-        style={{
-          position: "absolute", bottom: 16, left: 266, zIndex: 5,
-          background: hasUnclaimedQuest
-            ? "linear-gradient(135deg, rgba(255,215,0,0.3), rgba(255,138,0,0.3))"
-            : "linear-gradient(135deg, rgba(74,20,140,0.5), rgba(206,147,216,0.3))",
-          border: `1.5px solid ${hasUnclaimedQuest ? "#FFD700" : "rgba(206,147,216,0.5)"}`,
-          borderRadius: 14, padding: "10px 14px",
-          color: "white", cursor: "pointer",
-          backdropFilter: "blur(10px)",
-          display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
-          minWidth: 84,
-          animation: hasUnclaimedQuest ? "pulse 1.6s ease-in-out infinite" : undefined,
-          boxShadow: hasUnclaimedQuest ? "0 0 20px rgba(255,215,0,0.55)" : undefined,
-        }}
-        title="Ежедневные квесты"
-      >
-        <NotificationBadge count={questsBadge} />
-        <span style={{ fontSize: 22, lineHeight: 1 }}>📋</span>
-        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, color: hasUnclaimedQuest ? "#FFD700" : "#CE93D8" }}>
-          КВЕСТЫ
-        </span>
-      </button>
+      {compact ? (
+        <button
+          onClick={() => setShowQuests(true)}
+          title="Ежедневные квесты"
+          style={{
+            position: "absolute", top: 56, left: 8, zIndex: 5,
+            width: 38, height: 38,
+            background: hasUnclaimedQuest
+              ? "linear-gradient(135deg, rgba(255,215,0,0.3), rgba(255,138,0,0.3))"
+              : "rgba(0,0,0,0.4)",
+            border: `1.5px solid ${hasUnclaimedQuest ? "#FFD700" : "rgba(206,147,216,0.5)"}`,
+            borderRadius: 10,
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            color: "white", cursor: "pointer",
+            backdropFilter: "blur(10px)",
+            animation: hasUnclaimedQuest ? "pulse 1.6s ease-in-out infinite" : undefined,
+            boxShadow: hasUnclaimedQuest ? "0 0 14px rgba(255,215,0,0.55)" : undefined,
+          }}
+        >
+          <NotificationBadge count={questsBadge} />
+          <span style={{ fontSize: 18, lineHeight: 1 }}>📋</span>
+        </button>
+      ) : (
+        <button
+          onClick={() => setShowQuests(true)}
+          style={{
+            position: "absolute", bottom: 16, left: 266, zIndex: 5,
+            background: hasUnclaimedQuest
+              ? "linear-gradient(135deg, rgba(255,215,0,0.3), rgba(255,138,0,0.3))"
+              : "linear-gradient(135deg, rgba(74,20,140,0.5), rgba(206,147,216,0.3))",
+            border: `1.5px solid ${hasUnclaimedQuest ? "#FFD700" : "rgba(206,147,216,0.5)"}`,
+            borderRadius: 14, padding: "10px 14px",
+            color: "white", cursor: "pointer",
+            backdropFilter: "blur(10px)",
+            display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+            minWidth: 84,
+            animation: hasUnclaimedQuest ? "pulse 1.6s ease-in-out infinite" : undefined,
+            boxShadow: hasUnclaimedQuest ? "0 0 20px rgba(255,215,0,0.55)" : undefined,
+          }}
+          title="Ежедневные квесты"
+        >
+          <NotificationBadge count={questsBadge} />
+          <span style={{ fontSize: 22, lineHeight: 1 }}>📋</span>
+          <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, color: hasUnclaimedQuest ? "#FFD700" : "#CE93D8" }}>
+            КВЕСТЫ
+          </span>
+        </button>
+      )}
 
-      <button
-        onClick={onClashPass}
-        style={{
-          position: "absolute", bottom: 16, left: 16, zIndex: 5,
-          background: "linear-gradient(135deg, rgba(74,20,140,0.6), rgba(206,147,216,0.4))",
-          border: "1.5px solid rgba(206,147,216,0.6)",
-          borderRadius: 16, padding: 14,
-          width: 240, cursor: "pointer", color: "white",
-          textAlign: "left", backdropFilter: "blur(10px)",
-          animation: "glow 3s ease-in-out infinite",
-        }}
-      >
-        <NotificationBadge count={clashPassBadge} />
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-          <div style={{ fontWeight: 900, letterSpacing: 1, fontSize: 14, color: "#FFD700" }}>
-            🎟️ CLASH PASS
+      {compact ? (
+        <button
+          onClick={onClashPass}
+          title="Clash Pass"
+          style={{
+            position: "absolute", top: 56, left: 54, zIndex: 5,
+            width: 38, height: 38,
+            background: "linear-gradient(135deg, rgba(74,20,140,0.6), rgba(206,147,216,0.4))",
+            border: "1.5px solid rgba(206,147,216,0.6)",
+            borderRadius: 10,
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            color: "white", cursor: "pointer",
+            backdropFilter: "blur(10px)",
+          }}
+        >
+          <NotificationBadge count={clashPassBadge} />
+          <span style={{ fontSize: 16, lineHeight: 1 }}>🎟️</span>
+        </button>
+      ) : (
+        <button
+          onClick={onClashPass}
+          style={{
+            position: "absolute", bottom: 16, left: 16, zIndex: 5,
+            background: "linear-gradient(135deg, rgba(74,20,140,0.6), rgba(206,147,216,0.4))",
+            border: "1.5px solid rgba(206,147,216,0.6)",
+            borderRadius: 16, padding: 14,
+            width: 240, cursor: "pointer", color: "white",
+            textAlign: "left", backdropFilter: "blur(10px)",
+            animation: "glow 3s ease-in-out infinite",
+          }}
+        >
+          <NotificationBadge count={clashPassBadge} />
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <div style={{ fontWeight: 900, letterSpacing: 1, fontSize: 14, color: "#FFD700" }}>
+              🎟️ CLASH PASS
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "#CE93D8" }}>УР. {passLevel}</div>
           </div>
-          <div style={{ fontSize: 13, fontWeight: 800, color: "#CE93D8" }}>УР. {passLevel}</div>
-        </div>
-        <div style={{
-          marginTop: 8, height: 8, borderRadius: 4,
-          background: "rgba(0,0,0,0.4)", overflow: "hidden",
-        }}>
           <div style={{
-            height: "100%", width: `${passPct}%`,
-            background: "linear-gradient(90deg, #FFD700, #CE93D8)",
-            transition: "width 0.4s",
-          }} />
-        </div>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginTop: 4 }}>
-          {passLevel >= MAX_CLASHPASS_LEVEL
-            ? "Максимум достигнут!"
-            : `${profile.xp} / ${passNeed} опыта`}
-        </div>
-      </button>
+            marginTop: 8, height: 8, borderRadius: 4,
+            background: "rgba(0,0,0,0.4)", overflow: "hidden",
+          }}>
+            <div style={{
+              height: "100%", width: `${passPct}%`,
+              background: "linear-gradient(90deg, #FFD700, #CE93D8)",
+              transition: "width 0.4s",
+            }} />
+          </div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginTop: 4 }}>
+            {passLevel >= MAX_CLASHPASS_LEVEL
+              ? "Максимум достигнут!"
+              : `${profile.xp} / ${passNeed} опыта`}
+          </div>
+        </button>
+      )}
 
       {/* BOTTOM-CENTER: mode selector pinned to the bottom edge */}
       <div
         style={{
-          position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)",
+          position: "absolute",
+          bottom: compact ? 8 : 16,
+          left: compact ? 8 : "50%",
+          transform: compact ? "none" : "translateX(-50%)",
           zIndex: 5,
         }}
       >
@@ -424,32 +496,42 @@ export default function MainMenu(props: MainMenuProps) {
             position: "relative",
             background: `linear-gradient(135deg, ${mode.color}33, rgba(0,0,0,0.5))`,
             border: `1.5px solid ${mode.color}`,
-            borderRadius: 14, padding: "10px 22px",
+            borderRadius: compact ? 10 : 14,
+            padding: compact ? "5px 10px" : "10px 22px",
             color: "white", cursor: "pointer",
-            display: "flex", alignItems: "center", gap: 12,
+            display: "flex", alignItems: "center", gap: compact ? 6 : 12,
             backdropFilter: "blur(10px)",
-            minWidth: 320,
+            minWidth: compact ? 0 : 320,
             boxShadow: `0 4px 22px ${mode.color}55`,
             fontFamily: "inherit",
           }}
         >
-          <span style={{ fontSize: 28 }}>{mode.icon}</span>
+          <span style={{ fontSize: compact ? 16 : 28 }}>{mode.icon}</span>
           <span style={{ flex: 1, textAlign: "left" }}>
-            <span style={{ display: "block", color: "rgba(255,255,255,0.55)", fontSize: 10, letterSpacing: 1 }}>РЕЖИМ</span>
-            <span style={{ display: "block", fontSize: 16, fontWeight: 800, color: mode.color }}>{mode.name}</span>
+            {!compact && (
+              <span style={{ display: "block", color: "rgba(255,255,255,0.55)", fontSize: 10, letterSpacing: 1 }}>РЕЖИМ</span>
+            )}
+            <span style={{ display: "block", fontSize: compact ? 11 : 16, fontWeight: 800, color: mode.color, whiteSpace: "nowrap" }}>{mode.name}</span>
           </span>
-          <span style={{ color: "rgba(255,255,255,0.45)", fontSize: 12 }}>► СМЕНИТЬ</span>
+          {!compact && (
+            <span style={{ color: "rgba(255,255,255,0.45)", fontSize: 12 }}>► СМЕНИТЬ</span>
+          )}
           <span
             role="button"
             title="О режиме"
             onClick={(e) => { e.stopPropagation(); setShowModeInfo(true); }}
             style={{
-              position: "absolute", top: -8, right: -8,
-              width: 26, height: 26, borderRadius: "50%",
+              position: "absolute",
+              top: compact ? -6 : -8,
+              right: compact ? -6 : -8,
+              width: compact ? 18 : 26,
+              height: compact ? 18 : 26,
+              borderRadius: "50%",
               background: "rgba(0,0,0,0.85)",
               border: `1.5px solid ${mode.color}`,
               color: mode.color,
-              fontSize: 14, fontWeight: 900, fontStyle: "italic",
+              fontSize: compact ? 10 : 14,
+              fontWeight: 900, fontStyle: "italic",
               fontFamily: "Georgia, serif",
               display: "inline-flex", alignItems: "center", justifyContent: "center",
               cursor: "pointer",
@@ -464,12 +546,17 @@ export default function MainMenu(props: MainMenuProps) {
       <button
         onClick={onPlay}
         style={{
-          position: "absolute", bottom: 24, right: 24,
+          position: "absolute",
+          bottom: compact ? 8 : 24,
+          right: compact ? 8 : 24,
           zIndex: 6,
           background: "linear-gradient(135deg, #7B2FBE, #CE93D8)",
-          border: "none", borderRadius: 22,
-          padding: "22px 56px",
-          color: "white", fontWeight: 900, fontSize: 28, letterSpacing: 5,
+          border: "none",
+          borderRadius: compact ? 14 : 22,
+          padding: compact ? "8px 20px" : "22px 56px",
+          color: "white", fontWeight: 900,
+          fontSize: compact ? 14 : 28,
+          letterSpacing: compact ? 2 : 5,
           cursor: "pointer",
           boxShadow: "0 10px 40px rgba(123,47,190,0.75), 0 0 30px rgba(206,147,216,0.5)",
           animation: "pulse 2.4s ease-in-out infinite",
@@ -621,9 +708,13 @@ function PowerPill({ level }: { level: number }) {
   );
 }
 
-function Resource({ icon, value, color }: { icon: string; value: number; color: string }) {
+function Resource({ icon, value, color, compact }: { icon: string; value: number; color: string; compact?: boolean }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "0 6px", fontSize: 14 }}>
+    <div style={{
+      display: "flex", alignItems: "center", gap: compact ? 2 : 4,
+      padding: compact ? "0 3px" : "0 6px",
+      fontSize: compact ? 11 : 14,
+    }}>
       <span>{icon}</span>
       <span style={{ color, fontWeight: 800 }}>{value}</span>
     </div>
@@ -631,30 +722,38 @@ function Resource({ icon, value, color }: { icon: string; value: number; color: 
 }
 
 function SideButton({
-  icon, label, onClick, color, pulse, badge,
-}: { icon: string; label: string; onClick: () => void; color: string; pulse?: boolean; badge?: number }) {
+  icon, label, onClick, color, pulse, badge, compact,
+}: { icon: string; label: string; onClick: () => void; color: string; pulse?: boolean; badge?: number; compact?: boolean }) {
   const [hovered, setHovered] = useState(false);
   return (
     <button
       onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      title={compact ? label : undefined}
       style={{
         position: "relative",
-        display: "flex", alignItems: "center", gap: 10,
+        display: "flex", alignItems: "center",
+        justifyContent: compact ? "center" : "flex-start",
+        gap: compact ? 0 : 10,
         background: hovered ? `${color}26` : "rgba(0,0,0,0.4)",
         border: `1.5px solid ${hovered ? color : "rgba(255,255,255,0.1)"}`,
-        borderRadius: 14, padding: "10px 14px",
-        color: "white", cursor: "pointer", minWidth: 130,
+        borderRadius: compact ? 10 : 14,
+        padding: compact ? "6px 8px" : "10px 14px",
+        color: "white", cursor: "pointer",
+        minWidth: compact ? 0 : 130,
+        width: compact ? 38 : undefined,
+        height: compact ? 38 : undefined,
         backdropFilter: "blur(10px)",
         transition: "all 0.2s",
-        transform: hovered ? "translateX(0)" : "translateX(0)",
         boxShadow: hovered ? `0 0 18px ${color}66` : "none",
         animation: pulse ? "pulse 1.6s ease-in-out infinite" : undefined,
       }}
     >
-      <span style={{ fontSize: 20 }}>{icon}</span>
-      <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: 1 }}>{label}</span>
+      <span style={{ fontSize: compact ? 18 : 20, lineHeight: 1 }}>{icon}</span>
+      {!compact && (
+        <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: 1 }}>{label}</span>
+      )}
       <NotificationBadge count={badge ?? 0} />
     </button>
   );
