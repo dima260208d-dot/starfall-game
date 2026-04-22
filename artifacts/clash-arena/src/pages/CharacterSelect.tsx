@@ -326,6 +326,9 @@ function CharacterDetail({
   const canAffordUnlock = gems >= unlockCost;
   const rarityColor = CHESTS[brawler.rarity].borderColor;
   const lore = BRAWLER_LORE[brawler.id] || brawler.description;
+  const profile = getCurrentProfile();
+  const detailTrophies = profile && isUnlocked ? getBrawlerTrophies(profile, brawler.id) : 0;
+  const detailRank = isUnlocked ? getBrawlerRank(detailTrophies) : 0;
   const scaled = getScaledStats(brawler, level);
   const isMax = level >= MAX_BRAWLER_LEVEL;
   const cost = upgradeBrawlerCost(level);
@@ -395,6 +398,34 @@ function CharacterDetail({
         }}>
           ★ {BRAWLER_RARITY_LABEL[brawler.rarity]}
         </div>
+
+        {isUnlocked && (
+          <div style={{
+            display: "inline-flex", alignItems: "center", gap: 10,
+            background: "rgba(0,0,0,0.55)",
+            border: "1px solid rgba(255,215,0,0.5)",
+            borderRadius: 12, padding: "8px 14px",
+            backdropFilter: "blur(8px)",
+            boxShadow: "0 0 16px rgba(255,215,0,0.25)",
+          }}>
+            <span style={{
+              background: "linear-gradient(135deg, #F9A825, #FFD700)",
+              color: "#000",
+              fontSize: 11, fontWeight: 900, letterSpacing: 0.5,
+              borderRadius: 6, padding: "2px 8px",
+            }}>РАНГ {detailRank}/{MAX_BRAWLER_RANK}</span>
+            <span style={{
+              background: "linear-gradient(135deg, #311B92, #7B2FBE)",
+              color: "white",
+              fontSize: 11, fontWeight: 900, letterSpacing: 0.5,
+              borderRadius: 6, padding: "2px 8px",
+              border: "1px solid rgba(206,147,216,0.6)",
+            }}>⚡ СИЛА {level}</span>
+            <span style={{ color: "#FFD700", fontSize: 12, fontWeight: 800 }}>
+              🏆 {detailTrophies}
+            </span>
+          </div>
+        )}
 
         {!isUnlocked && (
           <div style={{
