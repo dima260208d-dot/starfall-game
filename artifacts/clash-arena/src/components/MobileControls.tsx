@@ -323,8 +323,20 @@ export default function MobileControls({ getInput, getPlayerInfo }: MobileContro
 const STROKE = "rgba(255, 255, 255, 0.85)";
 const FILL = "rgba(200, 200, 210, 0.4)";
 const FILL_SOFT = "rgba(200, 200, 210, 0.28)";
-const FILL_SUPER = "rgba(180, 220, 255, 0.42)";
 
+// =====================================================================
+// Per-brawler attack indicator. Strict rules:
+//   miya   — twin curved arcs (Bezier), NEVER a straight line.
+//   kibo   — straight line, width 30, length = attackRange (550).
+//   ronin  — 60° cone (filled sector), radius 160.
+//   yuki   — straight line, width 20, length 350.
+//   kenji  — straight line + small circle at tip + dashed circle r=200.
+//   hana   — straight line, width 20, length 400, pink/gray tint.
+//   goro   — circle around player (radius 90), aim direction ignored.
+//   sora   — straight line + dashed explosion circle r=60 at tip.
+//   rin    — straight line, width 15, length 300, greenish gray.
+//   taro   — 90° cone (filled sector), radius 80.
+// =====================================================================
 function drawAttackIndicator(
   ctx: CanvasRenderingContext2D,
   px: number, py: number, angle: number,
@@ -337,33 +349,39 @@ function drawAttackIndicator(
 
   switch (brawlerId) {
     case "miya": {
-      // Twin sharp curved blades, ±15° from aim axis. Each leaves a dashed
-      // trajectory + a hit circle at max range.
-      ctx.strokeStyle = "rgba(206, 147, 216, 0.85)"; // gray w/ violet tint
-      ctx.fillStyle = "rgba(206, 147, 216, 0.32)";
-      ctx.lineWidth = 3;
-      ctx.setLineDash([8, 6]);
+      // Two curved Bezier arcs diverging at ±15° from the aim axis with a
+      // pronounced sideways bend so the trajectory clearly reads as an arc.
+      ctx.strokeStyle = "rgba(186, 104, 200, 0.95)";
+      ctx.fillStyle = "rgba(186, 104, 200, 0.55)";
+      ctx.lineWidth = 4;
+      ctx.setLineDash([10, 6]);
       for (const sign of [-1, 1]) {
-        const a = sign * (Math.PI / 12); // 15°
-        ctx.save();
-        ctx.rotate(a);
+        // End-point along the symmetric ±15° splay.
+        const endAng = sign * (Math.PI / 12);
+        const ex = Math.cos(endAng) * range;
+        const ey = Math.sin(endAng) * range;
+        // Control point pushed sideways from the midpoint to bend the curve.
+        const midX = ex / 2;
+        const midY = ey / 2;
+        const bend = sign * range * 0.35;
+        const ctrlX = midX - Math.sin(endAng) * bend;
+        const ctrlY = midY + Math.cos(endAng) * bend;
         ctx.beginPath();
         ctx.moveTo(0, 0);
-        ctx.lineTo(range, 0);
+        ctx.quadraticCurveTo(ctrlX, ctrlY, ex, ey);
         ctx.stroke();
         ctx.setLineDash([]);
         ctx.beginPath();
-        ctx.arc(range, 0, 10, 0, Math.PI * 2);
+        ctx.arc(ex, ey, 11, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
-        ctx.setLineDash([8, 6]);
-        ctx.restore();
+        ctx.setLineDash([10, 6]);
       }
+      ctx.setLineDash([]);
       break;
     }
     case "ronin": {
-      // 60° cone melee swing, radius = attackRange.
-      const halfArc = Math.PI / 6; // ±30°
+      const halfArc = Math.PI / 6; // ±30° → 60° total
       ctx.fillStyle = FILL;
       ctx.strokeStyle = STROKE;
       ctx.lineWidth = 2;
@@ -376,9 +394,8 @@ function drawAttackIndicator(
       break;
     }
     case "goro": {
-      // Spin attack — circle around the player; aim direction does not
-      // affect shape but joystick still chooses release timing.
-      ctx.rotate(-angle); // un-rotate so the dashed ring stays oriented
+      // Spin attack — circle around the player. Direction-agnostic.
+      ctx.rotate(-angle);
       const r = 90 * scale;
       ctx.fillStyle = FILL_SOFT;
       ctx.strokeStyle = STROKE;
@@ -392,24 +409,34 @@ function drawAttackIndicator(
       break;
     }
     case "taro": {
-      // Wrench melee — short circle around the player.
-      ctx.rotate(-angle);
-      const r = Math.max(70, 80 * scale);
-      ctx.fillStyle = FILL_SOFT;
+      // 90° melee cone, radius 80.
+      const halfArc = Math.PI / 4; // ±45° → 90° total
+      const r = 80 * scale;
+      ctx.fillStyle = FILL;
       ctx.strokeStyle = STROKE;
       ctx.lineWidth = 2;
-      ctx.setLineDash([8, 5]);
       ctx.beginPath();
-      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, r, -halfArc, halfArc);
+      ctx.closePath();
       ctx.fill();
       ctx.stroke();
-      ctx.setLineDash([]);
       break;
     }
     case "kenji": {
-      // Chain lightning — line + dashed jump-radius circle at the tip.
-      drawLineProjectile(ctx, range, 14, "rgba(255, 213, 79, 0.45)", "rgba(255, 245, 157, 0.95)");
-      const chainR = 100 * scale;
+      // Pointer line + small circle at tip + dashed jump-radius circle 200.
+      ctx.strokeStyle = "rgba(255, 245, 157, 0.95)";
+      ctx.fillStyle = "rgba(255, 213, 79, 0.45)";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(range, 0);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(range, 0, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      const chainR = 200 * scale;
       ctx.strokeStyle = "rgba(64, 196, 255, 0.9)";
       ctx.lineWidth = 2;
       ctx.setLineDash([6, 5]);
@@ -419,14 +446,37 @@ function drawAttackIndicator(
       ctx.setLineDash([]);
       break;
     }
-    // Default linear projectile (kibo, yuki, hana, sora, rin)
-    case "kibo":
-    case "yuki":
-    case "hana":
-    case "sora":
-    case "rin":
+    case "sora": {
+      // Linear fireball + dashed explosion radius 60 at the tip.
+      drawLineProjectile(ctx, range, 20 * scale, FILL, STROKE);
+      const blastR = 60 * scale;
+      ctx.strokeStyle = "rgba(255, 152, 0, 0.95)";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([8, 5]);
+      ctx.beginPath();
+      ctx.arc(range, 0, blastR, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      break;
+    }
+    case "kibo": {
+      drawLineProjectile(ctx, range, 30 * scale, "rgba(178, 235, 242, 0.42)", STROKE);
+      break;
+    }
+    case "yuki": {
+      drawLineProjectile(ctx, range, 20 * scale, "rgba(225, 245, 254, 0.42)", STROKE);
+      break;
+    }
+    case "hana": {
+      drawLineProjectile(ctx, range, 20 * scale, "rgba(252, 228, 236, 0.45)", "rgba(255, 128, 171, 0.9)");
+      break;
+    }
+    case "rin": {
+      drawLineProjectile(ctx, range, 15 * scale, "rgba(165, 214, 167, 0.45)", "rgba(76, 175, 80, 0.9)");
+      break;
+    }
     default: {
-      drawLineProjectile(ctx, range, 14, FILL, STROKE);
+      drawLineProjectile(ctx, range, 18 * scale, FILL, STROKE);
       break;
     }
   }
@@ -438,21 +488,33 @@ function drawLineProjectile(
   length: number, width: number,
   fill: string, stroke: string,
 ) {
+  const w = Math.max(8, width);
   ctx.fillStyle = fill;
   ctx.strokeStyle = stroke;
   ctx.lineWidth = 2;
-  // Body: tall thin rectangle.
   ctx.beginPath();
-  ctx.rect(0, -width / 2, length, width);
+  ctx.rect(0, -w / 2, length, w);
   ctx.fill();
   ctx.stroke();
-  // Aim dot at the tip.
   ctx.beginPath();
-  ctx.arc(length, 0, Math.max(6, width * 0.6), 0, Math.PI * 2);
+  ctx.arc(length, 0, Math.max(6, w * 0.55), 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
 }
 
+// =====================================================================
+// Per-brawler super indicator. Strict rules:
+//   miya   — circle r=350 around player (search zone). Direction ignored.
+//   kibo   — long beam to the map edge.
+//   ronin  — NO indicator (instant self-buff). Renderer returns null.
+//   yuki   — placed circle r=140, max 300 world units from player.
+//   kenji  — placed circle r=110, max 300.
+//   hana   — placed circle r=160, max 300.
+//   goro   — NO indicator (instant self-buff).
+//   sora   — placed circle r=200, max 400, with meteor dots inside.
+//   rin    — placed circle r=100, max 300.
+//   taro   — placed turret outline 40x40 (max 200 from player).
+// =====================================================================
 function drawSuperIndicator(
   ctx: CanvasRenderingContext2D,
   px: number, py: number, angle: number,
@@ -460,14 +522,16 @@ function drawSuperIndicator(
   magnitude: number,
   cssW: number, cssH: number,
 ) {
+  // Self-buff supers: never draw a preview at all.
+  if (brawlerId === "ronin" || brawlerId === "goro") return;
+
   ctx.save();
   ctx.translate(px, py);
 
   switch (brawlerId) {
     case "miya": {
-      // Teleport zone — circle around the player showing target search range.
       const r = 350 * scale;
-      ctx.fillStyle = "rgba(180, 200, 255, 0.18)";
+      ctx.fillStyle = "rgba(255, 23, 68, 0.12)";
       ctx.strokeStyle = "rgba(255, 23, 68, 0.85)";
       ctx.lineWidth = 3;
       ctx.setLineDash([10, 6]);
@@ -479,42 +543,24 @@ function drawSuperIndicator(
       break;
     }
     case "kibo": {
-      // Long pierce beam — extends to the screen edge in the aim direction.
       ctx.rotate(angle);
-      const length = Math.hypot(cssW, cssH); // diagonal — guaranteed to exit
-      ctx.fillStyle = "rgba(64, 196, 255, 0.35)";
+      const length = Math.hypot(cssW, cssH);
+      ctx.fillStyle = "rgba(64, 196, 255, 0.4)";
       ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.rect(0, -10, length, 20);
+      ctx.rect(0, -12, length, 24);
       ctx.fill();
       ctx.stroke();
-      break;
-    }
-    case "ronin":
-    case "goro": {
-      // Instant self-buff supers — tiny pulsing ring around the player + hint.
-      const r = 60 * scale;
-      ctx.fillStyle = "rgba(255, 215, 64, 0.18)";
-      ctx.strokeStyle = "rgba(255, 215, 64, 0.85)";
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(0, 0, r, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-      ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
-      ctx.font = "bold 13px sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText("Мгновенно", 0, -r - 8);
       break;
     }
     case "taro": {
-      // Turret placement — square outline at fixed 200 world units.
       ctx.rotate(angle);
-      const dist = 200 * scale;
-      const size = 60 * scale;
+      const dist = Math.min(1, magnitude) * 200 * scale;
+      const size = 40 * scale;
+      drawAimLine(ctx, dist);
       ctx.translate(dist, 0);
-      ctx.rotate(-angle); // keep the square axis-aligned to the player
+      ctx.rotate(-angle);
       ctx.fillStyle = FILL;
       ctx.strokeStyle = STROKE;
       ctx.lineWidth = 2;
@@ -524,31 +570,33 @@ function drawSuperIndicator(
       ctx.fill();
       ctx.stroke();
       ctx.setLineDash([]);
-      // Tiny turret silhouette inside.
-      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      // Tiny turret silhouette.
+      ctx.fillStyle = "rgba(255,255,255,0.9)";
       ctx.beginPath();
-      ctx.arc(0, 0, size * 0.18, 0, Math.PI * 2);
+      ctx.arc(0, 0, size * 0.22, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillRect(-2, 0, 4, size * 0.35);
+      ctx.fillRect(-2, 0, 4, size * 0.4);
       break;
     }
-    // Placed-area supers (yuki, kenji, hana, sora, rin): a circle that
-    // follows the joystick angle, capped at PLACED_AREA_MAX_WORLD from the
-    // player. Radius is brawler-specific.
     case "yuki":
     case "kenji":
     case "hana":
     case "sora":
     case "rin": {
-      ctx.rotate(angle);
-      const dist = Math.min(1, magnitude) * PLACED_AREA_MAX_WORLD * scale;
       const radiusByBrawler: Record<string, number> = {
-        yuki: 140, kenji: 110, hana: 160, sora: 120, rin: 100,
+        yuki: 140, kenji: 110, hana: 160, sora: 200, rin: 100,
       };
-      const r = (radiusByBrawler[brawlerId] ?? 120) * scale;
+      const maxDistByBrawler: Record<string, number> = {
+        yuki: 300, kenji: 300, hana: 300, sora: 400, rin: 300,
+      };
+      const r = radiusByBrawler[brawlerId] * scale;
+      const maxDist = maxDistByBrawler[brawlerId] * scale;
+      const dist = Math.min(1, magnitude) * maxDist;
+      ctx.rotate(angle);
+      drawAimLine(ctx, dist);
       ctx.translate(dist, 0);
-      ctx.rotate(-angle); // keep the area circle un-rotated
-      ctx.fillStyle = FILL_SUPER;
+      ctx.rotate(-angle);
+      ctx.fillStyle = "rgba(200, 210, 220, 0.4)";
       ctx.strokeStyle = STROKE;
       ctx.lineWidth = 2;
       ctx.setLineDash([10, 6]);
@@ -557,23 +605,36 @@ function drawSuperIndicator(
       ctx.fill();
       ctx.stroke();
       ctx.setLineDash([]);
-      // Aim line from player → area center for clarity.
-      ctx.strokeStyle = "rgba(255,255,255,0.45)";
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([4, 4]);
-      ctx.beginPath();
-      ctx.moveTo(-dist, 0);
-      ctx.lineTo(0, 0);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      break;
-    }
-    default: {
-      // Generic fallback — a wide line preview.
-      ctx.rotate(angle);
-      drawLineProjectile(ctx, 400 * scale, 26, FILL_SUPER, STROKE);
+
+      if (brawlerId === "sora") {
+        // 5 meteor impact dots scattered inside the circle.
+        ctx.fillStyle = "rgba(255, 152, 0, 0.85)";
+        const offsets = [
+          [0, 0], [r * 0.55, r * 0.2], [-r * 0.5, r * 0.45],
+          [r * 0.2, -r * 0.55], [-r * 0.4, -r * 0.3],
+        ];
+        for (const [dx, dy] of offsets) {
+          ctx.beginPath();
+          ctx.arc(dx, dy, Math.max(3, r * 0.05), 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
       break;
     }
   }
+  ctx.restore();
+}
+
+/** Dashed guide-line from the player out to the placed-area center. */
+function drawAimLine(ctx: CanvasRenderingContext2D, length: number) {
+  ctx.save();
+  ctx.strokeStyle = "rgba(255,255,255,0.5)";
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([5, 4]);
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(length, 0);
+  ctx.stroke();
+  ctx.setLineDash([]);
   ctx.restore();
 }
