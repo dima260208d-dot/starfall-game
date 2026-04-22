@@ -121,9 +121,9 @@ export default function GameScreen({ mode, brawlerId, onExit }: GameScreenProps)
         width={1200}
         height={800}
         style={{
-          maxWidth: "100vw",
-          maxHeight: "100vh",
-          objectFit: "contain",
+          width: "100vw",
+          height: "100vh",
+          objectFit: "cover",
           display: "block",
           touchAction: "none",
         }}

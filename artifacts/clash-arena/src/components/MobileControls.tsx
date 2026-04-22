@@ -17,8 +17,8 @@ interface MobileControlsProps {
   getPlayerInfo: () => PlayerInfo | null;
 }
 
-const STICK_BASE = 70;          // base ring radius (px) → 140px diameter
-const STICK_THUMB = 36;         // thumb radius (px)
+const STICK_BASE = 56;          // base ring radius (px) → 112px diameter (≈20% smaller)
+const STICK_THUMB = 28;         // thumb radius (px)
 const TAP_THRESHOLD = 0.15;     // normalized distance below which a release is a "tap" (auto-aim)
 const PLACED_AREA_MAX_WORLD = 300; // max world distance to drop a placed-area super
 
@@ -299,8 +299,10 @@ export default function MobileControls({ getInput, getPlayerInfo }: MobileContro
         )}
         {stickEl(
           "super", "Супер", "⚡", "#F9A825", "#FFD54F", "#FFF59D",
-          { right: 28 + STICK_BASE * 2 + 14, bottom: 36 + STICK_BASE * 2 + 14, pointerEvents: "auto" },
-          54, // super button is a touch smaller than the analog sticks
+          // Lowered: was at full STICK_BASE * 2 above the attack stick;
+          // now sits roughly one stick height above (closer to the attack stick).
+          { right: 28 + STICK_BASE * 2 + 10, bottom: 36 + STICK_BASE + 6, pointerEvents: "auto" },
+          42, // super button is noticeably smaller than the analog sticks
         )}
       </div>
     </div>
