@@ -164,6 +164,7 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
               const lv = profile.brawlerLevels[b.id] || 1;
               const isSelected = b.id === activeId;
               const rarityColor = CHESTS[b.rarity].borderColor;
+              const bRank = getBrawlerRank(getBrawlerTrophies(profile, b.id));
               return (
                 <div
                   key={b.id}
@@ -181,20 +182,31 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
                     transition: "all 0.2s",
                   }}
                 >
-                  <img
-                    src={`${import.meta.env.BASE_URL}brawlers/${b.id}_front.png`}
-                    alt={b.name}
-                    width={48}
-                    height={48}
-                    style={{
-                      borderRadius: 8,
-                      background: `radial-gradient(circle at 50% 60%, ${b.color}40, ${b.color}10 70%, transparent)`,
-                      objectFit: "contain",
-                      objectPosition: "center bottom",
-                      flexShrink: 0,
-                      filter: `drop-shadow(0 2px 4px ${b.color}80)`,
-                    }}
-                  />
+                  <div style={{ position: "relative", flexShrink: 0, width: 48, height: 48 }}>
+                    <img
+                      src={`${import.meta.env.BASE_URL}brawlers/${b.id}_front.png`}
+                      alt={b.name}
+                      width={48}
+                      height={48}
+                      style={{
+                        borderRadius: 8,
+                        background: `radial-gradient(circle at 50% 60%, ${b.color}40, ${b.color}10 70%, transparent)`,
+                        objectFit: "contain",
+                        objectPosition: "center bottom",
+                        filter: `drop-shadow(0 2px 4px ${b.color}80)`,
+                      }}
+                    />
+                    <div style={{
+                      position: "absolute", bottom: -4, left: "50%", transform: "translateX(-50%)",
+                      background: "linear-gradient(135deg, #F9A825, #FFD700)",
+                      color: "#000",
+                      fontSize: 9, fontWeight: 900, letterSpacing: 0.5,
+                      borderRadius: 6, padding: "1px 6px",
+                      border: "1px solid rgba(0,0,0,0.4)",
+                      boxShadow: "0 2px 6px rgba(0,0,0,0.5)",
+                      minWidth: 16, textAlign: "center", whiteSpace: "nowrap",
+                    }}>Р{bRank}</div>
+                  </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: 14, color: isSelected ? b.color : "white" }}>{b.name}</div>
                     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>УР {lv} • {b.role}</div>

@@ -8,6 +8,9 @@ import {
   unlockBrawlerWithGems,
   isBrawlerUnlocked,
   MAX_BRAWLER_LEVEL,
+  getBrawlerTrophies,
+  getBrawlerRank,
+  MAX_BRAWLER_RANK,
 } from "../utils/localStorageAPI";
 import BrawlerViewer3D from "../components/BrawlerViewer3D";
 
@@ -178,6 +181,7 @@ function CharacterGrid({ profile, sortKey, onChangeSort, onBack, onOpen }: Chara
           const isActive = profile.selectedBrawlerId === b.id;
           const unlocked = profile.unlockedBrawlers.includes(b.id);
           const rarityColor = CHESTS[b.rarity].borderColor;
+          const bRank = unlocked ? getBrawlerRank(getBrawlerTrophies(profile, b.id)) : 0;
           const borderColor = unlocked
             ? (isActive ? b.color : rarityColor)
             : "rgba(255,255,255,0.18)";
@@ -222,6 +226,18 @@ function CharacterGrid({ profile, sortKey, onChangeSort, onBack, onOpen }: Chara
                   borderRadius: 8, padding: "2px 8px",
                   letterSpacing: 1,
                 }}>ВЫБРАН</div>
+              )}
+
+              {unlocked && (
+                <div style={{
+                  position: "absolute", top: isActive ? 32 : 8, right: 10,
+                  background: "linear-gradient(135deg, #F9A825, #FFD700)",
+                  color: "#000",
+                  fontSize: 10, fontWeight: 900, letterSpacing: 0.5,
+                  borderRadius: 8, padding: "2px 8px",
+                  border: "1px solid rgba(0,0,0,0.4)",
+                  boxShadow: "0 2px 6px rgba(0,0,0,0.45)",
+                }}>РАНГ {bRank}/{MAX_BRAWLER_RANK}</div>
               )}
 
               <div style={{
