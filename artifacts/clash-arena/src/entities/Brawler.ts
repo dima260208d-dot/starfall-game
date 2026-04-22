@@ -456,7 +456,7 @@ export class Brawler {
     }
   }
 
-  activateSuper(targets: Brawler[], map: GameMap, projectiles: Projectile[]): void {
+  activateSuper(targets: Brawler[], map: GameMap, projectiles: Projectile[], targetX?: number, targetY?: number): void {
     if (!this.canUseSuper()) return;
     this.useSuper();
 
@@ -647,15 +647,31 @@ export class Brawler {
         break;
       }
       case "rin": {
+        // Place the poison cloud at the aimed location (capped to 300 units
+        // from Rin). When no aim is supplied (e.g. bots) it falls back to
+        // her current position.
+        let zx = this.x, zy = this.y;
+        if (typeof targetX === "number" && typeof targetY === "number") {
+          const dx = targetX - this.x, dy = targetY - this.y;
+          const d = Math.hypot(dx, dy);
+          const maxR = 300;
+          if (d > maxR && d > 0) {
+            zx = this.x + (dx / d) * maxR;
+            zy = this.y + (dy / d) * maxR;
+          } else {
+            zx = targetX; zy = targetY;
+          }
+          zx = clamp(zx, this.radius, map.width - this.radius);
+          zy = clamp(zy, this.radius, map.height - this.radius);
+        }
         for (const t of targets) {
           if (!t.alive || t.team === this.team) continue;
-          if (distance(this.x, this.y, t.x, t.y) < 100) {
+          if (distance(zx, zy, t.x, t.y) < 100) {
             t.addStatus("poison", 6, 150);
           }
         }
-        // Lingering poison cloud at her feet for visual duration.
         spawnEffect({
-          kind: "poisonZone", x: this.x, y: this.y,
+          kind: "poisonZone", x: zx, y: zy,
           radius: 100, color: "#69F0AE",
           timer: 4, maxTimer: 4,
           particleCount: 14,

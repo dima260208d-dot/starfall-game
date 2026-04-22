@@ -141,7 +141,7 @@ export class ClashShowdown {
       this.input.state.mouseWorldX, this.input.state.mouseWorldY,
     );
     this.player.angle = this.input.superJoystick.active ? mouseAngle : autoAimAngle(this.player, this.bots, mouseAngle);
-    this.player.activateSuper(allBrawlers, this.map, this.projectiles);
+    this.player.activateSuper(allBrawlers, this.map, this.projectiles, this.input.state.mouseWorldX, this.input.state.mouseWorldY);
   }
 
   update(dt: number): void {

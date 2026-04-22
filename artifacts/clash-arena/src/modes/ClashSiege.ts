@@ -77,7 +77,7 @@ export class ClashSiege {
       this.input.state.mouseWorldX, this.input.state.mouseWorldY,
     );
     this.player.angle = this.input.superJoystick.active ? mouseAngle : autoAimAngle(this.player, this.enemies, mouseAngle);
-    this.player.activateSuper([this.player, ...this.allies, ...this.enemies], this.map, this.projectiles);
+    this.player.activateSuper([this.player, ...this.allies, ...this.enemies], this.map, this.projectiles, this.input.state.mouseWorldX, this.input.state.mouseWorldY);
   }
 
   private spawnWave(): void {
