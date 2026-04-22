@@ -38,6 +38,34 @@ export default function MainMenu(props: MainMenuProps) {
   const [showQuests, setShowQuests] = useState(false);
   const [showModeInfo, setShowModeInfo] = useState(false);
   const [rankModalBrawlerId, setRankModalBrawlerId] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(
+    typeof document !== "undefined" && !!document.fullscreenElement,
+  );
+
+  useEffect(() => {
+    const onFs = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onFs);
+    return () => document.removeEventListener("fullscreenchange", onFs);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        // Try to lock landscape on entry — useful on mobile, silently
+        // ignored elsewhere.
+        await document.documentElement.requestFullscreen();
+        const so = (screen as any).orientation;
+        if (so && typeof so.lock === "function") {
+          so.lock("landscape").catch(() => { /* unsupported on desktop */ });
+        }
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch {
+      // Some browsers reject the request when not user-initiated; the
+      // button click satisfies that, so failures are usually permission-based.
+    }
+  };
 
   useEffect(() => {
     const interval = setInterval(() => setProfile(getCurrentProfile()), 500);
@@ -294,6 +322,12 @@ export default function MainMenu(props: MainMenuProps) {
         <SideButton icon="🛒" label="Магазин" onClick={onShop} color="#FFD700" />
         <SideButton icon="🎒" label="Коллекция" onClick={onCollection} color="#40C4FF" />
         <SideButton icon="⚙️" label="Настройки" onClick={onSettings} color="#69F0AE" />
+        <SideButton
+          icon={isFullscreen ? "🗗" : "⛶"}
+          label={isFullscreen ? "Выйти из ПЭ" : "Полный экран"}
+          onClick={toggleFullscreen}
+          color="#40C4FF"
+        />
         <SideButton icon="👥" label="Друзья" onClick={() => handleSoonNotice("Друзья — скоро")} color="#CE93D8" />
         <SideButton icon="🔔" label="Уведомления" onClick={() => handleSoonNotice("Новых уведомлений нет")} color="#FFAB40" />
         <SideButton icon="🚪" label="Выйти" onClick={onLogout} color="#FF5252" />
