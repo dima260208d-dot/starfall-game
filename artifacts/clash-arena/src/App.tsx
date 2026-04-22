@@ -125,7 +125,10 @@ export default function App() {
           // persistBrawler is gated on unlocked status; if it fails, keep the
           // currently active brawler as the menu selection.
           const r = persistBrawler(id);
-          if (r.success) setSelectedBrawler(id);
+          if (r.success) {
+            setSelectedBrawler(id);
+            go("menu");
+          }
         }}
         onTraining={(id) => {
           // For training we use the brawler locally without persisting it as
