@@ -68,6 +68,10 @@ export class Brawler {
   private _lastRenderX = 0;
   private _lastRenderY = 0;
   private _movingSmoothed = 0; // 0 = idle, 1 = running, smoothed via lerp
+
+  // Separate movement-facing angle for Miya: she faces her movement direction
+  // when running/idle, and only briefly faces the attack direction when shooting.
+  moveAngle = 0;
   
   inBush = false;
   inRiver = false;
@@ -221,8 +225,9 @@ export class Brawler {
       const len = Math.sqrt(dx * dx + dy * dy);
       this.x += (dx / len) * spd * dt;
       this.y += (dy / len) * spd * dt;
+      this.moveAngle = Math.atan2(dy, dx);
       if (!this.isPlayer) {
-        this.angle = Math.atan2(dy, dx);
+        this.angle = this.moveAngle;
       }
     }
   }
@@ -806,7 +811,10 @@ export class Brawler {
       const anim: MiyaAnim = this.attackAnim > 0.05
         ? "attack"
         : this._movingSmoothed > 0.5 ? "run" : "idle";
-      const off = miyaTopDown.render(this.id, anim, this.angle);
+      // While running or idle, Miya faces her movement direction.
+      // Only during an attack does she briefly face the attack (aim) direction.
+      const renderAngle = anim === "attack" ? this.angle : this.moveAngle;
+      const off = miyaTopDown.render(this.id, anim, renderAngle);
       if (off) {
         const drawSize = this.radius * 4.6;
         ctx.save();

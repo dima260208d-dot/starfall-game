@@ -517,7 +517,7 @@ function CharacterDetail({
           animation: "floatY 4s ease-in-out infinite",
           pointerEvents: "auto",
         }}>
-          <BrawlerViewer3D brawlerId={brawler.id} color={brawler.color} size={540} autoRotateInitial />
+          <BrawlerViewer3D brawlerId={brawler.id} color={brawler.color} size={400} />
         </div>
       </div>
 

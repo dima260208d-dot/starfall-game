@@ -10,6 +10,7 @@ import { getModeInfo, type ModeInfo } from "../data/modes";
 import DailyRewardModal from "../components/DailyRewardModal";
 import QuestsModal from "../components/QuestsModal";
 import BrawlerRankRewardsModal from "../components/BrawlerRankRewardsModal";
+import BrawlerViewer3D from "../components/BrawlerViewer3D";
 
 interface MainMenuProps {
   onPlay: () => void;
@@ -305,15 +306,9 @@ export default function MainMenu(props: MainMenuProps) {
             position: "absolute", inset: 0,
             background: `radial-gradient(circle at 50% 60%, ${brawler.color}55 0%, transparent 65%)`,
           }} />
-          <img
-            src={`${base}brawlers/${brawler.id}_front.png`}
-            alt={brawler.name}
-            style={{
-              width: "85%",
-              filter: `drop-shadow(0 12px 35px ${brawler.color})`,
-              position: "relative",
-            }}
-          />
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+            <BrawlerViewer3D brawlerId={brawler.id} color={brawler.color} size={compact ? 243 : 270} />
+          </div>
           <button
             onClick={(e) => { e.stopPropagation(); setRankModalBrawlerId(brawler.id); }}
             style={{
