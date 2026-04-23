@@ -14,11 +14,17 @@ interface Brawler3DModelProps {
 }
 
 // ── GLTF cache ────────────────────────────────────────────────────────────────
-// The first time a model URL is loaded, the raw GLTF is stored here.
-// Subsequent viewers clone the cached scene — saving the full network round-trip.
+// The first time a model URL is loaded the raw GLTF plus the pre-computed
+// normalisation transform are cached. Subsequent viewers clone the scene and
+// apply the stored scale/offset — avoiding a re-download AND the bounding-box
+// issue that arises when computing Box3 on an off-scene skinned-mesh clone.
 interface CachedGLTF {
   scene: THREE.Group;
   animations: THREE.AnimationClip[];
+  normScale: number;
+  normOffX: number;
+  normOffY: number;
+  normOffZ: number;
 }
 const gltfCache = new Map<string, Promise<CachedGLTF>>();
 
@@ -27,8 +33,26 @@ function loadGLTFCached(url: string): Promise<CachedGLTF> {
   if (hit) return hit;
   const p = new Promise<CachedGLTF>((resolve, reject) => {
     new GLTFLoader().load(url, (gltf) => {
-      fixMaterials(gltf.scene);
-      resolve({ scene: gltf.scene, animations: gltf.animations ?? [] });
+      const scene = gltf.scene;
+      fixMaterials(scene);
+
+      // Compute normalisation from the original scene (correct for skinned meshes).
+      const box = new THREE.Box3().setFromObject(scene);
+      const sz = new THREE.Vector3();
+      box.getSize(sz);
+      const center = new THREE.Vector3();
+      box.getCenter(center);
+      const TARGET_H = 2.2;
+      const normScale = sz.y > 0.001 ? TARGET_H / sz.y : 1;
+
+      resolve({
+        scene,
+        animations: gltf.animations ?? [],
+        normScale,
+        normOffX: -center.x * normScale,
+        normOffY: -box.min.y * normScale,
+        normOffZ: -center.z * normScale,
+      });
     }, undefined, reject);
   });
   gltfCache.set(url, p);
@@ -155,18 +179,11 @@ export default function Brawler3DModel({
     loadGLTFCached(modelUrl).then((cached) => {
       if (cancelled) return;
 
+      // Clone the cached scene — scale/offset already computed at load time.
       const model = cloneSkinned(cached.scene) as THREE.Group;
       fixMaterials(model);
-
-      const box = new THREE.Box3().setFromObject(model);
-      const sizeVec = new THREE.Vector3();
-      box.getSize(sizeVec);
-      const center = new THREE.Vector3();
-      box.getCenter(center);
-      const targetHeight = 2.2;
-      const sc = sizeVec.y > 0.001 ? targetHeight / sizeVec.y : 1;
-      model.scale.setScalar(sc);
-      model.position.set(-center.x * sc, -box.min.y * sc, -center.z * sc);
+      model.scale.setScalar(cached.normScale);
+      model.position.set(cached.normOffX, cached.normOffY, cached.normOffZ);
 
       rootGroup.add(model);
 
