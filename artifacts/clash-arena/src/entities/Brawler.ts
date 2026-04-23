@@ -5,13 +5,12 @@ import { spawnDamageNumber } from "../utils/damageNumbers";
 import { spawnEffect, makeZigzag } from "../utils/effects";
 import { clamp, distance, angleTo } from "../utils/helpers";
 import { drawCharacterSprite, drawBrawlerImage } from "../game/sprites";
-import { miyaTopDown, type MiyaAnim } from "../game/miyaTopDownRenderer";
+import { initCharRenderers, getCharRenderer, CHAR_3D_IDS, type CharAnim } from "../game/miyaTopDownRenderer";
 
-// Kick off loading the Miya 3D model the first time this module is imported
-// in the browser. The renderer is a singleton; subsequent calls are no-ops.
+// Kick off loading all 3D models the first time this module is imported.
 if (typeof window !== "undefined") {
   const base = (import.meta as any).env?.BASE_URL ?? "/";
-  miyaTopDown.init(`${base}models/miya.glb`).catch(() => { /* fall back to sprite */ });
+  initCharRenderers(base);
 }
 
 export type Team = string;
@@ -69,9 +68,11 @@ export class Brawler {
   private _lastRenderY = 0;
   private _movingSmoothed = 0; // 0 = idle, 1 = running, smoothed via lerp
 
-  // Separate movement-facing angle for Miya: she faces her movement direction
-  // when running/idle, and only briefly faces the attack direction when shooting.
+  // Separate movement-facing angle: 3D characters face movement direction
+  // when running/idle, and only briefly face attack direction when shooting.
   moveAngle = 0;
+  private _smoothMoveAngle = 0;
+  private _lastSmoothTs = 0;
   
   inBush = false;
   inRiver = false;
@@ -364,17 +365,6 @@ export class Brawler {
         }
         break;
       }
-      case "kibo": {
-        projs.push(createProjectile({
-          x: this.x, y: this.y,
-          vx: Math.cos(angle) * 800, vy: Math.sin(angle) * 800,
-          radius: 4, damage: dmg,
-          speed: 800, range: this.stats.attackRange,
-          ownerId: this.id, ownerTeam: this.team,
-          color: "#40C4FF", type: "beam", piercing: true,
-        }));
-        break;
-      }
       case "yuki": {
         projs.push(createProjectile({
           x: this.x, y: this.y,
@@ -523,29 +513,6 @@ export class Brawler {
             timer: 0.6, maxTimer: 0.6,
           });
         }
-        break;
-      }
-      case "kibo": {
-        const angle = this.angle;
-        projectiles.push(createProjectile({
-          x: this.x, y: this.y,
-          vx: Math.cos(angle) * 1000, vy: Math.sin(angle) * 1000,
-          radius: 6, damage: 1200,
-          speed: 1000, range: map.width + map.height,
-          ownerId: this.id, ownerTeam: this.team,
-          color: "#00E5FF", type: "beam", piercing: true,
-        }));
-        // Big cyan muzzle flare and a backwards recoil ring.
-        spawnEffect({
-          kind: "burst", x: this.x + Math.cos(angle) * 30, y: this.y + Math.sin(angle) * 30,
-          radius: 40, color: "#00E5FF",
-          timer: 0.4, maxTimer: 0.4,
-        });
-        spawnEffect({
-          kind: "shockwave", x: this.x, y: this.y,
-          radius: 50, color: "#40C4FF",
-          timer: 0.5, maxTimer: 0.5,
-        });
         break;
       }
       case "ronin": {
@@ -794,27 +761,33 @@ export class Brawler {
     const glowColor = this.statusEffects.some(e => e.type === "berserker") ? "#FF0000" :
                       this.statusEffects.some(e => e.type === "stun") ? "#FFD700" : undefined;
 
-    // Miya has a real 3D model — render via the off-screen WebGL renderer
-    // and blit the resulting frame onto the 2D canvas at her screen position.
+    // 3D characters are rendered via an off-screen WebGL renderer.
     let drewImage = false;
-    if (this.stats.id === "miya" && miyaTopDown.isReady()) {
-      // Detect movement by diffing position against last frame.
+    const charRenderer = CHAR_3D_IDS.has(this.stats.id) ? getCharRenderer(this.stats.id) : null;
+    if (charRenderer && charRenderer.isReady()) {
       const dx = this.x - this._lastRenderX;
       const dy = this.y - this._lastRenderY;
       const moved = Math.hypot(dx, dy);
-      // moved > ~0.3 px/frame at 60fps ≈ 18 px/s → clearly walking.
       const isMovingNow = moved > 0.3 ? 1 : 0;
       this._movingSmoothed = this._movingSmoothed * 0.7 + isMovingNow * 0.3;
       this._lastRenderX = this.x;
       this._lastRenderY = this.y;
 
-      const anim: MiyaAnim = this.attackAnim > 0.05
+      // Smooth the movement angle towards the target (shortest arc, 360°).
+      const now = performance.now();
+      const rdt = this._lastSmoothTs > 0 ? Math.min(0.1, (now - this._lastSmoothTs) / 1000) : 1 / 60;
+      this._lastSmoothTs = now;
+      let diff = this.moveAngle - this._smoothMoveAngle;
+      while (diff > Math.PI) diff -= 2 * Math.PI;
+      while (diff < -Math.PI) diff += 2 * Math.PI;
+      this._smoothMoveAngle += diff * Math.min(1, rdt * 14);
+
+      const anim: CharAnim = this.attackAnim > 0.05
         ? "attack"
         : this._movingSmoothed > 0.5 ? "run" : "idle";
-      // While running or idle, Miya faces her movement direction.
-      // Only during an attack does she briefly face the attack (aim) direction.
-      const renderAngle = anim === "attack" ? this.angle : this.moveAngle;
-      const off = miyaTopDown.render(this.id, anim, renderAngle);
+      // During attack, face the aim direction; otherwise face movement direction (smooth).
+      const renderAngle = anim === "attack" ? this.angle : this._smoothMoveAngle;
+      const off = charRenderer.render(this.id, anim, renderAngle);
       if (off) {
         const drawSize = this.radius * 4.6;
         ctx.save();

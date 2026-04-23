@@ -2,7 +2,7 @@ import type { Brawler } from "../entities/Brawler";
 
 export type EffectKind =
   | "burst"        // Quick expanding ring + radial sparks (muzzle / impact)
-  | "shockwave"    // Larger expanding ring (sora meteor impact, kibo super tail)
+  | "shockwave"    // Larger expanding ring (e.g. Sora meteor impact)
   | "spark"        // Tiny short-lived particle (gun smoke / trail dust)
   | "trail"        // Fading line segment (teleport line, dagger trace)
   | "snowZone"     // Yuki super: swirling snowflakes inside an ice circle

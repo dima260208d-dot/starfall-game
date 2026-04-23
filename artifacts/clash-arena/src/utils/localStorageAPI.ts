@@ -202,7 +202,7 @@ function defaultChestInventory(): Record<ChestRarity, number> {
 }
 
 function normalizeProfile(p: UserProfile): UserProfile {
-  const defaultLevels = { miya: 1, kibo: 1, ronin: 1, yuki: 1, kenji: 1, hana: 1, goro: 1, sora: 1, rin: 1, taro: 1 };
+  const defaultLevels = { miya: 1, ronin: 1, yuki: 1, kenji: 1, hana: 1, goro: 1, sora: 1, rin: 1, taro: 1 };
 
   // Resolve unlocked brawlers first, so selected/favorite IDs can be validated
   // against the unlocked set and locked picks can never persist as the active
@@ -210,12 +210,12 @@ function normalizeProfile(p: UserProfile): UserProfile {
   // brawlers — see character-lock requirement).
   const unlockedBrawlers = (() => {
     const ids = new Set<string>(p.unlockedBrawlers || []);
-    ids.add("kibo"); // Always guarantee the starter brawler.
+    ids.add("miya"); // Always guarantee the starter brawler.
     return Array.from(ids);
   })();
 
   const safeSelected = (id: string | undefined) =>
-    id && unlockedBrawlers.includes(id) ? id : "kibo";
+    id && unlockedBrawlers.includes(id) ? id : "miya";
 
   return {
     username: p.username,

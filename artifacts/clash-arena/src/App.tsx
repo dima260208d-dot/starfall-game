@@ -37,15 +37,15 @@ export default function App() {
   });
   const initial = getCurrentProfile();
   const [selectedMode, setSelectedMode] = useState<GameMode>((initial?.selectedMode as GameMode) || "showdown");
-  const [selectedBrawler, setSelectedBrawler] = useState(initial?.selectedBrawlerId || "kibo");
+  const [selectedBrawler, setSelectedBrawler] = useState(initial?.selectedBrawlerId || "miya");
 
   // Always rehydrate selections from the active profile when entering the menu/game,
   // so a profile switch never carries stale picks across accounts.
   const hydrateFromProfile = () => {
     const p = getCurrentProfile();
-    if (!p) return { mode: "showdown" as GameMode, brawler: "kibo" };
+    if (!p) return { mode: "showdown" as GameMode, brawler: "miya" };
     const m = (p.selectedMode as GameMode) || "showdown";
-    const b = p.selectedBrawlerId || "kibo";
+    const b = p.selectedBrawlerId || "miya";
     setSelectedMode(m);
     setSelectedBrawler(b);
     return { mode: m, brawler: b };

@@ -11,7 +11,13 @@ interface BrawlerViewer3DProps {
 // Brawlers that have a real 3D GLB model in /public/models. Anyone listed here
 // renders via the GLTF viewer instead of the 2D billboard fallback.
 const MODEL_URLS: Record<string, { url: string; idleAnim: string }> = {
-  miya: { url: "models/miya.glb", idleAnim: "Thoughtful_Walk" },
+  miya:  { url: "models/miya.glb",  idleAnim: "Thoughtful_Walk" },
+  ronin: { url: "models/ronin.glb", idleAnim: "Thoughtful_Walk" },
+  yuki:  { url: "models/yuki.glb",  idleAnim: "Thoughtful_Walk" },
+  kenji: { url: "models/kenji.glb", idleAnim: "Thoughtful_Walk" },
+  hana:  { url: "models/hana.glb",  idleAnim: "Thoughtful_Walk" },
+  goro:  { url: "models/goro.glb",  idleAnim: "Thoughtful_Walk" },
+  sora:  { url: "models/sora.glb",  idleAnim: "Thoughtful_Walk" },
 };
 
 // Cached one-shot WebGL availability check. We try to create a tiny WebGL

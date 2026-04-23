@@ -331,7 +331,6 @@ const FILL_SOFT = "rgba(200, 200, 210, 0.28)";
 // =====================================================================
 // Per-brawler attack indicator. Strict rules:
 //   miya   — twin curved arcs (Bezier), NEVER a straight line.
-//   kibo   — straight line, width 30, length = attackRange (550).
 //   ronin  — 60° cone (filled sector), radius 160.
 //   yuki   — straight line, width 20, length 350.
 //   kenji  — straight line + small circle at tip + dashed circle r=200.
@@ -463,10 +462,6 @@ function drawAttackIndicator(
       ctx.setLineDash([]);
       break;
     }
-    case "kibo": {
-      drawLineProjectile(ctx, range, 30 * scale, "rgba(178, 235, 242, 0.42)", STROKE);
-      break;
-    }
     case "yuki": {
       drawLineProjectile(ctx, range, 20 * scale, "rgba(225, 245, 254, 0.42)", STROKE);
       break;
@@ -509,7 +504,6 @@ function drawLineProjectile(
 // =====================================================================
 // Per-brawler super indicator. Strict rules:
 //   miya   — circle r=350 around player (search zone). Direction ignored.
-//   kibo   — long beam to the map edge.
 //   ronin  — NO indicator (instant self-buff). Renderer returns null.
 //   yuki   — placed circle r=140, max 300 world units from player.
 //   kenji  — placed circle r=110, max 300.
@@ -544,18 +538,6 @@ function drawSuperIndicator(
       ctx.fill();
       ctx.stroke();
       ctx.setLineDash([]);
-      break;
-    }
-    case "kibo": {
-      ctx.rotate(angle);
-      const length = Math.hypot(cssW, cssH);
-      ctx.fillStyle = "rgba(64, 196, 255, 0.4)";
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.rect(0, -12, length, 24);
-      ctx.fill();
-      ctx.stroke();
       break;
     }
     case "taro": {
