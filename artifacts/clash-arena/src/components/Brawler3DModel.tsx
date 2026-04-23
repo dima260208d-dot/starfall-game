@@ -54,7 +54,11 @@ function loadGLTFCached(url: string): Promise<CachedGLTF> {
         normOffY: -box.min.y * normScale,
         normOffZ: -center.z * normScale,
       });
-    }, undefined, reject);
+    }, undefined, (err) => {
+      // Evict on failure so the next mount can retry the download.
+      gltfCache.delete(url);
+      reject(err);
+    });
   });
   gltfCache.set(url, p);
   return p;
@@ -181,8 +185,8 @@ export default function Brawler3DModel({
       stateRef.current.mixer = mixer;
       stateRef.current.clips = cached.animations;
       playClip(animation);
-    }).catch((err) => {
-      console.warn("[Brawler3DModel] failed to load", modelUrl, err);
+    }).catch(() => {
+      console.warn("[Brawler3DModel] failed to load", modelUrl);
     });
 
     // ---------------- Render loop ----------------
@@ -225,6 +229,7 @@ export default function Brawler3DModel({
     const s = stateRef.current;
     if (!s.mixer || !s.clips) return;
     const clip = resolveClip(s.clips, name);
+
     if (!clip) return;
     const next = s.mixer.clipAction(clip);
     next.reset();
