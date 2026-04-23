@@ -25,23 +25,22 @@ export type MiyaAnim = CharAnim;
 const SIZE = 256;
 const MODEL_TARGET_H = 2.2;
 
-// All uploaded models have exactly 3 clips: walk (0), run (1), attack (2).
-// Name-based lookup is tried first; fallbackIdx is used if nothing matches.
-function findClip(
-  clips: THREE.AnimationClip[],
-  fallbackIdx: number,
-  ...names: string[]
-): THREE.AnimationClip | null {
-  for (const name of names) {
-    const c = THREE.AnimationClip.findByName(clips, name);
-    if (c) return c;
-  }
-  return clips[fallbackIdx] ?? clips[0] ?? null;
-}
+// Exact animation clip names per character (extracted from the GLB files).
+interface CharAnimNames { idle: string; run: string; attack: string; }
 
-const IDLE_NAMES   = ["Thoughtful_Walk", "Idle", "idle", "Walk", "walk", "Standing"];
-const RUN_NAMES    = ["Running", "Run", "run", "Sprint", "Jog", "jog"];
-const ATTACK_NAMES = ["Attack", "attack", "Slash", "slash", "Strike", "strike", "Punch"];
+const CHAR_ANIM_NAMES: Record<string, CharAnimNames> = {
+  miya:  { idle: "Thoughtful_Walk",    run: "Running", attack: "Attack" },
+  sora:  { idle: "Walking",            run: "Running", attack: "mage_soell_cast_2" },
+  goro:  { idle: "Walking",            run: "Running", attack: "Double_Combo_Attack" },
+  ronin: { idle: "Walking",            run: "Running", attack: "Step_Step_Turn_Kick" },
+  hana:  { idle: "Walking",            run: "Running", attack: "Archery_Shot_3" },
+  kenji: { idle: "Walking",            run: "Running", attack: "Axe_Spin_Attack" },
+  yuki:  { idle: "Walking",            run: "Running", attack: "Axe_Spin_Attack" },
+};
+
+function findClip(clips: THREE.AnimationClip[], name: string): THREE.AnimationClip | null {
+  return THREE.AnimationClip.findByName(clips, name) ?? null;
+}
 
 class CharacterTopDownRenderer {
   private canvas: HTMLCanvasElement | null = null;
@@ -51,6 +50,7 @@ class CharacterTopDownRenderer {
 
   private modelTemplate: THREE.Group | null = null;
   private clips: THREE.AnimationClip[] = [];
+  private animNames: CharAnimNames;
 
   private instances = new Map<string, {
     model: THREE.Object3D;
@@ -62,6 +62,10 @@ class CharacterTopDownRenderer {
 
   private loading: Promise<void> | null = null;
   private ready = false;
+
+  constructor(animNames: CharAnimNames) {
+    this.animNames = animNames;
+  }
 
   init(modelUrl: string): Promise<void> {
     if (this.ready) return Promise.resolve();
@@ -141,9 +145,9 @@ class CharacterTopDownRenderer {
     const mixer = new THREE.AnimationMixer(model);
     const actions: Partial<Record<CharAnim, THREE.AnimationAction>> = {};
 
-    const idleClip   = findClip(this.clips, 0, ...IDLE_NAMES);
-    const runClip    = findClip(this.clips, 1, ...RUN_NAMES);
-    const attackClip = findClip(this.clips, 2, ...ATTACK_NAMES);
+    const idleClip   = findClip(this.clips, this.animNames.idle);
+    const runClip    = findClip(this.clips, this.animNames.run);
+    const attackClip = findClip(this.clips, this.animNames.attack);
 
     for (const [anim, clip] of [
       ["idle", idleClip] as const,
@@ -241,7 +245,8 @@ export function getCharRenderer(id: string): CharacterTopDownRenderer | null {
   if (!CHAR_3D_IDS.has(id)) return null;
   let r = rendererRegistry.get(id);
   if (!r) {
-    r = new CharacterTopDownRenderer();
+    const names = CHAR_ANIM_NAMES[id] ?? { idle: "Walking", run: "Running", attack: "Attack" };
+    r = new CharacterTopDownRenderer(names);
     r.init(`${_base}models/${id}.glb`).catch(() => { /* fall back to 2D sprite */ });
     rendererRegistry.set(id, r);
   }

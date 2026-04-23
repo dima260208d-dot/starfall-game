@@ -45,9 +45,10 @@ function loadGLTFCached(url: string): Promise<CachedGLTF> {
       const TARGET_H = 2.2;
       const normScale = sz.y > 0.001 ? TARGET_H / sz.y : 1;
 
+      const animations = gltf.animations ?? [];
       resolve({
         scene,
-        animations: gltf.animations ?? [],
+        animations,
         normScale,
         normOffX: -center.x * normScale,
         normOffY: -box.min.y * normScale,
