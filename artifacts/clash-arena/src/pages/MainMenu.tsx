@@ -300,7 +300,7 @@ export default function MainMenu(props: MainMenuProps) {
             height: compact ? 259 : 288,
             display: "flex", alignItems: "center", justifyContent: "center",
             animation: "floatY 3.5s ease-in-out infinite",
-            transform: "translateX(-24px)",
+            transform: "translateX(-44px)",
           }}
         >
           <div style={{
@@ -331,7 +331,7 @@ export default function MainMenu(props: MainMenuProps) {
             <span style={{ color: "#FFD700", fontSize: 12, fontWeight: 800 }}>🏆 {brawlerTrophies}</span>
           </button>
           <div style={{
-            position: "absolute", bottom: -32, left: "50%", transform: "translateX(-50%)",
+            position: "absolute", bottom: -52, left: "50%", transform: "translateX(-50%)",
             background: "rgba(0,0,0,0.55)", border: `1px solid ${brawler.color}`,
             borderRadius: 12, padding: "6px 18px",
             fontSize: 18, fontWeight: 800, color: brawler.color,
