@@ -10,15 +10,17 @@ interface BrawlerViewer3DProps {
 
 // Brawlers that have a real 3D GLB model in /public/models. Anyone listed here
 // renders via the GLTF viewer instead of the 2D billboard fallback.
-const MODEL_URLS: Record<string, { url: string; idleAnim: string }> = {
-  miya:  { url: "models/miya.glb",  idleAnim: "Thoughtful_Walk" },
-  ronin: { url: "models/ronin.glb", idleAnim: "Walking" },
-  yuki:  { url: "models/yuki.glb",  idleAnim: "Walking" },
-  kenji: { url: "models/kenji.glb", idleAnim: "Walking" },
-  hana:  { url: "models/hana.glb",  idleAnim: "Walking" },
-  goro:  { url: "models/goro.glb",  idleAnim: "Walking" },
-  sora:  { url: "models/sora.glb",  idleAnim: "Walking" },
-  rin:   { url: "models/rin.glb",   idleAnim: "Walking" },
+// idleIdx = direct clip index inside the GLB (most reliable selector)
+// Extracted from the binary GLB files; animation order confirmed from raw GLTF JSON.
+const MODEL_URLS: Record<string, { url: string; idleAnim: string; idleIdx: number }> = {
+  miya:  { url: "models/miya.glb",  idleAnim: "Thoughtful_Walk", idleIdx: 2 },
+  ronin: { url: "models/ronin.glb", idleAnim: "Walking",         idleIdx: 2 },
+  yuki:  { url: "models/yuki.glb",  idleAnim: "Walking",         idleIdx: 2 },
+  kenji: { url: "models/kenji.glb", idleAnim: "Walking",         idleIdx: 2 },
+  hana:  { url: "models/hana.glb",  idleAnim: "Walking",         idleIdx: 2 },
+  goro:  { url: "models/goro.glb",  idleAnim: "Walking",         idleIdx: 2 },
+  sora:  { url: "models/sora.glb",  idleAnim: "Walking",         idleIdx: 1 },
+  rin:   { url: "models/rin.glb",   idleAnim: "Walking",         idleIdx: 2 },
 };
 
 // Cached one-shot WebGL availability check. We try to create a tiny WebGL
@@ -47,6 +49,7 @@ export default function BrawlerViewer3D({ brawlerId, color, size = 320, autoRota
       <Brawler3DModel
         modelUrl={`${base}${model.url}`}
         animation={model.idleAnim}
+        animationIdx={model.idleIdx}
         color={color}
         size={size}
         autoRotateInitial={autoRotateInitial}

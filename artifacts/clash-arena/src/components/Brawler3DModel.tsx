@@ -5,8 +5,10 @@ import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js
 
 interface Brawler3DModelProps {
   modelUrl: string;
-  /** Name of the GLTF animation clip to loop (e.g. "Idle"). */
+  /** Name of the GLTF animation clip to loop (e.g. "Walking"). */
   animation: string;
+  /** Direct clip index — used as the primary selector when provided. */
+  animationIdx?: number;
   /** Glow color used for the radial backdrop. */
   color: string;
   size?: number;
@@ -85,10 +87,13 @@ function fixMaterials(root: THREE.Object3D): void {
 }
 
 // ── Animation clip resolution ─────────────────────────────────────────────────
-// The given name is tried first (e.g. Miya's "Thoughtful_Walk").
-// If it is not found, clips[0] is used — all uploaded models have walking as
-// their first clip, running as second, and attack as third.
-function resolveClip(clips: THREE.AnimationClip[], requested: string): THREE.AnimationClip | null {
+// Index-based lookup is tried first (most reliable), then name-based, then clips[0].
+function resolveClip(
+  clips: THREE.AnimationClip[],
+  requested: string,
+  idx?: number,
+): THREE.AnimationClip | null {
+  if (idx !== undefined && clips[idx]) return clips[idx];
   return clips.find(c => c.name === requested) ?? clips[0] ?? null;
 }
 
@@ -100,6 +105,7 @@ function resolveClip(clips: THREE.AnimationClip[], requested: string): THREE.Ani
 export default function Brawler3DModel({
   modelUrl,
   animation,
+  animationIdx,
   color,
   size = 320,
   autoRotateInitial = false,
@@ -184,7 +190,7 @@ export default function Brawler3DModel({
       const mixer = new THREE.AnimationMixer(model);
       stateRef.current.mixer = mixer;
       stateRef.current.clips = cached.animations;
-      playClip(animation);
+      playClip(animation, animationIdx);
     }).catch(() => {
       console.warn("[Brawler3DModel] failed to load", modelUrl);
     });
@@ -225,10 +231,10 @@ export default function Brawler3DModel({
   }, [modelUrl, size]);
 
   // ---------------- Animation switching ----------------
-  const playClip = (name: string) => {
+  const playClip = (name: string, idx?: number) => {
     const s = stateRef.current;
     if (!s.mixer || !s.clips) return;
-    const clip = resolveClip(s.clips, name);
+    const clip = resolveClip(s.clips, name, idx);
 
     if (!clip) return;
     const next = s.mixer.clipAction(clip);
@@ -243,8 +249,9 @@ export default function Brawler3DModel({
   };
 
   useEffect(() => {
-    playClip(animation);
-  }, [animation]);
+    playClip(animation, animationIdx);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [animation, animationIdx]);
 
   // ---------------- Pointer drag ----------------
   const onPointerDown = (e: React.PointerEvent) => {
