@@ -18,6 +18,7 @@ const MODEL_URLS: Record<string, { url: string; idleAnim: string }> = {
   hana:  { url: "models/hana.glb",  idleAnim: "Walking" },
   goro:  { url: "models/goro.glb",  idleAnim: "Walking" },
   sora:  { url: "models/sora.glb",  idleAnim: "Walking" },
+  rin:   { url: "models/rin.glb",   idleAnim: "Walking" },
 };
 
 // Cached one-shot WebGL availability check. We try to create a tiny WebGL

@@ -36,10 +36,11 @@ const CHAR_ANIM_NAMES: Record<string, CharAnimNames> = {
   hana:  { idle: "Walking",            run: "Running", attack: "Archery_Shot_3" },
   kenji: { idle: "Walking",            run: "Running", attack: "Axe_Spin_Attack" },
   yuki:  { idle: "Walking",            run: "Running", attack: "Axe_Spin_Attack" },
+  rin:   { idle: "Walking",            run: "Running", attack: "Left_Slash" },
 };
 
 function findClip(clips: THREE.AnimationClip[], name: string): THREE.AnimationClip | null {
-  return THREE.AnimationClip.findByName(clips, name) ?? null;
+  return clips.find(c => c.name === name) ?? null;
 }
 
 class CharacterTopDownRenderer {
@@ -221,7 +222,7 @@ class CharacterTopDownRenderer {
 // in-battle. This avoids loading all ~300 MB of GLBs at startup.
 
 /** Character IDs that have a 3D GLB model for in-battle rendering. */
-export const CHAR_3D_IDS = new Set(["miya", "ronin", "yuki", "kenji", "hana", "goro", "sora"]);
+export const CHAR_3D_IDS = new Set(["miya", "ronin", "yuki", "kenji", "hana", "goro", "sora", "rin"]);
 
 let _base = "/";
 const rendererRegistry = new Map<string, CharacterTopDownRenderer>();

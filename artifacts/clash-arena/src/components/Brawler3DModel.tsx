@@ -85,7 +85,7 @@ function fixMaterials(root: THREE.Object3D): void {
 // If it is not found, clips[0] is used — all uploaded models have walking as
 // their first clip, running as second, and attack as third.
 function resolveClip(clips: THREE.AnimationClip[], requested: string): THREE.AnimationClip | null {
-  return THREE.AnimationClip.findByName(clips, requested) ?? clips[0] ?? null;
+  return clips.find(c => c.name === requested) ?? clips[0] ?? null;
 }
 
 /**
