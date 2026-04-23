@@ -121,7 +121,7 @@ function BrawlerViewer3DBillboard({ brawlerId, color, size = 320, autoRotateInit
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
       onDoubleClick={() => setAutoRotate((v) => !v)}
-      title="Перетащи, чтобы повернуть. Двойной клик — авто-вращение."
+      title=""
     >
       {/* radial glow backdrop */}
       <div
@@ -217,22 +217,6 @@ function BrawlerViewer3DBillboard({ brawlerId, color, size = 320, autoRotateInit
       </div>
 
       {/* hint label */}
-      <div
-        style={{
-          position: "absolute",
-          bottom: 4,
-          left: 0,
-          right: 0,
-          textAlign: "center",
-          fontSize: 10,
-          color: "rgba(255,255,255,0.4)",
-          letterSpacing: 1.5,
-          fontWeight: 600,
-          pointerEvents: "none",
-        }}
-      >
-        ↔ ПЕРЕТАЩИ • 2× КЛИК — АВТО
-      </div>
     </div>
   );
 }

@@ -218,7 +218,7 @@ export default function Brawler3DModel({
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
       onDoubleClick={() => { stateRef.current.autoRotate = !stateRef.current.autoRotate; }}
-      title="Перетащи, чтобы повернуть. Двойной клик — авто-вращение."
+      title=""
     >
       {/* radial glow backdrop */}
       <div
@@ -229,17 +229,6 @@ export default function Brawler3DModel({
         }}
       />
       <div ref={containerRef} style={{ width: "100%", height: "100%", position: "relative" }} />
-      <div
-        style={{
-          position: "absolute", bottom: 4, left: 0, right: 0,
-          textAlign: "center", fontSize: 10,
-          color: "rgba(255,255,255,0.4)",
-          letterSpacing: 1.5, fontWeight: 600,
-          pointerEvents: "none",
-        }}
-      >
-        ↔ ПЕРЕТАЩИ • 2× КЛИК — АВТО
-      </div>
     </div>
   );
 }
