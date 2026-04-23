@@ -689,7 +689,7 @@ export class Brawler {
     viewerTeam?: string,
     friendlies?: { x: number; y: number }[]
   ): void {
-    if (!this.alive && this.deathAnim > 1) return;
+    // Dead brawlers remain visible (lying on the ground) — never fully hidden.
     
     const sx = this.x - camX;
     const sy = this.y - camY;
@@ -717,7 +717,8 @@ export class Brawler {
     
     let alpha = 1;
     if (!this.alive) {
-      alpha = Math.max(0, 1 - this.deathAnim);
+      // Fade from 1 → 0.45 over ~0.4 s, then hold at 0.45 so the body stays visible.
+      alpha = Math.max(0.45, 1 - this.deathAnim * 1.4);
     } else if (this.inBush && this.isPlayer) {
       alpha = 0.6;
     } else if (this.inBush) {
@@ -782,11 +783,14 @@ export class Brawler {
       while (diff < -Math.PI) diff += 2 * Math.PI;
       this._smoothMoveAngle += diff * Math.min(1, rdt * 14);
 
-      const anim: CharAnim = this.attackAnim > 0.05
-        ? "attack"
-        : this._movingSmoothed > 0.5 ? "run" : "idle";
-      // During attack, face the aim direction; otherwise face movement direction (smooth).
-      const renderAngle = anim === "attack" ? this.angle : this._smoothMoveAngle;
+      const anim: CharAnim = !this.alive
+        ? "dead"
+        : this.attackAnim > 0.05
+          ? "attack"
+          : this._movingSmoothed > 0.5 ? "run" : "idle";
+      // Dead: keep last facing angle. Attack: aim direction. Otherwise: smooth move angle.
+      const renderAngle = anim === "dead" ? this._smoothMoveAngle
+        : anim === "attack" ? this.angle : this._smoothMoveAngle;
       const off = charRenderer.render(this.id, anim, renderAngle);
       if (off) {
         const drawSize = this.radius * 4.6;

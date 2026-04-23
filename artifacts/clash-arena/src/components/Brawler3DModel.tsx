@@ -87,14 +87,33 @@ function fixMaterials(root: THREE.Object3D): void {
 }
 
 // ── Animation clip resolution ─────────────────────────────────────────────────
-// Index-based lookup is tried first (most reliable), then name-based, then clips[0].
+// Resolution order:
+//   1. Direct index (most reliable — hardcoded from binary GLB extraction)
+//   2. Exact name match
+//   3. Case-insensitive partial name match
+//   4. Fuzzy: first clip whose name does NOT look like a combat/attack animation
+//   5. clips[0] last resort
+const ATTACK_PATTERN = /attack|slash|combo|kick|shot|cast|spin|punch|strike|stab/i;
 function resolveClip(
   clips: THREE.AnimationClip[],
   requested: string,
   idx?: number,
 ): THREE.AnimationClip | null {
+  if (!clips.length) return null;
+  // 1. Direct index
   if (idx !== undefined && clips[idx]) return clips[idx];
-  return clips.find(c => c.name === requested) ?? clips[0] ?? null;
+  // 2. Exact name
+  const exact = clips.find(c => c.name === requested);
+  if (exact) return exact;
+  // 3. Case-insensitive partial
+  const lower = requested.toLowerCase();
+  const partial = clips.find(c => c.name.toLowerCase().includes(lower));
+  if (partial) return partial;
+  // 4. Avoid attack clips — prefer one that looks like a walk/idle
+  const nonAttack = clips.filter(c => !ATTACK_PATTERN.test(c.name) && !/^run/i.test(c.name));
+  if (nonAttack.length) return nonAttack.find(c => /walk/i.test(c.name)) ?? nonAttack[0];
+  // 5. Last resort
+  return clips[0];
 }
 
 /**

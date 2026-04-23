@@ -18,7 +18,7 @@ function fixMaterials(root: THREE.Object3D): void {
   });
 }
 
-export type CharAnim = "idle" | "run" | "attack";
+export type CharAnim = "idle" | "run" | "attack" | "dead";
 /** @deprecated use CharAnim */
 export type MiyaAnim = CharAnim;
 
@@ -185,25 +185,39 @@ class CharacterTopDownRenderer {
     const inst = this.getOrCreateInstance(instanceId);
     if (!inst) return null;
 
-    if (inst.currentAnim !== anim) {
-      const prev = inst.actions[inst.currentAnim];
-      const next = inst.actions[anim];
-      if (next) {
-        next.reset();
-        next.fadeIn(0.15);
-        next.play();
+    if (anim === "dead") {
+      // On the first frame of death: freeze all animations.
+      if (inst.currentAnim !== "dead") {
+        for (const a of Object.values(inst.actions)) {
+          if (a) a.stop();
+        }
+        inst.currentAnim = "dead";
       }
-      if (prev && prev !== next) prev.fadeOut(0.15);
-      inst.currentAnim = anim;
+      // Lay model flat on the ground — rotate 90° around X so it falls forward.
+      // The top-down camera sees the model as a prone silhouette on the map.
+      inst.model.position.set(0, 0, 0);
+      inst.model.rotation.set(-Math.PI / 2, 0, Math.PI / 2 - angleRad);
+    } else {
+      if (inst.currentAnim !== anim) {
+        const prev = inst.actions[inst.currentAnim as Exclude<CharAnim, "dead">];
+        const next = inst.actions[anim as Exclude<CharAnim, "dead">];
+        if (next) {
+          next.reset();
+          next.fadeIn(0.15);
+          next.play();
+        }
+        if (prev && prev !== next) prev.fadeOut(0.15);
+        inst.currentAnim = anim;
+      }
+
+      const now = performance.now();
+      const dt = inst.lastTs ? Math.min(0.05, (now - inst.lastTs) / 1000) : 1 / 60;
+      inst.lastTs = now;
+      inst.mixer.update(dt);
+
+      inst.model.position.set(0, 0, 0);
+      inst.model.rotation.set(0, Math.PI / 2 - angleRad, 0);
     }
-
-    const now = performance.now();
-    const dt = inst.lastTs ? Math.min(0.05, (now - inst.lastTs) / 1000) : 1 / 60;
-    inst.lastTs = now;
-    inst.mixer.update(dt);
-
-    inst.model.position.set(0, 0, 0);
-    inst.model.rotation.set(0, Math.PI / 2 - angleRad, 0);
 
     this.scene.clear();
     this.scene.add(new THREE.AmbientLight(0xffffff, 0.85));
