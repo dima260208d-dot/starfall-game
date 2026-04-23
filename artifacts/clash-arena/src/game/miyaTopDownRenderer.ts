@@ -2,6 +2,22 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 
+/** Force correct material settings on all meshes (mirrors Brawler3DModel). */
+function fixMaterials(root: THREE.Object3D): void {
+  root.traverse((obj) => {
+    if (!(obj as THREE.Mesh).isMesh) return;
+    const mesh = obj as THREE.Mesh;
+    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    mats.forEach((m: THREE.Material) => {
+      m.side = THREE.DoubleSide;
+      m.depthWrite = true;
+      const sm = m as THREE.MeshStandardMaterial;
+      if (sm.opacity !== undefined && sm.opacity >= 0.98) m.transparent = false;
+      m.needsUpdate = true;
+    });
+  });
+}
+
 export type CharAnim = "idle" | "run" | "attack";
 /** @deprecated use CharAnim */
 export type MiyaAnim = CharAnim;
@@ -83,6 +99,7 @@ class CharacterTopDownRenderer {
         (gltf) => {
           this.modelTemplate = gltf.scene;
           this.clips = gltf.animations ?? [];
+          fixMaterials(this.modelTemplate);
 
           const box = new THREE.Box3().setFromObject(this.modelTemplate);
           const sz = new THREE.Vector3();
@@ -190,32 +207,40 @@ class CharacterTopDownRenderer {
   }
 }
 
-// ── Registry ─────────────────────────────────────────────────────────────────
+// ── Lazy registry ─────────────────────────────────────────────────────────────
+// Renderers are created on-demand the first time a character is rendered
+// in-battle. This avoids loading all ~300 MB of GLBs at startup.
 
 /** Character IDs that have a 3D GLB model for in-battle rendering. */
 export const CHAR_3D_IDS = new Set(["miya", "ronin", "yuki", "kenji", "hana", "goro", "sora"]);
 
+let _base = "/";
 const rendererRegistry = new Map<string, CharacterTopDownRenderer>();
 
-export function initCharRenderers(base: string): void {
-  const models: Record<string, string> = {
-    miya:  "models/miya.glb",
-    ronin: "models/ronin.glb",
-    yuki:  "models/yuki.glb",
-    kenji: "models/kenji.glb",
-    hana:  "models/hana.glb",
-    goro:  "models/goro.glb",
-    sora:  "models/sora.glb",
-  };
-  for (const [id, path] of Object.entries(models)) {
-    const r = new CharacterTopDownRenderer();
-    r.init(`${base}${path}`).catch(() => { /* fall back to 2D sprite */ });
-    rendererRegistry.set(id, r);
-  }
+/** Call once (on module import) to record the base URL for lazy GLB loading. */
+export function setRenderersBase(base: string): void {
+  _base = base;
 }
 
+/** @deprecated use setRenderersBase */
+export function initCharRenderers(base: string): void {
+  setRenderersBase(base);
+}
+
+/**
+ * Returns the renderer for the given character, creating and starting the load
+ * if it hasn't been requested before. Falls back to null if the character has
+ * no 3D model.
+ */
 export function getCharRenderer(id: string): CharacterTopDownRenderer | null {
-  return rendererRegistry.get(id) ?? null;
+  if (!CHAR_3D_IDS.has(id)) return null;
+  let r = rendererRegistry.get(id);
+  if (!r) {
+    r = new CharacterTopDownRenderer();
+    r.init(`${_base}models/${id}.glb`).catch(() => { /* fall back to 2D sprite */ });
+    rendererRegistry.set(id, r);
+  }
+  return r;
 }
 
 /** @deprecated kept for any lingering references — use getCharRenderer("miya") */

@@ -5,12 +5,12 @@ import { spawnDamageNumber } from "../utils/damageNumbers";
 import { spawnEffect, makeZigzag } from "../utils/effects";
 import { clamp, distance, angleTo } from "../utils/helpers";
 import { drawCharacterSprite, drawBrawlerImage } from "../game/sprites";
-import { initCharRenderers, getCharRenderer, CHAR_3D_IDS, type CharAnim } from "../game/miyaTopDownRenderer";
+import { setRenderersBase, getCharRenderer, CHAR_3D_IDS, type CharAnim } from "../game/miyaTopDownRenderer";
 
-// Kick off loading all 3D models the first time this module is imported.
+// Record the base URL so lazy renderers know where to find the GLBs.
+// Models are loaded on-demand the first time a character is rendered in-battle.
 if (typeof window !== "undefined") {
-  const base = (import.meta as any).env?.BASE_URL ?? "/";
-  initCharRenderers(base);
+  setRenderersBase((import.meta as any).env?.BASE_URL ?? "/");
 }
 
 export type Team = string;

@@ -1,10 +1,11 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 
 interface Brawler3DModelProps {
   modelUrl: string;
-  /** Name of the GLTF animation clip to loop (e.g. "Thoughtful_Walk"). */
+  /** Name of the GLTF animation clip to loop (e.g. "Idle"). */
   animation: string;
   /** Glow color used for the radial backdrop. */
   color: string;
@@ -12,13 +13,71 @@ interface Brawler3DModelProps {
   autoRotateInitial?: boolean;
 }
 
+// ── GLTF cache ────────────────────────────────────────────────────────────────
+// The first time a model URL is loaded, the raw GLTF is stored here.
+// Subsequent viewers clone the cached scene — saving the full network round-trip.
+interface CachedGLTF {
+  scene: THREE.Group;
+  animations: THREE.AnimationClip[];
+}
+const gltfCache = new Map<string, Promise<CachedGLTF>>();
+
+function loadGLTFCached(url: string): Promise<CachedGLTF> {
+  const hit = gltfCache.get(url);
+  if (hit) return hit;
+  const p = new Promise<CachedGLTF>((resolve, reject) => {
+    new GLTFLoader().load(url, (gltf) => {
+      fixMaterials(gltf.scene);
+      resolve({ scene: gltf.scene, animations: gltf.animations ?? [] });
+    }, undefined, reject);
+  });
+  gltfCache.set(url, p);
+  return p;
+}
+
+// ── Material fix ──────────────────────────────────────────────────────────────
+// Many GLB exporters incorrectly set transparent=true, alphaTest, or BackSide.
+// Forcing DoubleSide prevents "missing" mesh parts and depthWrite fixes z-order.
+function fixMaterials(root: THREE.Object3D): void {
+  root.traverse((obj) => {
+    if (!(obj as THREE.Mesh).isMesh) return;
+    const mesh = obj as THREE.Mesh;
+    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    mats.forEach((m: THREE.Material) => {
+      m.side = THREE.DoubleSide;
+      m.depthWrite = true;
+      const sm = m as THREE.MeshStandardMaterial;
+      if (sm.opacity !== undefined && sm.opacity >= 0.98) {
+        m.transparent = false;
+      }
+      m.needsUpdate = true;
+    });
+  });
+}
+
+// ── Animation clip resolution ─────────────────────────────────────────────────
+// The given name is tried first. If missing, the priority list is checked.
+// This covers Miya ("Thoughtful_Walk") and other packs that use "Idle".
+const IDLE_PRIORITY = [
+  "Idle", "idle", "Thoughtful_Walk",
+  "Walk", "walk", "Standing", "Standing Idle",
+  "Breathing", "breathing idle", "T-Pose",
+];
+
+function resolveClip(clips: THREE.AnimationClip[], requested: string): THREE.AnimationClip | null {
+  const direct = THREE.AnimationClip.findByName(clips, requested);
+  if (direct) return direct;
+  for (const name of IDLE_PRIORITY) {
+    const c = THREE.AnimationClip.findByName(clips, name);
+    if (c) return c;
+  }
+  return clips[0] ?? null;
+}
+
 /**
  * Standalone 3D model viewer for menu / collection screens. The user looks at
- * the brawler "head-on" (camera in front, pointing at chest height) and can
- * drag horizontally to spin the model 360°. Double-click toggles auto-rotation.
- *
- * One animation clip plays on a loop. Switching the `animation` prop cross-
- * fades into the new clip.
+ * the brawler "head-on" and can drag horizontally to spin the model 360°.
+ * One animation clip plays on a loop. Models are cached after first download.
  */
 export default function Brawler3DModel({
   modelUrl,
@@ -62,8 +121,6 @@ export default function Brawler3DModel({
     try {
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     } catch (err) {
-      // WebGL unavailable (e.g. headless preview). Render nothing — the
-      // surrounding card UI is still useful as a graceful fallback.
       console.warn("[Brawler3DModel] WebGL unavailable, skipping", err);
       return;
     }
@@ -77,12 +134,11 @@ export default function Brawler3DModel({
     camera.position.set(0, 1.4, 5.5);
     camera.lookAt(0, 1.0, 0);
 
-    // Lighting — three-point setup so the cel-shaded model reads cleanly.
-    scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+    scene.add(new THREE.AmbientLight(0xffffff, 0.85));
     const key = new THREE.DirectionalLight(0xffffff, 1.1);
     key.position.set(2, 4, 3);
     scene.add(key);
-    const rim = new THREE.DirectionalLight(new THREE.Color(color), 0.6);
+    const rim = new THREE.DirectionalLight(new THREE.Color(color), 0.55);
     rim.position.set(-2, 2, -3);
     scene.add(rim);
 
@@ -94,37 +150,33 @@ export default function Brawler3DModel({
     stateRef.current.camera = camera;
     stateRef.current.rootGroup = rootGroup;
 
-    // ---------------- Load the GLB ----------------
+    // ---------------- Load GLB (cached) ----------------
     let cancelled = false;
-    const loader = new GLTFLoader();
-    loader.load(
-      modelUrl,
-      (gltf) => {
-        if (cancelled) return;
-        const model = gltf.scene;
+    loadGLTFCached(modelUrl).then((cached) => {
+      if (cancelled) return;
 
-        // Center & scale to a unit-ish footprint so different exports show at
-        // the same on-screen size.
-        const box = new THREE.Box3().setFromObject(model);
-        const sizeVec = new THREE.Vector3();
-        box.getSize(sizeVec);
-        const center = new THREE.Vector3();
-        box.getCenter(center);
-        const targetHeight = 2.2;
-        const scale = sizeVec.y > 0.001 ? targetHeight / sizeVec.y : 1;
-        model.scale.setScalar(scale);
-        model.position.set(-center.x * scale, -box.min.y * scale, -center.z * scale);
+      const model = cloneSkinned(cached.scene) as THREE.Group;
+      fixMaterials(model);
 
-        rootGroup.add(model);
+      const box = new THREE.Box3().setFromObject(model);
+      const sizeVec = new THREE.Vector3();
+      box.getSize(sizeVec);
+      const center = new THREE.Vector3();
+      box.getCenter(center);
+      const targetHeight = 2.2;
+      const sc = sizeVec.y > 0.001 ? targetHeight / sizeVec.y : 1;
+      model.scale.setScalar(sc);
+      model.position.set(-center.x * sc, -box.min.y * sc, -center.z * sc);
 
-        const mixer = new THREE.AnimationMixer(model);
-        stateRef.current.mixer = mixer;
-        stateRef.current.clips = gltf.animations;
-        playClip(animation);
-      },
-      undefined,
-      (err) => console.warn("[Brawler3DModel] failed to load", modelUrl, err),
-    );
+      rootGroup.add(model);
+
+      const mixer = new THREE.AnimationMixer(model);
+      stateRef.current.mixer = mixer;
+      stateRef.current.clips = cached.animations;
+      playClip(animation);
+    }).catch((err) => {
+      console.warn("[Brawler3DModel] failed to load", modelUrl, err);
+    });
 
     // ---------------- Render loop ----------------
     const tick = (ts: number) => {
@@ -150,7 +202,6 @@ export default function Brawler3DModel({
       if (renderer.domElement.parentNode === container) {
         container.removeChild(renderer.domElement);
       }
-      // Dispose of geometries/materials in the root group to free GPU memory.
       rootGroup.traverse((obj) => {
         const mesh = obj as THREE.Mesh;
         if (mesh.geometry) mesh.geometry.dispose();
@@ -166,7 +217,7 @@ export default function Brawler3DModel({
   const playClip = (name: string) => {
     const s = stateRef.current;
     if (!s.mixer || !s.clips) return;
-    const clip = THREE.AnimationClip.findByName(s.clips, name) ?? s.clips[0];
+    const clip = resolveClip(s.clips, name);
     if (!clip) return;
     const next = s.mixer.clipAction(clip);
     next.reset();
@@ -220,7 +271,6 @@ export default function Brawler3DModel({
       onDoubleClick={() => { stateRef.current.autoRotate = !stateRef.current.autoRotate; }}
       title=""
     >
-      {/* radial glow backdrop */}
       <div
         style={{
           position: "absolute", inset: 0, borderRadius: "50%",
