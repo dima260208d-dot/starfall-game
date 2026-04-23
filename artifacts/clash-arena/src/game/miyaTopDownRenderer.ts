@@ -123,6 +123,14 @@ class CharacterTopDownRenderer {
           this.modelTemplate.position.set(-c.x * scale, -box2.min.y, -c.z * scale);
 
           this.ready = true;
+          // Render one warmup frame to pre-compile shaders and upload textures
+          // to the GPU. This prevents the first in-game render from causing a lag spike.
+          try {
+            const warmModel = cloneSkinned(this.modelTemplate) as THREE.Object3D;
+            this.scene!.add(warmModel);
+            this.renderer!.render(this.scene!, this.camera!);
+            this.scene!.remove(warmModel);
+          } catch { /* ignore warmup errors */ }
           resolve();
         },
         undefined,
@@ -245,6 +253,28 @@ const rendererRegistry = new Map<string, CharacterTopDownRenderer>();
 /** Call once (on module import) to record the base URL for lazy GLB loading. */
 export function setRenderersBase(base: string): void {
   _base = base;
+}
+
+/**
+ * Eagerly preload every 3D character model and warm up the GPU.
+ * Call this as soon as the player decides to enter battle (e.g. during the
+ * loading screen) so that GLB downloads and shader compilation finish before
+ * the game loop starts — eliminating the 2-D → 3-D pop and mid-game lag.
+ */
+export function preloadCharRenderers(base: string): Promise<void> {
+  setRenderersBase(base);
+  const promises = Array.from(CHAR_3D_IDS).map(id => {
+    let r = rendererRegistry.get(id);
+    if (!r) {
+      const names = CHAR_ANIM_NAMES[id] ?? { idle: "Walking", run: "Running", attack: "Attack" };
+      r = new CharacterTopDownRenderer(names);
+      rendererRegistry.set(id, r);
+    }
+    return r.init(`${base}models/${id}.glb`).catch(() => {
+      // Model failed to load — 2-D sprite fallback will be used in-game.
+    });
+  });
+  return Promise.all(promises).then(() => {});
 }
 
 /** @deprecated use setRenderersBase */

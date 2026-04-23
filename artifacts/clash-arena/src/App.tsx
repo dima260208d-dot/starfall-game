@@ -14,6 +14,7 @@ import TrophyRoadPage from "./pages/TrophyRoadPage";
 import ChestsPage from "./pages/ChestsPage";
 import LoadingScreen from "./pages/LoadingScreen";
 import RotateDeviceOverlay from "./components/RotateDeviceOverlay";
+import { preloadCharRenderers } from "./game/miyaTopDownRenderer";
 
 type Screen =
   | "auth"
@@ -66,6 +67,12 @@ export default function App() {
 
   // Animated transition with a loading screen
   const goWithLoad = (s: Screen, label = "ЗАГРУЗКА") => {
+    // When heading into battle, start downloading all 3D models immediately so
+    // they finish during the 4.5 s loading screen — not during gameplay.
+    if (s === "game") {
+      const base = (import.meta as any).env?.BASE_URL ?? "/";
+      preloadCharRenderers(base); // fire-and-forget; GameScreen awaits completion
+    }
     setTransitionLabel(label);
     setTransitionTo(s);
   };

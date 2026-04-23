@@ -7,6 +7,7 @@ import { ClashSiege } from "../modes/ClashSiege";
 import { ClashTraining } from "../modes/ClashTraining";
 import { getCurrentProfile, getControlMode } from "../utils/localStorageAPI";
 import { loadSpriteSheet, loadBrawlerImages } from "../game/sprites";
+import { preloadCharRenderers } from "../game/miyaTopDownRenderer";
 import { BRAWLERS } from "../entities/BrawlerData";
 import MobileControls from "../components/MobileControls";
 import type { GameMode } from "../App";
@@ -37,6 +38,9 @@ export default function GameScreen({ mode, brawlerId, onExit }: GameScreenProps)
     Promise.all([
       loadSpriteSheet(`${base}characters.webp`),
       loadBrawlerImages(BRAWLERS.map(b => b.id), base),
+      // Await all 3D character models — downloads started in App.tsx during the
+      // loading screen, so they are usually already done or nearly done by now.
+      preloadCharRenderers(base),
     ]).then(() => {
       if (mounted) setSpriteLoaded(true);
     });
