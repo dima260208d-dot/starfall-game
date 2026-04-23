@@ -25,13 +25,18 @@ export type MiyaAnim = CharAnim;
 const SIZE = 256;
 const MODEL_TARGET_H = 2.2;
 
-/** Try clip names in order, fall back to the first available clip. */
-function findClip(clips: THREE.AnimationClip[], ...names: string[]): THREE.AnimationClip | null {
+// All uploaded models have exactly 3 clips: walk (0), run (1), attack (2).
+// Name-based lookup is tried first; fallbackIdx is used if nothing matches.
+function findClip(
+  clips: THREE.AnimationClip[],
+  fallbackIdx: number,
+  ...names: string[]
+): THREE.AnimationClip | null {
   for (const name of names) {
     const c = THREE.AnimationClip.findByName(clips, name);
     if (c) return c;
   }
-  return clips[0] ?? null;
+  return clips[fallbackIdx] ?? clips[0] ?? null;
 }
 
 const IDLE_NAMES   = ["Thoughtful_Walk", "Idle", "idle", "Walk", "walk", "Standing"];
@@ -136,9 +141,9 @@ class CharacterTopDownRenderer {
     const mixer = new THREE.AnimationMixer(model);
     const actions: Partial<Record<CharAnim, THREE.AnimationAction>> = {};
 
-    const idleClip   = findClip(this.clips, ...IDLE_NAMES);
-    const runClip    = findClip(this.clips, ...RUN_NAMES);
-    const attackClip = findClip(this.clips, ...ATTACK_NAMES);
+    const idleClip   = findClip(this.clips, 0, ...IDLE_NAMES);
+    const runClip    = findClip(this.clips, 1, ...RUN_NAMES);
+    const attackClip = findClip(this.clips, 2, ...ATTACK_NAMES);
 
     for (const [anim, clip] of [
       ["idle", idleClip] as const,

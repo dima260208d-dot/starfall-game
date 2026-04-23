@@ -80,22 +80,11 @@ function fixMaterials(root: THREE.Object3D): void {
 }
 
 // ── Animation clip resolution ─────────────────────────────────────────────────
-// The given name is tried first. If missing, the priority list is checked.
-// This covers Miya ("Thoughtful_Walk") and other packs that use "Idle".
-const IDLE_PRIORITY = [
-  "Idle", "idle", "Thoughtful_Walk",
-  "Walk", "walk", "Standing", "Standing Idle",
-  "Breathing", "breathing idle", "T-Pose",
-];
-
+// The given name is tried first (e.g. Miya's "Thoughtful_Walk").
+// If it is not found, clips[0] is used — all uploaded models have walking as
+// their first clip, running as second, and attack as third.
 function resolveClip(clips: THREE.AnimationClip[], requested: string): THREE.AnimationClip | null {
-  const direct = THREE.AnimationClip.findByName(clips, requested);
-  if (direct) return direct;
-  for (const name of IDLE_PRIORITY) {
-    const c = THREE.AnimationClip.findByName(clips, name);
-    if (c) return c;
-  }
-  return clips[0] ?? null;
+  return THREE.AnimationClip.findByName(clips, requested) ?? clips[0] ?? null;
 }
 
 /**
