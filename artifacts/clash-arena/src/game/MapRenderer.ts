@@ -1,7 +1,7 @@
 import { getPlatformTileCanvas } from "../utils/platformTile";
 
 const patternCache = new WeakMap<CanvasRenderingContext2D, CanvasPattern>();
-const PLATFORM_TILE_WORLD = 240; // world-unit span of one tiled repeat
+const PLATFORM_TILE_WORLD = 1000; // world-unit span of one tiled repeat
 
 export interface Wall {
   x: number;
