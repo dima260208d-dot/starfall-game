@@ -100,7 +100,7 @@ export default function ChestItemScene({ type, amount, onAllSettled }: Props) {
       const sz = new THREE.Vector3();
       box.getSize(sz);
       const maxDim = Math.max(sz.x, sz.y, sz.z) || 1;
-      template.scale.setScalar(0.5 / maxDim);
+      template.scale.setScalar(0.65 / maxDim);
 
       template.traverse((obj) => {
         const m = obj as THREE.Mesh;
