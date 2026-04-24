@@ -6,6 +6,7 @@ import {
   getBrawlerTrophies, getBrawlerRank, MAX_BRAWLER_RANK,
 } from "../utils/localStorageAPI";
 import { BRAWLERS } from "../entities/BrawlerData";
+import { CoinIcon, GemIcon, PowerIcon, TrophyIcon } from "../components/GameIcons";
 import { getModeInfo, type ModeInfo } from "../data/modes";
 import DailyRewardModal from "../components/DailyRewardModal";
 import QuestsModal from "../components/QuestsModal";
@@ -200,7 +201,7 @@ export default function MainMenu(props: MainMenuProps) {
           <div style={{ textAlign: "left", lineHeight: 1.1 }}>
             <div style={{ fontSize: 14, fontWeight: 800 }}>{profile.username}</div>
             <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>
-              🏆 {favTrophies} • Игр: {profile.totalGamesPlayed} • Побед: {profile.totalWins}
+              <TrophyIcon size={11} /> {favTrophies} • Игр: {profile.totalGamesPlayed} • Побед: {profile.totalWins}
             </div>
           </div>
         </button>
@@ -216,7 +217,7 @@ export default function MainMenu(props: MainMenuProps) {
             boxShadow: "0 0 20px rgba(255,215,0,0.25)",
           }}
         >
-          🏆 {profile.trophies}
+          <TrophyIcon size={18} style={{ marginRight: 4 }} /> {profile.trophies}
           <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: 600, marginLeft: 4 }}>
             / {MAX_TROPHIES}
           </span>
@@ -250,9 +251,9 @@ export default function MainMenu(props: MainMenuProps) {
           background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.08)",
           borderRadius: 12, padding: compact ? "4px 6px" : "6px 10px", backdropFilter: "blur(10px)",
         }}>
-          <Resource icon="🪙" value={profile.coins} color="#FFD700" compact={compact} />
-          <Resource icon="💎" value={profile.gems} color="#40C4FF" compact={compact} />
-          <Resource icon="✨" value={profile.powerPoints} color="#CE93D8" compact={compact} />
+          <Resource icon={<CoinIcon size={compact ? 13 : 16} />} value={profile.coins} color="#FFD700" compact={compact} />
+          <Resource icon={<GemIcon size={compact ? 13 : 16} />} value={profile.gems} color="#40C4FF" compact={compact} />
+          <Resource icon={<PowerIcon size={compact ? 13 : 16} />} value={profile.powerPoints} color="#CE93D8" compact={compact} />
         </div>
       </div>
 
@@ -328,7 +329,7 @@ export default function MainMenu(props: MainMenuProps) {
           >
             <RankPill rank={brawlerRank} />
             <PowerPill level={brawlerLevel} />
-            <span style={{ color: "#FFD700", fontSize: 12, fontWeight: 800 }}>🏆 {brawlerTrophies}</span>
+            <span style={{ color: "#FFD700", fontSize: 12, fontWeight: 800, display: "inline-flex", alignItems: "center", gap: 3 }}><TrophyIcon size={12} /> {brawlerTrophies}</span>
           </button>
           <div style={{
             position: "absolute", bottom: -52, left: "50%", transform: "translateX(-50%)",
@@ -710,14 +711,14 @@ function PowerPill({ level }: { level: number }) {
   );
 }
 
-function Resource({ icon, value, color, compact }: { icon: string; value: number; color: string; compact?: boolean }) {
+function Resource({ icon, value, color, compact }: { icon: React.ReactNode; value: number; color: string; compact?: boolean }) {
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: compact ? 2 : 4,
       padding: compact ? "0 3px" : "0 6px",
       fontSize: compact ? 11 : 14,
     }}>
-      <span>{icon}</span>
+      <span style={{ display: "inline-flex", alignItems: "center" }}>{icon}</span>
       <span style={{ color, fontWeight: 800 }}>{value}</span>
     </div>
   );

@@ -4,6 +4,7 @@ import { CHESTS, CHEST_RARITY_ORDER, type ChestRarity, type ChestRoll } from "..
 import { BRAWLERS, BRAWLER_GEM_COST, BRAWLER_RARITY_LABEL } from "../entities/BrawlerData";
 import ChestVisual from "../components/ChestVisual";
 import ChestOpenModal from "../components/ChestOpenModal";
+import { CoinBadge, GemBadge, PowerBadge, CoinIcon, GemIcon, PowerIcon, BoxIcon } from "../components/GameIcons";
 
 interface ShopPageProps {
   onBack: () => void;
@@ -92,11 +93,11 @@ setMsg("+100 кристаллов добавлено!");
     powerPoints: "#CE93D8",
     error: "#FF5252",
   };
-  const boxTypeIcon: Record<string, string> = {
-    coins: "🪙",
-    gems: "💎",
-    powerPoints: "✨",
-    error: "❌",
+  const BoxResultIcon = ({ type }: { type: string }) => {
+    if (type === "coins") return <CoinIcon size={36} />;
+    if (type === "gems") return <GemIcon size={36} />;
+    if (type === "powerPoints") return <PowerIcon size={36} />;
+    return <span style={{ fontSize: 36 }}>❌</span>;
   };
 
   return (
@@ -132,9 +133,9 @@ setMsg("+100 кристаллов добавлено!");
         </button>
         <h2 style={{ flex: 1, textAlign: "center", margin: 0, fontSize: 22, fontWeight: 800, color: "#FFD700" }}>Магазин</h2>
         <div style={{ display: "flex", gap: 14, fontSize: 14 }}>
-          <span style={{ color: "#FFD700" }}>🪙 {profile?.coins || 0}</span>
-          <span style={{ color: "#40C4FF" }}>💎 {profile?.gems || 0}</span>
-          <span style={{ color: "#CE93D8" }}>✨ {profile?.powerPoints || 0}</span>
+          <CoinBadge value={profile?.coins || 0} />
+          <GemBadge value={profile?.gems || 0} />
+          <PowerBadge value={profile?.powerPoints || 0} />
         </div>
       </div>
 
@@ -217,7 +218,7 @@ setMsg("+100 кристаллов добавлено!");
                           fontWeight: 900, fontSize: 12, letterSpacing: 1,
                           cursor: canAfford ? "pointer" : "default",
                         }}
-                      >💎 {cost}</button>
+                      ><GemIcon size={12} /> {cost}</button>
                     </div>
                   );
                 })}
@@ -284,7 +285,7 @@ setMsg("+100 кристаллов добавлено!");
                         color: canCoin ? "#000" : "rgba(255,255,255,0.4)",
                         fontWeight: 800, fontSize: 11, cursor: canCoin ? "pointer" : "default",
                       }}
-                    >🪙 {def.priceCoins}</button>
+                    ><CoinIcon size={11} /> {def.priceCoins}</button>
                     <button
                       onClick={() => handleBuyChest(rarity, "gems")}
                       disabled={!canGem}
@@ -294,7 +295,7 @@ setMsg("+100 кристаллов добавлено!");
                         color: canGem ? "white" : "rgba(255,255,255,0.4)",
                         fontWeight: 800, fontSize: 11, cursor: canGem ? "pointer" : "default",
                       }}
-                    >💎 {def.priceGems}</button>
+                    ><GemIcon size={11} /> {def.priceGems}</button>
                   </div>
                 </div>
               );
@@ -314,19 +315,19 @@ setMsg("+100 кристаллов добавлено!");
           >
             <div
               style={{
-                fontSize: 64,
+                width: 80, height: 80,
                 marginBottom: 12,
                 animation: isOpening ? "shake 0.3s ease-in-out 3" : "none",
                 display: "inline-block",
               }}
             >
-              📦
+              <BoxIcon size={80} />
             </div>
             <div style={{ fontSize: 20, fontWeight: 800, color: "#FFD700", marginBottom: 6 }}>Секретный сундук</div>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 16 }}>
               70% монеты • 25% очки силы • 5% кристаллы
             </div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: "#FFD700", marginBottom: 16 }}>100 🪙</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: "#FFD700", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>100 <CoinIcon size={20} /></div>
             <button
               onClick={handleOpenBox}
               disabled={!profile || profile.coins < 100 || isOpening}
@@ -355,7 +356,7 @@ setMsg("+100 кристаллов добавлено!");
                   animation: "pop 0.4s ease-out",
                 }}
               >
-                <div style={{ fontSize: 36 }}>{boxTypeIcon[boxResult.type] || "🎁"}</div>
+                <div><BoxResultIcon type={boxResult.type} /></div>
                 <div style={{ fontSize: 22, fontWeight: 800, color: boxTypeColor[boxResult.type] || "#white" }}>
                   +{boxResult.amount} {boxTypeLabel[boxResult.type]}!
                 </div>
@@ -373,7 +374,7 @@ setMsg("+100 кристаллов добавлено!");
                 flex: 1,
               }}
             >
-              <div style={{ fontSize: 32, marginBottom: 8 }}>💎</div>
+              <div style={{ marginBottom: 8 }}><GemIcon size={44} /></div>
               <div style={{ fontSize: 18, fontWeight: 800, color: "#40C4FF", marginBottom: 6 }}>Кристаллы</div>
               <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 14 }}>
 Тестовая кнопка: +100 кристаллов мгновенно
@@ -404,7 +405,7 @@ setMsg("+100 кристаллов добавлено!");
                 flex: 1,
               }}
             >
-              <div style={{ fontSize: 32, marginBottom: 8 }}>🎁</div>
+              <div style={{ marginBottom: 8 }}><CoinIcon size={44} /></div>
               <div style={{ fontSize: 18, fontWeight: 800, color: canClaimDaily ? "#4CAF50" : "rgba(255,255,255,0.4)", marginBottom: 6 }}>
 Ежедневный бонус
               </div>

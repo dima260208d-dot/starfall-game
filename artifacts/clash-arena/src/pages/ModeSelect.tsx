@@ -6,13 +6,15 @@ interface ModeSelectProps {
   onBack: () => void;
 }
 
+const BASE = (import.meta as any).env?.BASE_URL ?? "/";
+
 const modes: Array<{
   id: GameMode;
   name: string;
   subtitle: string;
   desc: string;
   players: string;
-  icon: string;
+  iconImg: string;
   color: string;
   gradient: string;
 }> = [
@@ -22,7 +24,7 @@ const modes: Array<{
     subtitle: "Королевская битва",
     desc: "Последний выживший побеждает. 1 против 7 ботов. Газ сжимается со временем.",
     players: "1 на 7 ботов",
-    icon: "⚔️",
+    iconImg: `${BASE}images/mode-showdown.png`,
     color: "#FF5252",
     gradient: "linear-gradient(135deg, #B71C1C, #FF5252)",
   },
@@ -32,7 +34,7 @@ const modes: Array<{
     subtitle: "3 на 3 командный бой",
     desc: "Несите кристаллы на свою базу. Кто первый соберёт 10 — побеждает!",
     players: "3 на 3",
-    icon: "💎",
+    iconImg: `${BASE}images/mode-crystals.png`,
     color: "#40C4FF",
     gradient: "linear-gradient(135deg, #0D47A1, #40C4FF)",
   },
@@ -42,7 +44,7 @@ const modes: Array<{
     subtitle: "Защита базы",
     desc: "Защитите свою базу от 3 волн врагов!",
     players: "4 против волн",
-    icon: "🏰",
+    iconImg: `${BASE}images/mode-siege.png`,
     color: "#69F0AE",
     gradient: "linear-gradient(135deg, #1B5E20, #69F0AE)",
   },
@@ -52,7 +54,7 @@ const modes: Array<{
     subtitle: "Атака сейфа",
     desc: "Уничтожьте сейф врага раньше, чем они уничтожат ваш!",
     players: "3 на 3",
-    icon: "🔐",
+    iconImg: `${BASE}images/mode-heist.png`,
     color: "#FFD700",
     gradient: "linear-gradient(135deg, #F57F17, #FFD700)",
   },
@@ -62,7 +64,7 @@ const modes: Array<{
     subtitle: "Удержи 10 секунд",
     desc: "Соберите 10 камней и удержите их 15 секунд для победы!",
     players: "3 на 3",
-    icon: "💠",
+    iconImg: `${BASE}images/mode-gemgrab.png`,
     color: "#CE93D8",
     gradient: "linear-gradient(135deg, #4A148C, #CE93D8)",
   },
@@ -158,7 +160,9 @@ export default function ModeSelect({ onSelect, onBack }: ModeSelectProps) {
             }}
             onClick={() => onSelect(mode.id)}
           >
-            <div style={{ fontSize: 48, marginBottom: 12 }}>{mode.icon}</div>
+            <div style={{ width: 80, height: 80, marginBottom: 12 }}>
+              <img src={mode.iconImg} alt={mode.name} style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: 16, filter: `drop-shadow(0 0 12px ${mode.color}88)` }} />
+            </div>
             <div
               style={{
                 fontSize: 22,

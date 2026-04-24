@@ -126,6 +126,66 @@ uri = "file://artifacts/clash-arena/public/loading.png"
 type = "image"
 title = "clash arena battle scene"
 
+[[generated]]
+id = "JM4-zW94GWqYB7OYLOmlf"
+uri = "file://artifacts/clash-arena/public/images/mode-showdown.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "YrX-neoD0yolBFAhTLjRz"
+uri = "file://artifacts/clash-arena/public/images/mode-crystals.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "1RMczyjQN3rnhcUYShlhb"
+uri = "file://artifacts/clash-arena/public/images/mode-siege.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "IJnlX4EiNeJLEOKGx2kPH"
+uri = "file://artifacts/clash-arena/public/images/mode-heist.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "lxzeP-iAp2iWMmXkMwl48"
+uri = "file://artifacts/clash-arena/public/images/mode-gemgrab.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "DZhqaVbDxi52G76ZDZwTI"
+uri = "file://artifacts/clash-arena/public/images/icon-coins.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "-UaNFSA90_MR_We91OhG7"
+uri = "file://artifacts/clash-arena/public/images/icon-gems.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "f7u7s4hql2yzZF9rMJAvV"
+uri = "file://artifacts/clash-arena/public/images/icon-power.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "3Em0ySAracLASoTs6OoN_"
+uri = "file://artifacts/clash-arena/public/images/icon-box.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "NqFh3s7izGEn36_MqoZ6p"
+uri = "file://artifacts/clash-arena/public/images/icon-trophy.png"
+type = "image"
+title = "generated_image"
+
 [[outputs]]
 id = "X9Tws63Uu-uL8M0CvEeAQ"
 uri = "file://artifacts/clash-arena/public/brawlers/miya_front.png"

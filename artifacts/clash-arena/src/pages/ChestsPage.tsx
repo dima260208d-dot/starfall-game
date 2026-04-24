@@ -7,6 +7,7 @@ import {
 import { CHESTS, CHEST_RARITY_ORDER, type ChestRarity, type ChestRoll } from "../utils/chests";
 import ChestVisual from "../components/ChestVisual";
 import ChestOpenModal from "../components/ChestOpenModal";
+import { CoinBadge, GemBadge, PowerBadge, CoinIcon, GemIcon } from "../components/GameIcons";
 
 interface Props {
   onBack: () => void;
@@ -67,9 +68,9 @@ export default function ChestsPage({ onBack }: Props) {
           СУНДУКИ
         </h1>
         <div style={{ display: "flex", gap: 12, fontSize: 14 }}>
-          <span style={{ color: "#FFD700" }}>🪙 {profile.coins}</span>
-          <span style={{ color: "#40C4FF" }}>💎 {profile.gems}</span>
-          <span style={{ color: "#CE93D8" }}>✨ {profile.powerPoints}</span>
+          <CoinBadge value={profile.coins} />
+          <GemBadge value={profile.gems} />
+          <PowerBadge value={profile.powerPoints} />
         </div>
       </div>
 
@@ -164,7 +165,7 @@ export default function ChestsPage({ onBack }: Props) {
                     cursor: canBuyCoins ? "pointer" : "default",
                   }}
                 >
-                  🪙 {def.priceCoins}
+                  <CoinIcon size={13} /> {def.priceCoins}
                 </button>
                 <button
                   onClick={() => handleBuy(rarity, "gems")}
@@ -178,7 +179,7 @@ export default function ChestsPage({ onBack }: Props) {
                     cursor: canBuyGems ? "pointer" : "default",
                   }}
                 >
-                  💎 {def.priceGems}
+                  <GemIcon size={13} /> {def.priceGems}
                 </button>
               </div>
             </div>
