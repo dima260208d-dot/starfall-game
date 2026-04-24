@@ -47,7 +47,7 @@ function loadGLTFCached(url: string): Promise<CachedGLTF> {
       box.getSize(sz);
       const center = new THREE.Vector3();
       box.getCenter(center);
-      const TARGET_H = 2.6;
+      const TARGET_H = 2.0;
       const normScale = sz.y > 0.001 ? TARGET_H / sz.y : 1;
       resolve({
         scene, animations: gltf.animations ?? [],
@@ -235,9 +235,8 @@ export default function BrawlerRevealModal({
     scene.add(glowLight);
 
     const rootGroup = new THREE.Group();
-    // Start far away (small due to perspective), facing the camera
+    // Start far away (small due to perspective). Models face +Z by default (toward camera).
     rootGroup.position.z = -22;
-    rootGroup.rotation.y = Math.PI;
     scene.add(rootGroup);
 
     // ── Run-toward-camera state ───────────────────────────────────────────────

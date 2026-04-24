@@ -7,7 +7,8 @@ import {
 } from "../utils/localStorageAPI";
 import { CHESTS, CHEST_RARITY_ORDER, type ChestRarity, type ChestRoll } from "../utils/chests";
 import { CHEST_BRAWLER_DROP_CHANCE } from "../entities/BrawlerData";
-import ChestVisual from "../components/ChestVisual";
+import Chest3DViewer from "../components/Chest3DViewer";
+import ChestOpenAnimation from "../components/ChestOpenAnimation";
 import ChestOpenModal from "../components/ChestOpenModal";
 import { CoinBadge, GemBadge, PowerBadge, CoinIcon, GemIcon } from "../components/GameIcons";
 
@@ -117,6 +118,7 @@ export default function ChestsPage({ onBack }: Props) {
   const [profile, setProfile] = useState(getCurrentProfile());
   const [msg, setMsg] = useState<string | null>(null);
   const [opening, setOpening] = useState<{ rarity: ChestRarity; rolls: ChestRoll[] } | null>(null);
+  const [animating, setAnimating] = useState<{ rarity: ChestRarity; rolls: ChestRoll[] } | null>(null);
   const [infoRarity, setInfoRarity] = useState<ChestRarity | null>(null);
 
   useEffect(() => {
@@ -140,8 +142,16 @@ export default function ChestsPage({ onBack }: Props) {
       setTimeout(() => setMsg(null), 2000);
       return;
     }
-    setOpening({ rarity, rolls: r.rolls! });
     setProfile(getCurrentProfile());
+    // Show the 3D spin+glow animation first, then reveal drops
+    setAnimating({ rarity, rolls: r.rolls! });
+  };
+
+  const handleAnimationDone = () => {
+    if (!animating) return;
+    const data = { ...animating };
+    setAnimating(null);
+    setOpening(data);
   };
 
   return (
@@ -221,9 +231,19 @@ export default function ChestsPage({ onBack }: Props) {
                 }}
               >?</button>
 
-              <div style={{ height: 150, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <ChestVisual rarity={rarity} size={130} animated />
+              {/* 3D Chest model replacing flat ChestVisual */}
+              <div
+                style={{
+                  height: 160,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  cursor: owned > 0 ? "pointer" : "default",
+                }}
+                onClick={() => owned > 0 && handleOpen(rarity)}
+                title={owned > 0 ? "Нажмите, чтобы открыть" : undefined}
+              >
+                <Chest3DViewer rarity={rarity} size={150} />
               </div>
+
               <div style={{
                 fontSize: 17, fontWeight: 900, color: def.color, marginTop: 8,
                 letterSpacing: 1, textAlign: "center",
@@ -305,6 +325,14 @@ export default function ChestsPage({ onBack }: Props) {
           );
         })}
       </div>
+
+      {/* 3D spin+glow animation before the drop reveal */}
+      {animating && (
+        <ChestOpenAnimation
+          rarity={animating.rarity}
+          onDone={handleAnimationDone}
+        />
+      )}
 
       {opening && (
         <ChestOpenModal
