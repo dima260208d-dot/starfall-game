@@ -36,8 +36,8 @@ const CHAR_ANIM_NAMES: Record<string, CharAnimNames> = {
   miya:  { idle: "Walking",         idleIdx: 3, run: "Running", runIdx: 1, attack: "Attack",              attackIdx: 0 },
   sora:  { idle: "Walking",         idleIdx: 1, run: "Running", runIdx: 0, attack: "mage_soell_cast_2",   attackIdx: 2 },
   // goro/rin: name-only — exact GLB clip names found by THREE.js loader (no idx to avoid ordering ambiguity)
-  goro:  { idle: "Walking",                     run: "Running",            attack: "Double_Combo_Attack"              },
-  rin:   { idle: "Walking",                     run: "Running",            attack: "Left_Slash"                       },
+  goro:  { idle: "Running",                     run: "Running",            attack: "Double_Combo_Attack"              },
+  rin:   { idle: "Running",                     run: "Running",            attack: "Left_Slash"                       },
   ronin: { idle: "Walking",         idleIdx: 2, run: "Running", runIdx: 0, attack: "Step_Step_Turn_Kick", attackIdx: 1 },
   hana:  { idle: "Walking",         idleIdx: 2, run: "Running", runIdx: 1, attack: "Archery_Shot_3",      attackIdx: 0 },
   kenji: { idle: "Walking",         idleIdx: 2, run: "Running", runIdx: 1, attack: "Axe_Spin_Attack",     attackIdx: 0 },
