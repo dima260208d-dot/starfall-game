@@ -50,11 +50,66 @@ function findClip(clips: THREE.AnimationClip[], name: string, idx?: number): THR
   return clips.find(c => c.name === name) ?? null;
 }
 
+// ── Shared WebGL renderer ─────────────────────────────────────────────────────
+// All CharacterTopDownRenderer instances share ONE WebGL context to avoid
+// hitting the browser's ~8–16 simultaneous WebGL context limit.
+
+let _sharedRenderer: THREE.WebGLRenderer | null = null;
+let _sharedScene: THREE.Scene | null = null;
+let _sharedCamera: THREE.OrthographicCamera | null = null;
+let _sharedRendererReady = false;
+
+function getSharedRenderer(): { renderer: THREE.WebGLRenderer; scene: THREE.Scene; camera: THREE.OrthographicCamera } | null {
+  if (_sharedRendererReady && _sharedRenderer && _sharedScene && _sharedCamera) {
+    if (!_sharedRenderer.getContext().isContextLost()) {
+      return { renderer: _sharedRenderer, scene: _sharedScene, camera: _sharedCamera };
+    }
+    // Context was lost — recreate on next call.
+    _sharedRendererReady = false;
+    _sharedRenderer = null;
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = SIZE;
+  canvas.height = SIZE;
+
+  try {
+    _sharedRenderer = new THREE.WebGLRenderer({
+      canvas, antialias: true, alpha: true,
+      preserveDrawingBuffer: true,
+    });
+  } catch {
+    return null;
+  }
+
+  canvas.addEventListener("webglcontextlost", () => {
+    _sharedRendererReady = false;
+    _sharedRenderer = null;
+  }, { once: true });
+
+  _sharedRenderer.setPixelRatio(1);
+  _sharedRenderer.setSize(SIZE, SIZE, false);
+  _sharedRenderer.outputColorSpace = THREE.SRGBColorSpace;
+  _sharedRenderer.setClearColor(0x000000, 0);
+
+  _sharedScene = new THREE.Scene();
+  _sharedCamera = new THREE.OrthographicCamera(-1.5, 1.5, 1.5, -1.5, 0.1, 20);
+  _sharedCamera.position.set(0, 6, 0);
+  _sharedCamera.up.set(0, 0, -1);
+  _sharedCamera.lookAt(0, 0, 0);
+
+  _sharedRendererReady = true;
+  return { renderer: _sharedRenderer, scene: _sharedScene, camera: _sharedCamera };
+}
+
+// ── Per-character renderer ────────────────────────────────────────────────────
+
 class CharacterTopDownRenderer {
-  private canvas: HTMLCanvasElement | null = null;
-  private renderer: THREE.WebGLRenderer | null = null;
-  private scene: THREE.Scene | null = null;
-  private camera: THREE.OrthographicCamera | null = null;
+  // Per-character 2D canvas — holds the last rendered frame.
+  // This is what callers receive, so the shared WebGL canvas can be
+  // overwritten by the next character without corrupting prior results.
+  private outputCanvas: HTMLCanvasElement | null = null;
+  private outputCtx: CanvasRenderingContext2D | null = null;
 
   private modelTemplate: THREE.Group | null = null;
   private clips: THREE.AnimationClip[] = [];
@@ -80,38 +135,15 @@ class CharacterTopDownRenderer {
     if (this.loading) return this.loading;
 
     this.loading = new Promise((resolve, reject) => {
-      this.canvas = document.createElement("canvas");
-      this.canvas.width = SIZE;
-      this.canvas.height = SIZE;
-
-      try {
-        this.renderer = new THREE.WebGLRenderer({
-          canvas: this.canvas, antialias: true, alpha: true,
-          preserveDrawingBuffer: true,
-        });
-      } catch (err) {
-        console.warn("[CharTopDown] WebGL unavailable, falling back to 2D", err);
-        return reject(err);
+      // Make sure the shared WebGL renderer exists before loading.
+      if (!getSharedRenderer()) {
+        return reject(new Error("[CharTopDown] WebGL unavailable"));
       }
 
-      this.renderer.setPixelRatio(1);
-      this.renderer.setSize(SIZE, SIZE, false);
-      this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-      this.renderer.setClearColor(0x000000, 0);
-
-      this.scene = new THREE.Scene();
-      this.camera = new THREE.OrthographicCamera(-1.5, 1.5, 1.5, -1.5, 0.1, 20);
-      this.camera.position.set(0, 6, 0);
-      this.camera.up.set(0, 0, -1);
-      this.camera.lookAt(0, 0, 0);
-
-      this.scene.add(new THREE.AmbientLight(0xffffff, 2.5));
-      const key = new THREE.DirectionalLight(0xffffff, 3.5);
-      key.position.set(2, 6, 2);
-      this.scene.add(key);
-      const fill = new THREE.DirectionalLight(0xffffff, 1.5);
-      fill.position.set(-2, 4, -2);
-      this.scene.add(fill);
+      this.outputCanvas = document.createElement("canvas");
+      this.outputCanvas.width = SIZE;
+      this.outputCanvas.height = SIZE;
+      this.outputCtx = this.outputCanvas.getContext("2d");
 
       const loader = new GLTFLoader();
       loader.load(
@@ -132,19 +164,24 @@ class CharacterTopDownRenderer {
           this.modelTemplate.position.set(-c.x * scale, -box2.min.y, -c.z * scale);
 
           this.ready = true;
-          // Render one warmup frame to pre-compile shaders and upload textures
-          // to the GPU. This prevents the first in-game render from causing a lag spike.
+
+          // Warmup: pre-compile shaders for this model on the shared renderer.
           try {
-            const warmModel = cloneSkinned(this.modelTemplate) as THREE.Object3D;
-            this.scene!.add(warmModel);
-            this.renderer!.render(this.scene!, this.camera!);
-            this.scene!.remove(warmModel);
+            const shared = getSharedRenderer();
+            if (shared) {
+              const warmModel = cloneSkinned(this.modelTemplate) as THREE.Object3D;
+              shared.scene.add(new THREE.AmbientLight(0xffffff, 2.5));
+              shared.scene.add(warmModel);
+              shared.renderer.render(shared.scene, shared.camera);
+              shared.scene.clear();
+            }
           } catch { /* ignore warmup errors */ }
+
           resolve();
         },
         undefined,
         (err) => {
-          console.warn("[CharTopDown] failed to load", err);
+          console.warn("[CharTopDown] failed to load", modelUrl, err);
           reject(err);
         },
       );
@@ -192,27 +229,26 @@ class CharacterTopDownRenderer {
   }
 
   /**
-   * Render the character for one frame and return the offscreen canvas.
+   * Render the character for one frame and return a per-character 2D canvas.
    *
    * angleRad: 2D world facing angle (0 = right, π/2 = down, π = left, -π/2 = up).
-   * The corrected formula `Math.PI/2 - angleRad` maps this to the 3D Y-rotation
-   * so the model faces the correct screen direction.
    */
   render(instanceId: string, anim: CharAnim, angleRad: number): HTMLCanvasElement | null {
-    if (!this.ready || !this.renderer || !this.scene || !this.camera) return null;
+    if (!this.ready || !this.outputCanvas || !this.outputCtx) return null;
+
+    const shared = getSharedRenderer();
+    if (!shared) { this.ready = false; return null; }
+
     const inst = this.getOrCreateInstance(instanceId);
     if (!inst) return null;
 
     if (anim === "dead") {
-      // On the first frame of death: freeze all animations.
       if (inst.currentAnim !== "dead") {
         for (const a of Object.values(inst.actions)) {
           if (a) a.stop();
         }
         inst.currentAnim = "dead";
       }
-      // Lay model flat on the ground — rotate 90° around X so it falls forward.
-      // The top-down camera sees the model as a prone silhouette on the map.
       inst.model.position.set(0, 0, 0);
       inst.model.rotation.set(-Math.PI / 2, 0, Math.PI / 2 - angleRad);
     } else {
@@ -237,24 +273,28 @@ class CharacterTopDownRenderer {
       inst.model.rotation.set(0, Math.PI / 2 - angleRad, 0);
     }
 
-    this.scene.clear();
-    this.scene.add(new THREE.AmbientLight(0xffffff, 2.5));
+    shared.scene.clear();
+    shared.scene.add(new THREE.AmbientLight(0xffffff, 2.5));
     const key = new THREE.DirectionalLight(0xffffff, 3.5);
     key.position.set(2, 6, 2);
-    this.scene.add(key);
+    shared.scene.add(key);
     const fill = new THREE.DirectionalLight(0xffffff, 1.5);
     fill.position.set(-2, 4, -2);
-    this.scene.add(fill);
-    this.scene.add(inst.model);
+    shared.scene.add(fill);
+    shared.scene.add(inst.model);
 
-    this.renderer.render(this.scene, this.camera);
-    return this.canvas;
+    shared.renderer.render(shared.scene, shared.camera);
+
+    // Copy rendered frame from the shared WebGL canvas to this character's
+    // dedicated 2D canvas so subsequent character renders don't overwrite it.
+    this.outputCtx.clearRect(0, 0, SIZE, SIZE);
+    this.outputCtx.drawImage(shared.renderer.domElement, 0, 0);
+
+    return this.outputCanvas;
   }
 }
 
 // ── Lazy registry ─────────────────────────────────────────────────────────────
-// Renderers are created on-demand the first time a character is rendered
-// in-battle. This avoids loading all ~300 MB of GLBs at startup.
 
 /** Character IDs that have a 3D GLB model for in-battle rendering. */
 export const CHAR_3D_IDS = new Set(["miya", "ronin", "yuki", "kenji", "hana", "goro", "sora", "rin", "taro"]);
