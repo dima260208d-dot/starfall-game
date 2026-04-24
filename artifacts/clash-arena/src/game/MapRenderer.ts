@@ -1,7 +1,5 @@
 import { getPlatformTileCanvas } from "../utils/platformTile";
 
-const patternCache = new WeakMap<CanvasRenderingContext2D, CanvasPattern>();
-const PLATFORM_TILE_WORLD = 5; // world-unit span of one tiled repeat (1000×1000 tiles across 5000×5000 map)
 
 export interface Wall {
   x: number;
@@ -209,38 +207,14 @@ export function renderMap(
 
   const isShowdown = map.name === "Заброшенный храм";
 
-  // ---------- GROUND — platform GLB tile or colour fallback ----------
+  // ---------- GROUND — single platform image stretched across the full map ----------
   const tileCanvas = getPlatformTileCanvas();
   if (tileCanvas) {
-    let pattern = patternCache.get(ctx);
-    if (!pattern) {
-      const p = ctx.createPattern(tileCanvas, "repeat");
-      if (p) { patternCache.set(ctx, p); pattern = p; }
-    }
-    if (pattern) {
-      const scaleFactor = PLATFORM_TILE_WORLD / tileCanvas.width;
-      const offsetX = -((camX % PLATFORM_TILE_WORLD) + PLATFORM_TILE_WORLD) % PLATFORM_TILE_WORLD;
-      const offsetY = -((camY % PLATFORM_TILE_WORLD) + PLATFORM_TILE_WORLD) % PLATFORM_TILE_WORLD;
-      pattern.setTransform(new DOMMatrix([scaleFactor, 0, 0, scaleFactor, offsetX, offsetY]));
-      ctx.fillStyle = pattern;
-      ctx.fillRect(0, 0, canvasW, canvasH);
-    }
+    ctx.drawImage(tileCanvas, -camX, -camY, map.width, map.height);
   } else {
     // Fallback: solid colour while model loads
-    for (let tx = startTX; tx <= endTX; tx++) {
-      for (let ty = startTY; ty <= endTY; ty++) {
-        const wx = tx * map.tileSize;
-        const wy = ty * map.tileSize;
-        const sx = wx - camX;
-        const sy = wy - camY;
-        const n = noise2(tx, ty);
-        const nVar = (n - 0.5) * 18;
-        const checker = (tx + ty) % 2;
-        let r = checker ? 139 : 155, g = checker ? 115 : 131, b = checker ? 85 : 101;
-        ctx.fillStyle = `rgb(${Math.max(0,Math.min(255,r+nVar))|0},${Math.max(0,Math.min(255,g+nVar))|0},${Math.max(0,Math.min(255,b+nVar))|0})`;
-        ctx.fillRect(sx, sy, map.tileSize + 1, map.tileSize + 1);
-      }
-    }
+    ctx.fillStyle = "#8B7040";
+    ctx.fillRect(0, 0, canvasW, canvasH);
   }
 
   // Vignette overlay near map borders for atmosphere
