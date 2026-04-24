@@ -86,15 +86,17 @@ export default function App() {
           {content}
         </div>
       ) : (
-        <div style={{
-          zoom: 1.3,
-          width: `${(100 / 1.3).toFixed(4)}%`,
-          height: `${(100 / 1.3).toFixed(4)}%`,
-          overflowX: "hidden",
-          overflowY: "auto",
-          position: "relative",
-        }}>
-          {content}
+        <div style={{ position: "fixed", inset: 0, overflow: "hidden" }}>
+          <div style={{
+            width: "calc(100% / 1.3)",
+            height: "calc(100% / 1.3)",
+            transform: "scale(1.3)",
+            transformOrigin: "top left",
+            overflowX: "hidden",
+            overflowY: "auto",
+          }}>
+            {content}
+          </div>
         </div>
       )}
       <RotateDeviceOverlay />
