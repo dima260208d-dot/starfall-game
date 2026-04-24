@@ -18,9 +18,9 @@ const MODEL_URLS: Record<string, { url: string; idleAnim: string; idleIdx?: numb
   yuki:  { url: "models/yuki.glb",  idleAnim: "Walking",  idleIdx: 2 },
   kenji: { url: "models/kenji.glb", idleAnim: "Walking",  idleIdx: 2 },
   hana:  { url: "models/hana.glb",  idleAnim: "Walking",  idleIdx: 2 },
-  goro:  { url: "models/goro.glb",  idleAnim: "Walking"            },  // name-only: avoid idx ordering ambiguity
+  goro:  { url: "models/goro.glb",  idleAnim: "Running"            },
   sora:  { url: "models/sora.glb",  idleAnim: "Walking",  idleIdx: 1 },
-  rin:   { url: "models/rin.glb",   idleAnim: "Walking"            },  // name-only: avoid idx ordering ambiguity
+  rin:   { url: "models/rin.glb",   idleAnim: "Running"            },
   taro:  { url: "models/taro.glb",  idleAnim: "Walking",  idleIdx: 2 },
 };
 
