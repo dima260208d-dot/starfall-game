@@ -3,3 +3,9 @@ artifacts/clash-arena/public/models/chest_epic.glb filter=lfs diff=lfs merge=lfs
 attached_assets/эпический_сундук_1777061451156.glb filter=lfs diff=lfs merge=lfs -text
 artifacts/clash-arena/public/models/platform.glb filter=lfs diff=lfs merge=lfs -text
 attached_assets/основная_площадка_1777066530745.glb filter=lfs diff=lfs merge=lfs -text
+artifacts/clash-arena/public/models/brick_wall.glb filter=lfs diff=lfs merge=lfs -text
+artifacts/clash-arena/public/models/stone_wall.glb filter=lfs diff=lfs merge=lfs -text
+artifacts/clash-arena/public/models/wood.glb filter=lfs diff=lfs merge=lfs -text
+attached_assets/деревянный_блок_1777069771090.glb filter=lfs diff=lfs merge=lfs -text
+attached_assets/каменная_стена_1777069847293.glb filter=lfs diff=lfs merge=lfs -text
+attached_assets/кирпичная_стена_1777069869319.glb filter=lfs diff=lfs merge=lfs -text
