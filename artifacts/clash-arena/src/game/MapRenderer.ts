@@ -50,86 +50,15 @@ function makeCrate(x: number, y: number): Crate {
 }
 
 export function createShowdownMap(): GameMap {
-  const W = 5000, H = 5000;
+  const W = 3000, H = 3000;
   const walls: Wall[] = [
-    { x: 0, y: 0, w: W, h: 60, solid: true },
-    { x: 0, y: H - 60, w: W, h: 60, solid: true },
-    { x: 0, y: 0, w: 60, h: H, solid: true },
-    { x: W - 60, y: 0, w: 60, h: H, solid: true },
-    { x: 400, y: 400, w: 200, h: 60, solid: true },
-    { x: 800, y: 600, w: 60, h: 200, solid: true },
-    { x: 1200, y: 300, w: 300, h: 60, solid: true },
-    { x: 1800, y: 500, w: 60, h: 300, solid: true },
-    { x: 2200, y: 200, w: 200, h: 60, solid: true },
-    { x: 2800, y: 400, w: 60, h: 250, solid: true },
-    { x: 3200, y: 300, w: 300, h: 60, solid: true },
-    { x: 3800, y: 600, w: 60, h: 200, solid: true },
-    { x: 4200, y: 400, w: 200, h: 60, solid: true },
-    { x: 600, y: 1200, w: 60, h: 300, solid: true },
-    { x: 900, y: 1600, w: 250, h: 60, solid: true },
-    { x: 1500, y: 1000, w: 200, h: 60, solid: true },
-    { x: 1800, y: 1400, w: 60, h: 200, solid: true },
-    { x: 2400, y: 1200, w: 300, h: 60, solid: true },
-    { x: 2800, y: 1600, w: 200, h: 60, solid: true },
-    { x: 3200, y: 1000, w: 60, h: 300, solid: true },
-    { x: 3600, y: 1400, w: 250, h: 60, solid: true },
-    { x: 4200, y: 1200, w: 60, h: 300, solid: true },
-    { x: 500, y: 2400, w: 300, h: 60, solid: true },
-    { x: 1000, y: 2200, w: 60, h: 250, solid: true },
-    { x: 1600, y: 2600, w: 200, h: 60, solid: true },
-    { x: 2000, y: 2000, w: 60, h: 300, solid: true },
-    { x: 2400, y: 2400, w: 200, h: 60, solid: true },
-    { x: 2900, y: 2200, w: 60, h: 250, solid: true },
-    { x: 3200, y: 2600, w: 300, h: 60, solid: true },
-    { x: 3800, y: 2000, w: 60, h: 300, solid: true },
-    { x: 4200, y: 2400, w: 200, h: 60, solid: true },
-    { x: 400, y: 3400, w: 200, h: 60, solid: true },
-    { x: 800, y: 3200, w: 60, h: 250, solid: true },
-    { x: 1500, y: 3600, w: 300, h: 60, solid: true },
-    { x: 2000, y: 3200, w: 200, h: 60, solid: true },
-    { x: 2500, y: 3600, w: 60, h: 250, solid: true },
-    { x: 3000, y: 3400, w: 200, h: 60, solid: true },
-    { x: 3500, y: 3200, w: 60, h: 300, solid: true },
-    { x: 4000, y: 3600, w: 250, h: 60, solid: true },
-    { x: 600, y: 4300, w: 250, h: 60, solid: true },
-    { x: 1200, y: 4100, w: 60, h: 250, solid: true },
-    { x: 1800, y: 4400, w: 300, h: 60, solid: true },
-    { x: 2500, y: 4100, w: 200, h: 60, solid: true },
-    { x: 3000, y: 4300, w: 60, h: 250, solid: true },
-    { x: 3600, y: 4100, w: 300, h: 60, solid: true },
-    { x: 4200, y: 4300, w: 60, h: 250, solid: true },
-    { x: 2300, y: 2300, w: 100, h: 100, solid: true },
-    { x: 2600, y: 2300, w: 100, h: 100, solid: true },
-    { x: 2300, y: 2600, w: 100, h: 100, solid: true },
-    { x: 2600, y: 2600, w: 100, h: 100, solid: true },
+    { x: 0, y: 0, w: W, h: 4, solid: true },
+    { x: 0, y: H - 4, w: W, h: 4, solid: true },
+    { x: 0, y: 0, w: 4, h: H, solid: true },
+    { x: W - 4, y: 0, w: 4, h: H, solid: true },
   ];
 
-  const bushes: Bush[] = [];
-  for (let bx = 200; bx < W; bx += 400) {
-    for (let by = 200; by < H; by += 400) {
-      if (Math.random() < 0.3) {
-        bushes.push({ x: bx + Math.random() * 100 - 50, y: by + Math.random() * 100 - 50, radius: 60 + Math.random() * 40 });
-      }
-    }
-  }
-
-  const crates: Crate[] = [];
-  for (let cx = 300; cx < W - 300; cx += 300) {
-    for (let cy = 300; cy < H - 300; cy += 300) {
-      if (Math.random() < 0.1) {
-        crates.push(makeCrate(cx, cy));
-      }
-    }
-  }
-
-  const rivers: River[] = [
-    { x: 1000, y: 1800, w: 600, h: 80 },
-    { x: 2500, y: 3000, w: 500, h: 80 },
-    { x: 3500, y: 1200, w: 80, h: 500 },
-    { x: 800, y: 3500, w: 80, h: 600 },
-  ];
-
-  return { width: W, height: H, walls, bushes, crates, rivers, tileSize: 60, name: "Заброшенный храм" };
+  return { width: W, height: H, walls, bushes: [], crates: [], rivers: [], tileSize: 60, name: "Заброшенный храм" };
 }
 
 export function createCrystalsMap(): GameMap {
@@ -207,21 +136,19 @@ export function renderMap(
   const startTY = Math.floor(camY / map.tileSize);
   const endTY = Math.ceil((camY + canvasH) / map.tileSize);
 
-  const isShowdown = map.name === "Заброшенный храм";
+  const isShowdown = !!map.tileGrid;
 
   // ---------- GROUND — single platform image stretched across the full map ----------
   const tileCanvas = getPlatformTileCanvas();
   if (tileCanvas) {
     ctx.drawImage(tileCanvas, -camX, -camY, map.width, map.height);
   } else {
-    // Fallback: solid colour while model loads
-    ctx.fillStyle = "#8B7040";
+    ctx.fillStyle = isShowdown ? "#8B7040" : "#3A7D44";
     ctx.fillRect(0, 0, canvasW, canvasH);
   }
 
   // Vignette overlay near map borders for atmosphere
   {
-    const edgeFade = 240;
     const grad = ctx.createRadialGradient(
       canvasW / 2, canvasH / 2, Math.min(canvasW, canvasH) * 0.35,
       canvasW / 2, canvasH / 2, Math.max(canvasW, canvasH) * 0.75
@@ -230,8 +157,10 @@ export function renderMap(
     grad.addColorStop(1, "rgba(0,0,0,0.35)");
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, canvasW, canvasH);
-    void edgeFade;
   }
+
+  // Tile-grid maps handle all terrain — skip old rivers/bushes/walls/crates
+  if (isShowdown) return;
 
   // ---------- RIVERS with animated water ----------
   const t = frame * 0.05;

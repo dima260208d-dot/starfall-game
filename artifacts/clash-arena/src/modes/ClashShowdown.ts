@@ -80,11 +80,11 @@ export class ClashShowdown {
       let attempts = 0;
       do {
         const angle = (i / totalSlots) * Math.PI * 2 + slotOffset + (Math.random() - 0.5) * 0.4;
-        const ringDist = 1500 + Math.random() * 700;
-        sx = Math.round(2500 + Math.cos(angle) * ringDist);
-        sy = Math.round(2500 + Math.sin(angle) * ringDist);
-        sx = Math.max(300, Math.min(this.map.width - 300, sx));
-        sy = Math.max(300, Math.min(this.map.height - 300, sy));
+        const ringDist = 700 + Math.random() * 400;
+        sx = Math.round(1500 + Math.cos(angle) * ringDist);
+        sy = Math.round(1500 + Math.sin(angle) * ringDist);
+        sx = Math.max(200, Math.min(this.map.width - 200, sx));
+        sy = Math.max(200, Math.min(this.map.height - 200, sy));
         attempts++;
       } while (
         usedPositions.some(p => Math.abs(p.x - sx) < spawnPadding && Math.abs(p.y - sy) < spawnPadding) &&
@@ -114,8 +114,8 @@ export class ClashShowdown {
     }
     
     this.gas = {
-      centerX: 2500,
-      centerY: 2500,
+      centerX: 1500,
+      centerY: 1500,
       safeRadius: 2000,
       timer: 0,
       damageMultiplier: 1,
@@ -249,7 +249,7 @@ export class ClashShowdown {
         const bHeal = getTileHealRate(bot.x, bot.y, this.tileGrid);
         if (bHeal > 0) bot.hp = Math.min(bot.maxHp, bot.hp + bHeal * dt);
         bot.inBush = isTileInBush(bot.x, bot.y, this.tileGrid);
-        bot.updateAI(dt, allBrawlers, this.map, this.projectiles);
+        bot.updateAI(dt, allBrawlers, this.map, this.projectiles, this.tileGrid);
       }
       if (wasAlive && !bot.alive) {
         // Drop the bot's stash of power cubes; if the bot had none, drop 1.
@@ -431,11 +431,16 @@ export class ClashShowdown {
 
   render(ctx: CanvasRenderingContext2D): void {
     ctx.clearRect(0, 0, 1200, 800);
-    
-    renderMap(ctx, this.map, this.camera.x, this.camera.y, 1200, 800, this.frame);
 
-    // Non-bush tile layer (walls, water, mountains, etc.)
-    renderTileGrid(ctx, this.tileGrid, this.camera.x, this.camera.y, 1200, 800,
+    // ── 45° isometric view: compress Y axis by 0.65 for all world elements ──
+    const ISO = 0.65;
+    const ISO_SHIFT = 800 * (1 - ISO) * 0.28; // shift world up so bottom stays visible
+    ctx.save();
+    ctx.transform(1, 0, 0, ISO, 0, ISO_SHIFT);
+
+    renderMap(ctx, this.map, this.camera.x, this.camera.y, 1200, 800 / ISO, this.frame);
+
+    renderTileGrid(ctx, this.tileGrid, this.camera.x, this.camera.y, 1200, Math.ceil(800 / ISO),
       this.player.x, this.player.y, false);
     
     this.renderDrops(ctx);
@@ -450,12 +455,13 @@ export class ClashShowdown {
     renderProjectiles(ctx, this.projectiles, this.camera.x, this.camera.y, this.frame);
     renderEffects(ctx, this.camera.x, this.camera.y, this.frame);
 
-    // Bush tile layer (rendered on top of brawlers — transparent when nearby)
-    renderTileGrid(ctx, this.tileGrid, this.camera.x, this.camera.y, 1200, 800,
+    renderTileGrid(ctx, this.tileGrid, this.camera.x, this.camera.y, 1200, Math.ceil(800 / ISO),
       this.player.x, this.player.y, true);
 
     renderDamageNumbers(ctx, this.camera.x, this.camera.y);
-    
+
+    ctx.restore();
+    // ── HUD rendered flat (no iso transform) ──
     this.renderHUD(ctx);
   }
 

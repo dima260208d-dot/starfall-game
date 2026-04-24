@@ -4,6 +4,10 @@ import { Projectile } from "./Projectile";
 import { GameMap, collidesWithWalls } from "../game/MapRenderer";
 import { distance, angleTo, randomFloat, lineBlockedByWalls } from "../utils/helpers";
 import { pickBotName } from "../utils/botNames";
+import {
+  TileGrid, TileType, TILE_PROPS, TILE_CELL_SIZE,
+  getTile, collidesWithTileGrid, isTileInBush,
+} from "../game/TileMap";
 
 type BotState = "idle" | "chase" | "attack" | "retreat" | "wander" | "forced";
 
@@ -22,15 +26,13 @@ export class Bot extends Brawler {
     this.setIdentity(pickBotName(), true);
   }
 
-  updateAI(dt: number, allBrawlers: Brawler[], map: GameMap, projectiles: Projectile[]): void {
+  updateAI(dt: number, allBrawlers: Brawler[], map: GameMap, projectiles: Projectile[], tileGrid?: TileGrid): void {
     if (!this.alive) return;
+    if (tileGrid) this.tileGrid = tileGrid;
 
     this.stateTimer -= dt;
     this.attackTimer -= dt;
     this.wanderTimer -= dt;
-
-    // Bots no longer auto-charge their super passively — they earn it the same
-    // way the player does, by landing hits on enemies (handled in Brawler.takeDamage).
 
     const enemies = allBrawlers.filter(b => b.alive && b.team !== this.team);
 
@@ -38,12 +40,44 @@ export class Bot extends Brawler {
     let nearestDist = 9999;
     for (const e of enemies) {
       const d = distance(this.x, this.y, e.x, e.y);
-      // Bushes hide enemies until very close
       if (e.inBush && d > 180) continue;
       if (d < nearestDist) { nearestDist = d; nearestEnemy = e; }
     }
 
     const hpRatio = this.hp / this.maxHp;
+
+    // ── Tile-aware: seek HEAL pad when critically low HP ──
+    if (tileGrid && hpRatio < 0.30 && !this.inBush) {
+      const healPad = this.findNearestTile(TileType.HEAL, tileGrid);
+      if (healPad && distance(this.x, this.y, healPad.x, healPad.y) < 600) {
+        const dxh = healPad.x - this.x;
+        const dyh = healPad.y - this.y;
+        const steered = this.steerAroundWalls(dxh, dyh, map, tileGrid);
+        this.move(steered.x, steered.y, dt * 0.85);
+        return;
+      }
+    }
+
+    // ── Tile-aware: retreat into bush when low HP ──
+    if (tileGrid && hpRatio < 0.45 && !this.inBush) {
+      const bushSpot = this.findNearestTile(TileType.BUSH, tileGrid);
+      if (bushSpot && distance(this.x, this.y, bushSpot.x, bushSpot.y) < 400) {
+        const dxb = bushSpot.x - this.x;
+        const dyb = bushSpot.y - this.y;
+        const steered = this.steerAroundWalls(dxb, dyb, map, tileGrid);
+        this.move(steered.x, steered.y, dt * 0.75);
+        // Still shoot at enemies while retreating
+        if (nearestEnemy && nearestDist < this.stats.attackRange * 0.85) {
+          this.angle = angleTo(this.x, this.y, nearestEnemy.x, nearestEnemy.y);
+          if (this.attackTimer <= 0 && this.canAttack()) {
+            const projs = this.shoot(this.angle);
+            projectiles.push(...projs);
+            this.attackTimer = this.stats.attackCooldown;
+          }
+        }
+        return;
+      }
+    }
     
     // Use super whenever ready: low HP for escape, OR any enemy within reasonable range
     if (this.canUseSuper()) {
@@ -97,7 +131,7 @@ export class Bot extends Brawler {
           const dy = this.target.y - this.y;
           const jitterX = randomFloat(-0.2, 0.2);
           const jitterY = randomFloat(-0.2, 0.2);
-          const steered = this.steerAroundWalls(dx + jitterX, dy + jitterY, map);
+          const steered = this.steerAroundWalls(dx + jitterX, dy + jitterY, map, tileGrid);
           this.move(steered.x, steered.y, dt);
         }
         break;
@@ -105,14 +139,13 @@ export class Bot extends Brawler {
       case "attack":
         if (this.target && this.target.alive) {
           const isMelee = ["goro", "ronin", "taro"].includes(this.stats.id);
-          // Check that walls don't block our shot — bots understand walls
-          const losBlocked = !isMelee && lineBlockedByWalls(this.x, this.y, this.target.x, this.target.y, map.walls);
-          // Don't shoot if a friendly is right in our line of fire
+          const wallsBlocked = !isMelee && lineBlockedByWalls(this.x, this.y, this.target.x, this.target.y, map.walls);
+          const tilesBlocked = !isMelee && tileGrid ? this.lineTileBlocked(this.x, this.y, this.target.x, this.target.y, tileGrid) : false;
+          const losBlocked = wallsBlocked || tilesBlocked;
           let friendlyInLine = false;
           if (!isMelee) {
             for (const ally of allBrawlers) {
               if (!ally.alive || ally.team !== this.team || ally.id === this.id) continue;
-              // Project ally onto the bot→target line and check perpendicular distance
               const tx = this.target.x - this.x, ty = this.target.y - this.y;
               const len2 = tx * tx + ty * ty || 1;
               const ax = ally.x - this.x, ay = ally.y - this.y;
@@ -137,30 +170,27 @@ export class Bot extends Brawler {
             }
             this.attackTimer = this.stats.attackCooldown * (0.8 + Math.random() * 0.6);
           } else if (losBlocked || friendlyInLine) {
-            // No clean shot — sidestep to flank around the wall / teammate
-            const toTarget = angleTo(this.x, this.y, this.target.x, this.target.y);
+            const toTarget2 = angleTo(this.x, this.y, this.target.x, this.target.y);
             const flankDir = (this.id.charCodeAt(0) % 2 === 0) ? 1 : -1;
-            const flankAngle = toTarget + Math.PI / 2 * flankDir;
-            const steered = this.steerAroundWalls(Math.cos(flankAngle), Math.sin(flankAngle), map);
+            const flankAngle = toTarget2 + Math.PI / 2 * flankDir;
+            const steered = this.steerAroundWalls(Math.cos(flankAngle), Math.sin(flankAngle), map, tileGrid);
             this.move(steered.x, steered.y, dt * 0.85);
             break;
           }
           
-          // Strafe perpendicular to target to dodge incoming shots
           const toTarget = angleTo(this.x, this.y, this.target.x, this.target.y);
           const strafeDir = Math.sin(performance.now() * 0.003 + (this.wanderAngle || 0)) > 0 ? 1 : -1;
           const perp = toTarget + Math.PI / 2 * strafeDir;
 
           if (this.forcedTarget) {
-            // Anchored attack: stay near objective, strafe in place
             const fd = distance(this.x, this.y, this.forcedTarget.x, this.forcedTarget.y);
             if (fd > 90) {
               const dx = this.forcedTarget.x - this.x;
               const dy = this.forcedTarget.y - this.y;
-              const steered = this.steerAroundWalls(dx, dy, map);
+              const steered = this.steerAroundWalls(dx, dy, map, tileGrid);
               this.move(steered.x, steered.y, dt * 0.7);
             } else {
-              const steered = this.steerAroundWalls(Math.cos(perp), Math.sin(perp), map);
+              const steered = this.steerAroundWalls(Math.cos(perp), Math.sin(perp), map, tileGrid);
               this.move(steered.x, steered.y, dt * 0.5);
             }
           } else if (nearestDist < attackRange * 0.5) {
@@ -171,21 +201,19 @@ export class Bot extends Brawler {
             const dy = this.target.y - this.y;
             this.move(dx, dy, dt * 0.5);
           } else {
-            // In sweet spot — strafe to dodge
-            const steered = this.steerAroundWalls(Math.cos(perp), Math.sin(perp), map);
+            const steered = this.steerAroundWalls(Math.cos(perp), Math.sin(perp), map, tileGrid);
             this.move(steered.x, steered.y, dt * 0.45);
           }
         }
         break;
 
       case "wander": {
-        // If we have a crystal target, head straight to it instead of wandering
         if (this.crystalTarget) {
           const d = distance(this.x, this.y, this.crystalTarget.x, this.crystalTarget.y);
           if (d > 30) {
             const dx = this.crystalTarget.x - this.x;
             const dy = this.crystalTarget.y - this.y;
-            const steered = this.steerAroundWalls(dx, dy, map);
+            const steered = this.steerAroundWalls(dx, dy, map, tileGrid);
             this.move(steered.x, steered.y, dt);
           }
           break;
@@ -196,8 +224,7 @@ export class Bot extends Brawler {
         }
         const wx = Math.cos(this.wanderAngle);
         const wy = Math.sin(this.wanderAngle);
-        const steered = this.steerAroundWalls(wx, wy, map);
-        // If still blocked, pick a new wander angle
+        const steered = this.steerAroundWalls(wx, wy, map, tileGrid);
         if (steered.x === 0 && steered.y === 0) {
           this.wanderAngle += Math.PI / 2 + randomFloat(-0.5, 0.5);
           this.wanderTimer = randomFloat(0.5, 1.5);
@@ -210,7 +237,7 @@ export class Bot extends Brawler {
         if (this.forcedTarget) {
           const dx = this.forcedTarget.x - this.x;
           const dy = this.forcedTarget.y - this.y;
-          const steered = this.steerAroundWalls(dx, dy, map);
+          const steered = this.steerAroundWalls(dx, dy, map, tileGrid);
           this.move(steered.x, steered.y, dt);
         }
         break;
@@ -218,19 +245,29 @@ export class Bot extends Brawler {
 
   }
 
-  private steerAroundWalls(dx: number, dy: number, map: GameMap): { x: number; y: number } {
+  private tileGrid?: TileGrid;
+
+  setTileGrid(grid: TileGrid): void {
+    this.tileGrid = grid;
+  }
+
+  private steerAroundWalls(dx: number, dy: number, map: GameMap, grid?: TileGrid): { x: number; y: number } {
     const len = Math.sqrt(dx * dx + dy * dy) || 1;
     const nx = dx / len;
     const ny = dy / len;
     const lookahead = 70;
     const probeR = this.radius + 6;
 
-    const test = (ax: number, ay: number) =>
-      collidesWithWalls(this.x + ax * lookahead, this.y + ay * lookahead, probeR, map.walls).collides;
+    const test = (ax: number, ay: number) => {
+      const px = this.x + ax * lookahead;
+      const py = this.y + ay * lookahead;
+      if (collidesWithWalls(px, py, probeR, map.walls).collides) return true;
+      if (grid && collidesWithTileGrid(px, py, probeR, grid).collides) return true;
+      return false;
+    };
 
     if (!test(nx, ny)) return { x: nx, y: ny };
 
-    // Try angled deviations: ±30°, ±60°, ±90°
     const deltas = [Math.PI / 6, -Math.PI / 6, Math.PI / 3, -Math.PI / 3, Math.PI / 2, -Math.PI / 2];
     const baseAngle = Math.atan2(ny, nx);
     for (const d of deltas) {
@@ -240,5 +277,40 @@ export class Bot extends Brawler {
       if (!test(cx, cy)) return { x: cx, y: cy };
     }
     return { x: 0, y: 0 };
+  }
+
+  private findNearestTile(type: number, grid: TileGrid): { x: number; y: number } | null {
+    const C = TILE_CELL_SIZE;
+    const myTX = Math.floor(this.x / C);
+    const myTY = Math.floor(this.y / C);
+    let bestDist = 9999;
+    let best: { x: number; y: number } | null = null;
+    const searchR = 20;
+    for (let dx = -searchR; dx <= searchR; dx++) {
+      for (let dy = -searchR; dy <= searchR; dy++) {
+        const tx = myTX + dx, ty = myTY + dy;
+        if (tx < 0 || ty < 0 || tx >= grid.width || ty >= grid.height) continue;
+        if (getTile(grid, tx, ty) !== type) continue;
+        const wx = (tx + 0.5) * C, wy = (ty + 0.5) * C;
+        const d = distance(this.x, this.y, wx, wy);
+        if (d < bestDist) { bestDist = d; best = { x: wx, y: wy }; }
+      }
+    }
+    return best;
+  }
+
+  private lineTileBlocked(x1: number, y1: number, x2: number, y2: number, grid: TileGrid): boolean {
+    const steps = Math.ceil(distance(x1, y1, x2, y2) / TILE_CELL_SIZE) + 1;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const sx = x1 + (x2 - x1) * t;
+      const sy = y1 + (y2 - y1) * t;
+      const tx = Math.floor(sx / TILE_CELL_SIZE);
+      const ty = Math.floor(sy / TILE_CELL_SIZE);
+      const type = getTile(grid, tx, ty);
+      const props = TILE_PROPS[type];
+      if (props && !props.shootThrough && !props.walkable) return true;
+    }
+    return false;
   }
 }

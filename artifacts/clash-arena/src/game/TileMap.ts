@@ -1,5 +1,5 @@
 export const TILE_CELL_SIZE = 50;
-export const GRID_SIZE = 100;
+export const GRID_SIZE = 60;
 
 export enum TileType {
   GRASS = 0,
@@ -212,9 +212,9 @@ export function generateShowdownTileGrid(seedVal = Date.now()): TileGrid {
     );
     if (!overlaps) rooms.push({ x: rx, y: ry, w: rw, h: rh });
   }
-  rooms.push({ x: 43, y: 43, w: 14, h: 14 });
+  rooms.push({ x: 23, y: 23, w: 14, h: 14 });
 
-  const numWalls = 20 + Math.floor(lcg(seed) * 20);
+  const numWalls = 14 + Math.floor(lcg(seed) * 12);
   for (let i = 0; i < numWalls; i++) {
     const wx = 5 + Math.floor(lcg(seed) * (W - 10));
     const wy = 5 + Math.floor(lcg(seed) * (H - 10));
@@ -235,7 +235,7 @@ export function generateShowdownTileGrid(seedVal = Date.now()): TileGrid {
     }
   }
 
-  const numBushClusters = 12 + Math.floor(lcg(seed) * 18);
+  const numBushClusters = 8 + Math.floor(lcg(seed) * 10);
   for (let i = 0; i < numBushClusters; i++) {
     const bx = 5 + Math.floor(lcg(seed) * (W - 10));
     const by = 5 + Math.floor(lcg(seed) * (H - 10));
@@ -274,21 +274,21 @@ export function generateShowdownTileGrid(seedVal = Date.now()): TileGrid {
     }
   }
 
-  const numTrees = 12 + Math.floor(lcg(seed) * 18);
+  const numTrees = 7 + Math.floor(lcg(seed) * 10);
   for (let i = 0; i < numTrees; i++) {
     const tx = 4 + Math.floor(lcg(seed) * (W - 8));
     const ty = 4 + Math.floor(lcg(seed) * (H - 8));
     if (getTile(grid, tx, ty) === TileType.GRASS) setTile(grid, tx, ty, TileType.TREE);
   }
 
-  const numCacti = 8 + Math.floor(lcg(seed) * 12);
+  const numCacti = 5 + Math.floor(lcg(seed) * 7);
   for (let i = 0; i < numCacti; i++) {
     const tx = 4 + Math.floor(lcg(seed) * (W - 8));
     const ty = 4 + Math.floor(lcg(seed) * (H - 8));
     if (getTile(grid, tx, ty) === TileType.GRASS) setTile(grid, tx, ty, TileType.CACTUS);
   }
 
-  const numDecorations = 18 + Math.floor(lcg(seed) * 22);
+  const numDecorations = 10 + Math.floor(lcg(seed) * 12);
   for (let i = 0; i < numDecorations; i++) {
     const tx = 4 + Math.floor(lcg(seed) * (W - 8));
     const ty = 4 + Math.floor(lcg(seed) * (H - 8));
@@ -297,7 +297,7 @@ export function generateShowdownTileGrid(seedVal = Date.now()): TileGrid {
     }
   }
 
-  const numFenceLines = 6 + Math.floor(lcg(seed) * 8);
+  const numFenceLines = 4 + Math.floor(lcg(seed) * 5);
   for (let i = 0; i < numFenceLines; i++) {
     const fx = 5 + Math.floor(lcg(seed) * (W - 10));
     const fy = 5 + Math.floor(lcg(seed) * (H - 10));
@@ -310,7 +310,7 @@ export function generateShowdownTileGrid(seedVal = Date.now()): TileGrid {
     }
   }
 
-  const numHeal = 3 + Math.floor(lcg(seed) * 3);
+  const numHeal = 2 + Math.floor(lcg(seed) * 2);
   for (let i = 0; i < numHeal; i++) {
     const tx = 10 + Math.floor(lcg(seed) * (W - 20));
     const ty = 10 + Math.floor(lcg(seed) * (H - 20));
@@ -319,7 +319,7 @@ export function generateShowdownTileGrid(seedVal = Date.now()): TileGrid {
 
   for (let dx = -7; dx <= 7; dx++) {
     for (let dy = -7; dy <= 7; dy++) {
-      const tx = 50 + dx, ty = 50 + dy;
+      const tx = 30 + dx, ty = 30 + dy;
       const t = getTile(grid, tx, ty);
       if (t !== TileType.GRASS && t !== TileType.HEAL && t !== TileType.BUSH) {
         setTile(grid, tx, ty, TileType.GRASS);
