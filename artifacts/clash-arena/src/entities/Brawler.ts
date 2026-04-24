@@ -163,7 +163,10 @@ export class Brawler {
     }
     
     this.animFrame += dt * 60;
-    if (this.attackAnim > 0) this.attackAnim -= dt * 3;
+    if (this.attackAnim > 0) {
+      this.attackAnim -= dt * 3;
+      if (this.attackAnim <= 0) this.isAttacking = false;
+    }
     if (this.superAnim > 0) this.superAnim -= dt * 2;
     
     if (this.hitFlash > 0) this.hitFlash -= dt * 3;

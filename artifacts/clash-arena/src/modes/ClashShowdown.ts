@@ -286,12 +286,13 @@ export class ClashShowdown {
         }
         this.playerDropsSpawned = true;
       }
+      const aliveBots = this.bots.filter(b => b.alive).length;
+      const place = 1 + aliveBots;
+      const isTopFour = place <= 4;
       this.over = true;
-      this.won = false;
+      this.won = isTopFour;
       if (!this.resultRecorded) {
-        const aliveBots = this.bots.filter(b => b.alive).length;
-        const place = 1 + aliveBots;
-        recordGameResult({ won: false, mode: "showdown", place, totalPlayers: 10 });
+        recordGameResult({ won: isTopFour, mode: "showdown", place, totalPlayers: 10 });
         this.resultRecorded = true;
       }
     }
