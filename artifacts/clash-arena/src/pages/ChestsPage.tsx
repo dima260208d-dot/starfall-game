@@ -5,10 +5,11 @@ import {
   buyChest,
   openChest,
 } from "../utils/localStorageAPI";
-import { CHESTS, CHEST_RARITY_ORDER, type ChestRarity } from "../utils/chests";
+import { CHESTS, CHEST_RARITY_ORDER, type ChestRarity, type ChestRoll } from "../utils/chests";
 import { CHEST_BRAWLER_DROP_CHANCE } from "../entities/BrawlerData";
 import Chest3DViewer from "../components/Chest3DViewer";
 import ChestOpenAnimation from "../components/ChestOpenAnimation";
+import ChestOpenModal from "../components/ChestOpenModal";
 import { CoinBadge, GemBadge, PowerBadge, CoinIcon, GemIcon } from "../components/GameIcons";
 
 interface Props {
@@ -116,7 +117,8 @@ function Row({ label, value, color, highlight }: { label: string; value: string;
 export default function ChestsPage({ onBack }: Props) {
   const [profile, setProfile] = useState(getCurrentProfile());
   const [msg, setMsg] = useState<string | null>(null);
-  const [animating, setAnimating] = useState<ChestRarity | null>(null);
+  const [animating, setAnimating] = useState<{ rarity: ChestRarity; rolls: ChestRoll[] } | null>(null);
+  const [opening, setOpening] = useState<{ rarity: ChestRarity; rolls: ChestRoll[] } | null>(null);
   const [infoRarity, setInfoRarity] = useState<ChestRarity | null>(null);
 
   useEffect(() => {
@@ -141,11 +143,14 @@ export default function ChestsPage({ onBack }: Props) {
       return;
     }
     setProfile(getCurrentProfile());
-    setAnimating(rarity);
+    setAnimating({ rarity, rolls: r.rolls! });
   };
 
   const handleAnimationDone = () => {
+    if (!animating) return;
+    const data = { ...animating };
     setAnimating(null);
+    setOpening(data);
   };
 
   return (
@@ -323,8 +328,16 @@ export default function ChestsPage({ onBack }: Props) {
       {/* 3D spin+glow animation before the drop reveal */}
       {animating && (
         <ChestOpenAnimation
-          rarity={animating}
+          rarity={animating.rarity}
           onDone={handleAnimationDone}
+        />
+      )}
+
+      {opening && (
+        <ChestOpenModal
+          rarity={opening.rarity}
+          rolls={opening.rolls}
+          onClose={() => setOpening(null)}
         />
       )}
 
