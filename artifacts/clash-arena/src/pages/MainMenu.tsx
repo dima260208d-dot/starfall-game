@@ -12,6 +12,8 @@ import DailyRewardModal from "../components/DailyRewardModal";
 import QuestsModal from "../components/QuestsModal";
 import BrawlerRankRewardsModal from "../components/BrawlerRankRewardsModal";
 import BrawlerViewer3D from "../components/BrawlerViewer3D";
+import HamburgerDrawer from "../components/HamburgerDrawer";
+import SpinningModel3D from "../components/SpinningModel3D";
 
 interface MainMenuProps {
   onPlay: () => void;
@@ -40,6 +42,7 @@ export default function MainMenu(props: MainMenuProps) {
   const [showQuests, setShowQuests] = useState(false);
   const [showModeInfo, setShowModeInfo] = useState(false);
   const [rankModalBrawlerId, setRankModalBrawlerId] = useState<string | null>(null);
+  const [showHamburger, setShowHamburger] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(
     typeof document !== "undefined" && !!document.fullscreenElement,
   );
@@ -225,11 +228,27 @@ export default function MainMenu(props: MainMenuProps) {
         </button>
       </div>
 
-      {/* TOP-RIGHT: fullscreen toggle + resources */}
+      {/* TOP-RIGHT: hamburger + fullscreen toggle + resources */}
       <div style={{
         position: "absolute", top: 16, right: 16, zIndex: 5,
         display: "flex", alignItems: "center", gap: 8,
       }}>
+        <button
+          onClick={() => setShowHamburger(true)}
+          title="Меню"
+          style={{
+            width: compact ? 30 : 34, height: compact ? 30 : 34,
+            borderRadius: 10,
+            background: "rgba(0,0,0,0.35)",
+            border: "1px solid rgba(255,255,255,0.2)",
+            color: "white",
+            fontSize: compact ? 14 : 16, fontWeight: 900,
+            cursor: "pointer", lineHeight: 1,
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            backdropFilter: "blur(10px)",
+            boxShadow: "0 0 10px rgba(255,255,255,0.1)",
+          }}
+        >☰</button>
         <button
           onClick={toggleFullscreen}
           title={isFullscreen ? "Выйти из полного экрана" : "Полный экран"}
@@ -251,9 +270,9 @@ export default function MainMenu(props: MainMenuProps) {
           background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.08)",
           borderRadius: 12, padding: compact ? "4px 6px" : "6px 10px", backdropFilter: "blur(10px)",
         }}>
-          <Resource icon={<CoinIcon size={compact ? 13 : 16} />} value={profile.coins} color="#FFD700" compact={compact} />
-          <Resource icon={<GemIcon size={compact ? 13 : 16} />} value={profile.gems} color="#40C4FF" compact={compact} />
-          <Resource icon={<PowerIcon size={compact ? 13 : 16} />} value={profile.powerPoints} color="#CE93D8" compact={compact} />
+          <Resource icon={<SpinningModel3D modelPath="models/coin.glb" size={compact ? 24 : 30} color="#FFD700" />} value={profile.coins} color="#FFD700" compact={compact} />
+          <Resource icon={<SpinningModel3D modelPath="models/gem.glb" size={compact ? 24 : 30} color="#40C4FF" />} value={profile.gems} color="#40C4FF" compact={compact} />
+          <Resource icon={<SpinningModel3D modelPath="models/powerpoint.glb" size={compact ? 24 : 30} color="#CE93D8" />} value={profile.powerPoints} color="#CE93D8" compact={compact} />
         </div>
       </div>
 
@@ -350,10 +369,7 @@ export default function MainMenu(props: MainMenuProps) {
       }}>
         <SideButton icon="🛒" label="Магазин" onClick={onShop} color="#FFD700" compact={compact} />
         <SideButton icon="🎒" label="Коллекция" onClick={onCollection} color="#40C4FF" compact={compact} />
-        <SideButton icon="⚙️" label="Настройки" onClick={onSettings} color="#69F0AE" compact={compact} />
         <SideButton icon="👥" label="Друзья" onClick={() => handleSoonNotice("Друзья — скоро")} color="#CE93D8" compact={compact} />
-        <SideButton icon="🔔" label="Сообщения" onClick={() => handleSoonNotice("Новых уведомлений нет")} color="#FFAB40" compact={compact} />
-        <SideButton icon="🚪" label="Выйти" onClick={onLogout} color="#FF5252" compact={compact} />
       </div>
 
       {/* LEFT SIDE — character pick shortcut */}
@@ -577,6 +593,13 @@ export default function MainMenu(props: MainMenuProps) {
         <BrawlerRankRewardsModal
           brawlerId={rankModalBrawlerId}
           onClose={() => { setRankModalBrawlerId(null); setProfile(getCurrentProfile()); }}
+        />
+      )}
+      {showHamburger && (
+        <HamburgerDrawer
+          onClose={() => setShowHamburger(false)}
+          onSettings={() => { setShowHamburger(false); onSettings(); }}
+          onLogout={() => { setShowHamburger(false); onLogout(); }}
         />
       )}
 

@@ -23,7 +23,7 @@ export type CharAnim = "idle" | "run" | "attack" | "dead";
 export type MiyaAnim = CharAnim;
 
 const SIZE = 256;
-const MODEL_TARGET_H = 2.2;
+const MODEL_TARGET_H = 3.2;
 
 // Exact animation clip names per character (extracted from the GLB files).
 interface CharAnimNames { idle: string; run: string; attack: string; }

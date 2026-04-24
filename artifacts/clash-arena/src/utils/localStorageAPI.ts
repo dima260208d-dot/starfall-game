@@ -4,6 +4,21 @@ import { DAILY_LADDER, getRewardForDay } from "./dailyLadder";
 import { generateDailyQuests, isQuestsExpired, type DailyQuestsState, type QuestKind } from "./quests";
 import { BRAWLERS, BRAWLER_GEM_COST, CHEST_BRAWLER_DROP_CHANCE } from "../entities/BrawlerData";
 
+export interface BattleRecord {
+  id: string;                  // uuid-like timestamp+random
+  ts: number;                  // unix ms
+  mode: string;
+  brawlerId: string;           // player brawler used
+  won: boolean;
+  place: number;
+  totalPlayers: number;
+  trophyDelta: number;
+  xpGained: number;
+  coinsEarned: number;
+  durationSec?: number;
+  enemies: Array<{ id: string; name: string; isBot: boolean }>;
+}
+
 export interface UserProfile {
   username: string;
   passwordHash: string;
@@ -26,6 +41,7 @@ export interface UserProfile {
   selectedBrawlerId: string;
   selectedMode: string;
   lastResult?: { place: number; trophyDelta: number; xpGained: number; mode: string; won: boolean };
+  battleHistory?: BattleRecord[];
   createdAt: number;
 
   // Daily ladder (rotating 30-day rewards)
@@ -569,11 +585,17 @@ export function addGems(amount: number): void {
 // Trophy delta by Showdown placement (10 brawlers total)
 const SHOWDOWN_TROPHIES = [16, 12, 9, 6, 3, -2, -4, -6, -8, -10];
 
+export function getBattleHistory(): BattleRecord[] {
+  return getCurrentProfile()?.battleHistory ?? [];
+}
+
 export function recordGameResult(opts: {
   won: boolean;
   mode: string;
   place?: number; // 1..10 for showdown, 1 or 2 for team modes
   totalPlayers?: number;
+  enemies?: Array<{ id: string; name: string; isBot: boolean }>;
+  durationSec?: number;
 }): { trophyDelta: number; xpGained: number; coinsEarned: number; place: number; clashPassUp: boolean } {
   const profile = getCurrentProfile();
   if (!profile) {
@@ -638,6 +660,23 @@ export function recordGameResult(opts: {
     [usedId]: newBrawlerTrophies,
   };
 
+  const newRecord: BattleRecord = {
+    id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    ts: Date.now(),
+    mode,
+    brawlerId: profile.selectedBrawlerId,
+    won,
+    place,
+    totalPlayers,
+    trophyDelta: actualDelta,
+    xpGained,
+    coinsEarned,
+    durationSec: opts.durationSec,
+    enemies: opts.enemies ?? [],
+  };
+  const prevHistory = profile.battleHistory ?? [];
+  const newHistory = [newRecord, ...prevHistory].slice(0, 20);
+
   updateProfile({
     totalGamesPlayed: profile.totalGamesPlayed + 1,
     totalWins: won ? profile.totalWins + 1 : profile.totalWins,
@@ -650,6 +689,7 @@ export function recordGameResult(opts: {
     modeStats: newModeStats,
     brawlerTrophies: updatedBrawlerTrophies,
     lastResult: { place, trophyDelta: actualDelta, xpGained, mode, won },
+    battleHistory: newHistory,
   });
 
   // Track quest progress

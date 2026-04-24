@@ -10,6 +10,7 @@ import { loadSpriteSheet, loadBrawlerImages } from "../game/sprites";
 import { preloadCharRenderers } from "../game/miyaTopDownRenderer";
 import { BRAWLERS } from "../entities/BrawlerData";
 import MobileControls from "../components/MobileControls";
+import MiniMap from "../components/MiniMap";
 import type { GameMode } from "../App";
 
 interface GameScreenProps {
@@ -144,6 +145,10 @@ export default function GameScreen({ mode, brawlerId, onExit }: GameScreenProps)
             playerY: gameRef.current?.player?.y,
           })}
         />
+      )}
+
+      {!gameOver && (
+        <MiniMap gameRef={gameRef as any} mode={mode} />
       )}
 
       {mode === "training" && !gameOver && (
@@ -303,24 +308,6 @@ export default function GameScreen({ mode, brawlerId, onExit }: GameScreenProps)
         </div>
       )}
 
-      <button
-        onClick={onExit}
-        style={{
-          position: "absolute",
-          top: 10,
-          right: 10,
-          background: "rgba(255,0,0,0.2)",
-          border: "1px solid rgba(255,0,0,0.3)",
-          borderRadius: 8,
-          padding: "5px 12px",
-          color: "#FF5252",
-          fontSize: 12,
-          cursor: "pointer",
-          zIndex: 5,
-        }}
-      >
-        ВЫХОД
-      </button>
     </div>
   );
 }
