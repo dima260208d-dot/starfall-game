@@ -1,6 +1,7 @@
 /**
  * BrawlerRevealModal — Brawl Stars-style full-screen brawler unlock animation.
- * Shows a 3D model falling from above, bouncing, spinning, then collecting.
+ * The character runs toward the camera from far away, stops in the center,
+ * auto-rotates/floats, then on dismiss runs back away into the screen.
  * Rendered into document.body via React portal (z-index: 999999).
  */
 import { useEffect, useRef, useState, useCallback } from "react";
@@ -9,7 +10,6 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { BRAWLERS, BRAWLER_RARITY_LABEL } from "../entities/BrawlerData";
-import { CHESTS, type ChestRarity } from "../utils/chests";
 
 // ── Model registry ────────────────────────────────────────────────────────────
 const MODEL_URLS: Record<string, { url: string; anim: string; animIdx?: number }> = {
@@ -139,10 +139,6 @@ const REVEAL_STYLES = `
     40%  { opacity: 0.9; transform: scale(1.4); }
     100% { opacity: 0; transform: scale(2.5); }
   }
-  @keyframes collectFly {
-    0%   { opacity: 1; transform: translate(0, 0) scale(1); }
-    100% { opacity: 0; transform: translate(120px, 160px) scale(0.1); }
-  }
   @keyframes namePop {
     0%   { opacity: 0; transform: translateY(20px) scale(0.8); }
     60%  { transform: translateY(-5px) scale(1.05); }
@@ -151,7 +147,7 @@ const REVEAL_STYLES = `
 `;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type RevealPhase = "dropping" | "spinning" | "collecting";
+type RevealPhase = "running_in" | "spinning" | "running_out";
 
 export interface BrawlerRevealModalProps {
   brawlerId: string;
@@ -168,38 +164,38 @@ export default function BrawlerRevealModal({
   total = 1,
 }: BrawlerRevealModalProps) {
   const mountRef   = useRef<HTMLDivElement>(null);
-  const phaseRef   = useRef<RevealPhase>("dropping");
-  const [phase, setPhase] = useState<RevealPhase>("dropping");
+  const phaseRef   = useRef<RevealPhase>("running_in");
+  const onDoneRef  = useRef(onDone);
+  onDoneRef.current = onDone;
+
+  const [phase, setPhase] = useState<RevealPhase>("running_in");
   const [showFlash, setShowFlash] = useState(false);
 
   const brawler   = BRAWLERS.find(b => b.id === brawlerId);
-  const chestDef  = brawler ? CHESTS[brawler.rarity] : CHESTS.common;
   const pColors   = RARITY_PARTICLES[brawler?.rarity ?? "common"] ?? RARITY_PARTICLES.common;
 
   // ── Auto-collect after 4.5 s of spinning ───────────────────────────────────
   useEffect(() => {
     if (phase !== "spinning") return;
-    const t = setTimeout(() => startCollect(), 4500);
+    const t = setTimeout(() => startRunOut(), 4500);
     return () => clearTimeout(t);
   }, [phase]);
 
-  const startCollect = useCallback(() => {
-    if (phaseRef.current === "collecting") return;
-    phaseRef.current = "collecting";
-    setPhase("collecting");
-    setTimeout(() => onDone(), 900);
-  }, [onDone]);
+  const startRunOut = useCallback(() => {
+    if (phaseRef.current === "running_out") return;
+    phaseRef.current = "running_out";
+    setPhase("running_out");
+  }, []);
 
   const handleTap = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    if (phaseRef.current === "dropping") {
-      // Skip drop → jump straight to spinning
+    if (phaseRef.current === "running_in") {
       phaseRef.current = "spinning";
       setPhase("spinning");
     } else if (phaseRef.current === "spinning") {
-      startCollect();
+      startRunOut();
     }
-  }, [startCollect]);
+  }, [startRunOut]);
 
   // ── Three.js scene ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -222,7 +218,7 @@ export default function BrawlerRevealModal({
     mount.appendChild(renderer.domElement);
 
     const scene  = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(30, W / H, 0.1, 100);
+    const camera = new THREE.PerspectiveCamera(30, W / H, 0.1, 200);
     camera.position.set(0, 1.6, 5.8);
     camera.lookAt(0, 1.1, 0);
 
@@ -239,21 +235,21 @@ export default function BrawlerRevealModal({
     scene.add(glowLight);
 
     const rootGroup = new THREE.Group();
+    // Start far away (small due to perspective), facing the camera
+    rootGroup.position.z = -22;
+    rootGroup.rotation.y = Math.PI;
     scene.add(rootGroup);
 
-    // ── Physics ──────────────────────────────────────────────────────────────
-    const phy = {
-      posY:    16,
-      velY:    0,
-      settled: false,
-      floatT:  0,
-    };
-    const GRAV   = -14;
-    const BOUNCE = 0.40;
+    // ── Run-toward-camera state ───────────────────────────────────────────────
+    const RUN_IN_DURATION  = 1.5; // seconds to run toward camera
+    const RUN_OUT_DURATION = 0.8; // seconds to run away
 
-    // Collecting state
-    let collecting  = false;
-    let collectTime = 0;
+    const run = {
+      phaseTime: 0,
+      floatT:    0,
+      runOutStarted: false,
+      doneTriggered: false,
+    };
 
     let mixer: THREE.AnimationMixer | null = null;
     let rafId  = 0;
@@ -267,43 +263,44 @@ export default function BrawlerRevealModal({
       lastTs = ts;
       const cur = phaseRef.current;
 
-      // ── Fall / bounce ────────────────────────────────────────────────────
-      if (!phy.settled || cur === "dropping") {
-        phy.velY += GRAV * dt;
-        phy.posY += phy.velY * dt;
+      if (cur === "running_in") {
+        run.phaseTime += dt;
+        const t = Math.min(run.phaseTime / RUN_IN_DURATION, 1);
+        // Ease-in-out (smoothstep)
+        const p = t * t * (3 - 2 * t);
+        rootGroup.position.z = -22 * (1 - p);
+        rootGroup.position.y = 0;
 
-        if (phy.posY <= 0) {
-          phy.posY = 0;
-          phy.velY = Math.abs(phy.velY) * BOUNCE;
-
-          if (phy.velY < 0.08) {
-            phy.settled = true;
-            phy.velY = 0;
-            // Auto-transition to spinning
-            if (phaseRef.current === "dropping") {
-              phaseRef.current = "spinning";
-              setPhase("spinning");
-              setShowFlash(true);
-              setTimeout(() => setShowFlash(false), 600);
-            }
-          }
+        if (t >= 1) {
+          // Arrived — transition to spinning
+          rootGroup.position.z = 0;
+          phaseRef.current = "spinning";
+          setPhase("spinning");
+          setShowFlash(true);
+          setTimeout(() => setShowFlash(false), 600);
+          run.phaseTime = 0;
         }
-        rootGroup.position.y = phy.posY;
-      }
+      } else if (cur === "spinning") {
+        // Snap to center if we got here via user skip
+        rootGroup.position.z = 0;
+        run.floatT += dt;
+        rootGroup.position.y = Math.sin(run.floatT * 1.5) * 0.14;
+        rootGroup.rotation.y += dt * 1.15;
+      } else if (cur === "running_out") {
+        if (!run.runOutStarted) {
+          run.runOutStarted = true;
+          run.phaseTime = 0;
+          rootGroup.position.y = 0;
+        }
+        run.phaseTime += dt;
+        const t = Math.min(run.phaseTime / RUN_OUT_DURATION, 1);
+        // Ease-in (accelerate away)
+        const p = t * t;
+        rootGroup.position.z = -22 * p;
 
-      // ── Spinning / floating ──────────────────────────────────────────────
-      if (phy.settled) {
-        if (cur === "spinning") {
-          phy.floatT += dt;
-          rootGroup.position.y = Math.sin(phy.floatT * 1.5) * 0.14;
-          rootGroup.rotation.y += dt * 1.15; // ~5.5s / revolution
-        } else if (cur === "collecting") {
-          collecting = true;
-          collectTime += dt;
-          const p = Math.min(collectTime / 0.8, 1);
-          rootGroup.scale.setScalar(1 - p * 0.9);
-          rootGroup.position.x  = p * 3;
-          rootGroup.position.y  = -p * 2;
+        if (t >= 1 && !run.doneTriggered) {
+          run.doneTriggered = true;
+          setTimeout(() => onDoneRef.current(), 100);
         }
       }
 
@@ -348,7 +345,7 @@ export default function BrawlerRevealModal({
 
   const rarityLabel  = BRAWLER_RARITY_LABEL[brawler.rarity];
   const isSpinning   = phase === "spinning";
-  const isCollecting = phase === "collecting";
+  const isRunningOut = phase === "running_out";
 
   // Generate particle descriptors
   const PARTICLE_COUNT = 28;
@@ -411,7 +408,7 @@ export default function BrawlerRevealModal({
       }} />
 
       {/* ── Radial glow behind model (active while spinning) ── */}
-      {(isSpinning || isCollecting) && (
+      {(isSpinning || isRunningOut) && (
         <div style={{
           position: "absolute",
           width: 440, height: 440, borderRadius: "50%",
@@ -421,7 +418,7 @@ export default function BrawlerRevealModal({
         }} />
       )}
 
-      {/* ── Burst flash on landing ── */}
+      {/* ── Burst flash on arrival ── */}
       {showFlash && (
         <div style={{
           position: "absolute",
@@ -433,7 +430,7 @@ export default function BrawlerRevealModal({
       )}
 
       {/* ── Orbiting particles ── */}
-      {(isSpinning || isCollecting) && particles.map(p => (
+      {(isSpinning || isRunningOut) && particles.map(p => (
         <div key={p.id} style={{
           position: "absolute", left: "50%", top: "46%",
           width: p.size, height: p.size,
@@ -454,7 +451,7 @@ export default function BrawlerRevealModal({
         style={{
           position: "absolute", inset: 0, zIndex: 4,
           pointerEvents: "none",
-          opacity: isCollecting ? 0.6 : 1,
+          opacity: isRunningOut ? 0.6 : 1,
           transition: "opacity 0.3s",
         }}
       />
@@ -466,6 +463,8 @@ export default function BrawlerRevealModal({
         background: `radial-gradient(ellipse, ${brawler.color}88 0%, transparent 70%)`,
         filter: "blur(8px)", zIndex: 3, pointerEvents: "none",
         animation: isSpinning ? "shadowPulse 2s ease-in-out infinite" : "none",
+        opacity: isSpinning || isRunningOut ? 1 : 0,
+        transition: "opacity 0.4s",
       }} />
 
       {/* ── Brawler name + rarity badge ── */}
@@ -473,11 +472,10 @@ export default function BrawlerRevealModal({
         position: "absolute", bottom: 88,
         display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
         zIndex: 6, pointerEvents: "none",
-        opacity: isSpinning || isCollecting ? 1 : 0,
+        opacity: isSpinning || isRunningOut ? 1 : 0,
         transition: "opacity 0.4s",
         animation: isSpinning ? "namePop 0.55s cubic-bezier(0.22,1,0.36,1)" : "none",
       }}>
-        {/* Rarity badge */}
         <div style={{
           background: `linear-gradient(135deg, ${brawler.color}, ${brawler.secondaryColor})`,
           borderRadius: 8, padding: "4px 18px",
@@ -487,7 +485,6 @@ export default function BrawlerRevealModal({
         }}>
           {rarityLabel}
         </div>
-        {/* Name */}
         <div style={{
           fontSize: 44, fontWeight: 900, lineHeight: 1, letterSpacing: 4,
           color: "white",
@@ -495,7 +492,6 @@ export default function BrawlerRevealModal({
         }}>
           {brawler.name.toUpperCase()}
         </div>
-        {/* Role */}
         <div style={{
           fontSize: 13, color: "rgba(255,255,255,0.5)",
           letterSpacing: 3, textTransform: "uppercase",
@@ -517,8 +513,8 @@ export default function BrawlerRevealModal({
         </div>
       )}
 
-      {/* ── Skip hint (during drop) ── */}
-      {phase === "dropping" && (
+      {/* ── Skip hint (during run-in) ── */}
+      {phase === "running_in" && (
         <div style={{
           position: "absolute", bottom: 36, right: 24,
           fontSize: 11, color: "rgba(255,255,255,0.28)",

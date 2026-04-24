@@ -114,6 +114,7 @@ export default function MainMenu(props: MainMenuProps) {
   const clashPassBadge = getUnclaimedClashPassCount(profile);
   const chestsBadge = getUnopenedChestCount(profile);
   const questsBadge = profile.dailyQuests?.quests.filter(q => !q.claimed && q.progress >= q.target).length ?? 0;
+  const newBrawlerBadge = (profile.newBrawlers || []).length;
 
   const handleSoonNotice = (text: string) => {
     setNotif(text);
@@ -367,7 +368,7 @@ export default function MainMenu(props: MainMenuProps) {
         display: "flex", flexDirection: "column", gap: compact ? 6 : 12, zIndex: 4,
       }}>
         <SideButton icon="🛒" imgSrc="ui/nav-shop.png" label="Магазин" onClick={onShop} color="#FFD700" compact={compact} />
-        <SideButton icon="🎒" imgSrc="ui/nav-collection.png" label="Коллекция" onClick={onCollection} color="#40C4FF" compact={compact} />
+        <SideButton icon="🎒" imgSrc="ui/nav-collection.png" label="Коллекция" onClick={onCollection} color="#40C4FF" compact={compact} badge={newBrawlerBadge} />
         <SideButton icon="👥" imgSrc="ui/nav-friends.png" label="Друзья" onClick={() => handleSoonNotice("Друзья — скоро")} color="#CE93D8" compact={compact} />
       </div>
 
@@ -376,7 +377,7 @@ export default function MainMenu(props: MainMenuProps) {
         position: "absolute", left: compact ? 8 : 18, top: "50%", transform: "translateY(-50%)",
         display: "flex", flexDirection: "column", gap: compact ? 6 : 12, zIndex: 4,
       }}>
-        <SideButton icon="🦸" imgSrc="ui/nav-character.png" label="Персонаж" onClick={onBrawlerSelect} color="#CE93D8" compact={compact} />
+        <SideButton icon="🦸" imgSrc="ui/nav-character.png" label="Персонаж" onClick={onBrawlerSelect} color="#CE93D8" compact={compact} badge={newBrawlerBadge} />
         <SideButton
           icon="🎁"
           imgSrc="ui/nav-bonus.png"

@@ -6,6 +6,7 @@ import {
   getBrawlerTrophies, getBrawlerRank,
   getUnclaimedBrawlerRankCount,
   BRAWLER_RANK_TABLE, MAX_BRAWLER_RANK,
+  markBrawlerSeen,
 } from "../utils/localStorageAPI";
 import BrawlerViewer3D from "../components/BrawlerViewer3D";
 import BrawlerRankRewardsModal from "../components/BrawlerRankRewardsModal";
@@ -150,13 +151,20 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
             {ownedSorted.map((b) => {
               const lv = profile.brawlerLevels[b.id] || 1;
               const isSelected = b.id === activeId;
+              const isNew = (profile.newBrawlers || []).includes(b.id);
               const rarityColor = CHESTS[b.rarity].borderColor;
               const bTrophies = getBrawlerTrophies(profile, b.id);
               const bRank = getBrawlerRank(bTrophies);
               return (
                 <div
                   key={b.id}
-                  onClick={() => setSelectedId(b.id)}
+                  onClick={() => {
+                    setSelectedId(b.id);
+                    if (isNew) {
+                      markBrawlerSeen(b.id);
+                      setProfile(getCurrentProfile());
+                    }
+                  }}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -166,7 +174,8 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
                     cursor: "pointer",
                     marginBottom: 6,
                     background: isSelected ? `${b.color}20` : "rgba(255,255,255,0.03)",
-                    border: `1px solid ${isSelected ? b.color + "60" : "rgba(255,255,255,0.05)"}`,
+                    border: `1px solid ${isNew ? "#FF4500" : isSelected ? b.color + "60" : "rgba(255,255,255,0.05)"}`,
+                    boxShadow: isNew ? "0 0 8px rgba(255,69,0,0.5)" : undefined,
                     transition: "all 0.2s",
                   }}
                 >
@@ -201,7 +210,10 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
                     >Р{bRank}</div>
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: isSelected ? b.color : "white" }}>{b.name}</div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: isNew ? "#FF6B00" : isSelected ? b.color : "white", display: "flex", alignItems: "center", gap: 4 }}>
+                      {b.name}
+                      {isNew && <span style={{ fontSize: 9, fontWeight: 900, background: "linear-gradient(135deg,#FF4500,#FF6B00)", color: "white", borderRadius: 5, padding: "1px 5px", letterSpacing: 0.5 }}>НОВОЕ</span>}
+                    </div>
                     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>УР {lv} • 🏆 {bTrophies}</div>
                   </div>
                   <div style={{

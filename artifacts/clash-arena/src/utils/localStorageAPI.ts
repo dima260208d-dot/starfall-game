@@ -68,6 +68,9 @@ export interface UserProfile {
   // "pc": keyboard + mouse. "mobile": on-screen joysticks (move / attack /
   // super). Defaults to "mobile" on touch devices, "pc" otherwise.
   controlMode: "pc" | "mobile";
+
+  // IDs of brawlers recently unlocked but not yet viewed in the collection.
+  newBrawlers?: string[];
 }
 
 export type ControlMode = "pc" | "mobile";
@@ -271,6 +274,7 @@ function normalizeProfile(p: UserProfile): UserProfile {
     controlMode: p.controlMode === "mobile" || p.controlMode === "pc"
       ? p.controlMode
       : detectDefaultControlMode(),
+    newBrawlers: p.newBrawlers || [],
   };
 }
 
@@ -730,11 +734,27 @@ export function unlockBrawlerWithGems(brawlerId: string): { success: boolean; er
   if (profile.gems < cost) {
     return { success: false, error: `Нужно ${cost} кристаллов`, cost };
   }
+  const newBrawlers = [...(profile.newBrawlers || [])];
+  if (!newBrawlers.includes(brawlerId)) newBrawlers.push(brawlerId);
   updateProfile({
     gems: profile.gems - cost,
     unlockedBrawlers: [...profile.unlockedBrawlers, brawlerId],
+    newBrawlers,
   });
   return { success: true, cost };
+}
+
+// Mark a brawler as seen in the collection (removes the "NEW" badge).
+export function markBrawlerSeen(brawlerId: string): void {
+  const profile = getCurrentProfile();
+  if (!profile) return;
+  const newBrawlers = (profile.newBrawlers || []).filter(id => id !== brawlerId);
+  updateProfile({ newBrawlers });
+}
+
+// Get the list of newly unlocked brawlers not yet viewed in the collection.
+export function getNewBrawlers(): string[] {
+  return getCurrentProfile()?.newBrawlers || [];
 }
 
 // Directly grant a brawler unlock (used by chest drops).
@@ -742,7 +762,9 @@ export function grantBrawlerUnlock(brawlerId: string): { success: boolean } {
   const profile = getCurrentProfile();
   if (!profile) return { success: false };
   if (profile.unlockedBrawlers.includes(brawlerId)) return { success: false };
-  updateProfile({ unlockedBrawlers: [...profile.unlockedBrawlers, brawlerId] });
+  const newBrawlers = [...(profile.newBrawlers || [])];
+  if (!newBrawlers.includes(brawlerId)) newBrawlers.push(brawlerId);
+  updateProfile({ unlockedBrawlers: [...profile.unlockedBrawlers, brawlerId], newBrawlers });
   return { success: true };
 }
 

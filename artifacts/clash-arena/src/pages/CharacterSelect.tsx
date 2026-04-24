@@ -11,9 +11,11 @@ import {
   getBrawlerTrophies,
   getBrawlerRank,
   MAX_BRAWLER_RANK,
+  markBrawlerSeen,
 } from "../utils/localStorageAPI";
 import BrawlerViewer3D from "../components/BrawlerViewer3D";
 import BrawlerRankRewardsModal from "../components/BrawlerRankRewardsModal";
+import BrawlerRevealModal from "../components/BrawlerRevealModal";
 import { CoinIcon, GemIcon, PowerIcon } from "../components/GameIcons";
 
 export type BrawlerSortKey = "rarity" | "name" | "level" | "hp" | "damage" | "speed" | "range";
@@ -62,6 +64,7 @@ export default function CharacterSelect({ onPickAsActive, onTraining, onBack }: 
   const [openId, setOpenId] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<BrawlerSortKey>("rarity");
   const [rankModalBrawlerId, setRankModalBrawlerId] = useState<string | null>(null);
+  const [purchasedBrawler, setPurchasedBrawler] = useState<string | null>(null);
 
   useEffect(() => {
     const t = setInterval(() => setProfile(getCurrentProfile()), 500);
@@ -70,7 +73,16 @@ export default function CharacterSelect({ onPickAsActive, onTraining, onBack }: 
 
   if (!profile) return null;
 
+  const newBrawlers = profile.newBrawlers || [];
   const detailBrawler = openId ? BRAWLERS.find(b => b.id === openId) || null : null;
+
+  const handleOpenDetail = (id: string) => {
+    setOpenId(id);
+    if (newBrawlers.includes(id)) {
+      markBrawlerSeen(id);
+      setProfile(getCurrentProfile());
+    }
+  };
 
   return (
     <>
@@ -95,7 +107,10 @@ export default function CharacterSelect({ onPickAsActive, onTraining, onBack }: 
           }}
           onUnlock={() => {
             const r = unlockBrawlerWithGems(detailBrawler.id);
-            if (r.success) setProfile(getCurrentProfile());
+            if (r.success) {
+              setProfile(getCurrentProfile());
+              setPurchasedBrawler(detailBrawler.id);
+            }
             return r;
           }}
         />
@@ -105,14 +120,21 @@ export default function CharacterSelect({ onPickAsActive, onTraining, onBack }: 
           sortKey={sortKey}
           onChangeSort={setSortKey}
           onBack={onBack}
-          onOpen={(id) => setOpenId(id)}
+          onOpen={handleOpenDetail}
           onOpenRankModal={(id) => setRankModalBrawlerId(id)}
+          newBrawlers={newBrawlers}
         />
       )}
       {rankModalBrawlerId && (
         <BrawlerRankRewardsModal
           brawlerId={rankModalBrawlerId}
           onClose={() => { setRankModalBrawlerId(null); setProfile(getCurrentProfile()); }}
+        />
+      )}
+      {purchasedBrawler && (
+        <BrawlerRevealModal
+          brawlerId={purchasedBrawler}
+          onDone={() => setPurchasedBrawler(null)}
         />
       )}
     </>
@@ -130,9 +152,10 @@ interface CharacterGridProps {
   onBack: () => void;
   onOpen: (id: string) => void;
   onOpenRankModal: (id: string) => void;
+  newBrawlers?: string[];
 }
 
-function CharacterGrid({ profile, sortKey, onChangeSort, onBack, onOpen, onOpenRankModal }: CharacterGridProps) {
+function CharacterGrid({ profile, sortKey, onChangeSort, onBack, onOpen, onOpenRankModal, newBrawlers = [] }: CharacterGridProps) {
   if (!profile) return null;
   const base = (import.meta as any).env?.BASE_URL ?? "/";
   const sorted = sortBrawlers(BRAWLERS, sortKey, profile.brawlerLevels);
@@ -196,12 +219,15 @@ function CharacterGrid({ profile, sortKey, onChangeSort, onBack, onOpen, onOpenR
           const lv = profile.brawlerLevels[b.id] || 1;
           const isActive = profile.selectedBrawlerId === b.id;
           const unlocked = profile.unlockedBrawlers.includes(b.id);
+          const isNew = newBrawlers.includes(b.id);
           const rarityColor = CHESTS[b.rarity].borderColor;
           const bTrophies = unlocked ? getBrawlerTrophies(profile, b.id) : 0;
           const bRank = unlocked ? getBrawlerRank(bTrophies) : 0;
-          const borderColor = unlocked
-            ? (isActive ? b.color : rarityColor)
-            : "rgba(255,255,255,0.18)";
+          const borderColor = isNew
+            ? "#FF4500"
+            : unlocked
+              ? (isActive ? b.color : rarityColor)
+              : "rgba(255,255,255,0.18)";
 
           return (
             <div
@@ -238,7 +264,20 @@ function CharacterGrid({ profile, sortKey, onChangeSort, onBack, onOpen, onOpenR
                 textShadow: "0 1px 2px rgba(0,0,0,0.5)",
               }}>{BRAWLER_RARITY_LABEL[b.rarity]}</div>
 
-              {isActive && (
+              {isNew && (
+                <div style={{
+                  position: "absolute", top: 8, right: 10,
+                  background: "linear-gradient(135deg, #FF4500, #FF6B00)",
+                  color: "white",
+                  fontSize: 10, fontWeight: 900,
+                  borderRadius: 8, padding: "2px 8px",
+                  letterSpacing: 1,
+                  boxShadow: "0 0 12px rgba(255,69,0,0.8)",
+                  animation: "pulse 1.4s ease-in-out infinite",
+                }}>НОВОЕ</div>
+              )}
+
+              {isActive && !isNew && (
                 <div style={{
                   position: "absolute", top: 8, right: 10,
                   background: b.color, color: "white",
