@@ -21,7 +21,7 @@ const COIN_RADIUS = 0.28;
 const FLOOR_Y = -1.6;
 const WALL_X = 3.3;   // left/right wall
 const WALL_Z = 1.8;   // front/back wall
-const GRAVITY = -0.030;
+const GRAVITY = -0.048;
 const BOUNCE = 0.44;
 const WALL_BOUNCE = 0.38;
 const FRICTION = 0.86;
@@ -114,7 +114,7 @@ export default function ChestItemScene({ type, amount, onAllSettled }: Props) {
 
         const x = (Math.random() - 0.5) * (WALL_X * 2 - COIN_RADIUS * 2);
         const z = (Math.random() - 0.5) * (WALL_Z * 2 - COIN_RADIUS * 2);
-        const y = 4.5 + i * 0.10 + Math.random() * 0.6;
+        const y = 1.8 + i * 0.04 + Math.random() * 0.3;
 
         obj.position.set(x, y, z);
         scene.add(obj);
@@ -123,9 +123,9 @@ export default function ChestItemScene({ type, amount, onAllSettled }: Props) {
           obj,
           pos: new THREE.Vector3(x, y, z),
           vel: new THREE.Vector3(
-            (Math.random() - 0.5) * 0.08,
-            -(0.14 + Math.random() * 0.10),
-            (Math.random() - 0.5) * 0.04,
+            (Math.random() - 0.5) * 0.10,
+            -(0.22 + Math.random() * 0.12),
+            (Math.random() - 0.5) * 0.05,
           ),
           axis: new THREE.Vector3(
             Math.random() - 0.5,
@@ -133,7 +133,7 @@ export default function ChestItemScene({ type, amount, onAllSettled }: Props) {
             Math.random() - 0.5,
           ).normalize(),
           rotSpeed: 0.06 + Math.random() * 0.14,
-          delay: Math.floor(i * 1.0),
+          delay: 0,
           settled: false,
         });
       }
