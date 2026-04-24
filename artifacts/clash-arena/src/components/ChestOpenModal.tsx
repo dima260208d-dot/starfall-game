@@ -1,8 +1,7 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { CHESTS, type ChestRarity, type ChestRoll } from "../utils/chests";
 import { BRAWLERS } from "../entities/BrawlerData";
-import ChestVisual from "./ChestVisual";
 import ChestItemScene from "./ChestItemScene";
 import BrawlerRevealModal from "./BrawlerRevealModal";
 
@@ -12,7 +11,7 @@ interface Props {
   onClose: () => void;
 }
 
-type Phase = "chest" | "dropping" | "brawler" | "collecting" | "done";
+type Phase = "dropping" | "brawler" | "collecting" | "done";
 
 // ── Keyframes ─────────────────────────────────────────────────────────────────
 const STYLES = `
@@ -204,21 +203,10 @@ const TYPE_META: Record<string, { icon: string; color: string; label: string }> 
 // ── Main modal ────────────────────────────────────────────────────────────────
 export default function ChestOpenModal({ rarity, rolls, onClose }: Props) {
   const def = CHESTS[rarity];
-  const [phase, setPhase]             = useState<Phase>("chest");
-  const [chestSub, setChestSub]       = useState<"idle" | "shaking" | "exploding">("idle");
-  const [currentDrop, setCurrentDrop] = useState(-1);
+  const firstPhase: Phase = rolls[0]?.type === "brawler" ? "brawler" : "dropping";
+  const [phase, setPhase]             = useState<Phase>(firstPhase);
+  const [currentDrop, setCurrentDrop] = useState(0);
   const canTapRef = useRef(true);
-
-  // ── Chest opening auto-sequence ──────────────────────────────────────────
-  useEffect(() => {
-    const t1 = setTimeout(() => setChestSub("shaking"), 200);
-    const t2 = setTimeout(() => setChestSub("exploding"), 1200);
-    const t3 = setTimeout(() => {
-      setPhase(rolls[0]?.type === "brawler" ? "brawler" : "dropping");
-      setCurrentDrop(0);
-    }, 2000);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
-  }, []);
 
   // current roll
   const roll = currentDrop >= 0 && currentDrop < rolls.length ? rolls[currentDrop] : null;
@@ -251,18 +239,8 @@ export default function ChestOpenModal({ rarity, rolls, onClose }: Props) {
   const handleTap = useCallback(() => {
     if (phase === "done") { onClose(); return; }
     if (phase === "brawler") return;  // BrawlerRevealModal owns its taps
-
-    if (phase === "chest") {
-      setChestSub("exploding");
-      setTimeout(() => {
-        setPhase(rolls[0]?.type === "brawler" ? "brawler" : "dropping");
-        setCurrentDrop(0);
-      }, 200);
-      return;
-    }
-
     if (phase === "dropping") advance();
-  }, [phase, advance, onClose, rolls]);
+  }, [phase, advance, onClose]);
 
   // ── Render ─────────────────────────────────────────────────────────────────
   const isResourceDrop = phase === "dropping" && roll && roll.type !== "brawler";
@@ -294,26 +272,6 @@ export default function ChestOpenModal({ rarity, rolls, onClose }: Props) {
       }}>
         {def.name}
       </div>
-
-      {/* ── Chest phase ── */}
-      {phase === "chest" && (
-        <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2 }}>
-          {chestSub === "exploding" && Array.from({ length: 18 }).map((_, i) => (
-            <div key={i} style={{
-              position: "absolute", left: "50%", top: "50%",
-              width: 5, height: 260,
-              background: `linear-gradient(180deg, ${def.color}ff, transparent)`,
-              transformOrigin: "top center",
-              "--rot": `${i * 20}deg`,
-              animation: "burstRay 0.9s ease-out forwards",
-              opacity: 0,
-            } as React.CSSProperties} />
-          ))}
-          <div style={{ animation: chestSub === "shaking" ? "chestShake 0.7s ease-in-out" : "none" }}>
-            <ChestVisual rarity={rarity} size={210} animated shake={false} exploding={chestSub === "exploding"} />
-          </div>
-        </div>
-      )}
 
       {/* ── 3D resource drop ── */}
       {isResourceDrop && (
