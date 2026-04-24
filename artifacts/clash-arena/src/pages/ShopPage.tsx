@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
 import { getCurrentProfile, openBox, addGems, claimDailyBonus, buyChest, openChest, canClaimDailyLadder, unlockBrawlerWithGems } from "../utils/localStorageAPI";
-import { CHESTS, CHEST_RARITY_ORDER, type ChestRarity, type ChestRoll } from "../utils/chests";
+import { CHESTS, CHEST_RARITY_ORDER, type ChestRarity } from "../utils/chests";
 import { BRAWLERS, BRAWLER_GEM_COST, BRAWLER_RARITY_LABEL } from "../entities/BrawlerData";
 import Chest3DViewer from "../components/Chest3DViewer";
 import ChestOpenAnimation from "../components/ChestOpenAnimation";
-import ChestOpenModal from "../components/ChestOpenModal";
 import BrawlerRevealModal from "../components/BrawlerRevealModal";
 import { CoinBadge, GemBadge, PowerBadge, CoinIcon, GemIcon, PowerIcon, BoxIcon } from "../components/GameIcons";
 
@@ -17,8 +16,7 @@ export default function ShopPage({ onBack }: ShopPageProps) {
   const [boxResult, setBoxResult] = useState<{ type: string; amount: number } | null>(null);
   const [isOpening, setIsOpening] = useState(false);
   const [msg, setMsg] = useState("");
-  const [chestOpening, setChestOpening] = useState<{ rarity: ChestRarity; rolls: ChestRoll[] } | null>(null);
-  const [chestAnimating, setChestAnimating] = useState<{ rarity: ChestRarity; rolls: ChestRoll[] } | null>(null);
+  const [chestAnimating, setChestAnimating] = useState<ChestRarity | null>(null);
   const [purchasedBrawler, setPurchasedBrawler] = useState<string | null>(null);
 
   const handleUnlockBrawler = (brawlerId: string) => {
@@ -47,14 +45,11 @@ export default function ShopPage({ onBack }: ShopPageProps) {
       return;
     }
     setProfile(getCurrentProfile());
-    setChestAnimating({ rarity, rolls: r.rolls! });
+    setChestAnimating(rarity);
   };
 
   const handleChestAnimationDone = () => {
-    if (!chestAnimating) return;
-    const data = { ...chestAnimating };
     setChestAnimating(null);
-    setChestOpening(data);
   };
 
   useEffect(() => {
@@ -467,16 +462,8 @@ setMsg("+100 кристаллов добавлено!");
 
       {chestAnimating && (
         <ChestOpenAnimation
-          rarity={chestAnimating.rarity}
+          rarity={chestAnimating}
           onDone={handleChestAnimationDone}
-        />
-      )}
-
-      {chestOpening && (
-        <ChestOpenModal
-          rarity={chestOpening.rarity}
-          rolls={chestOpening.rolls}
-          onClose={() => setChestOpening(null)}
         />
       )}
 
