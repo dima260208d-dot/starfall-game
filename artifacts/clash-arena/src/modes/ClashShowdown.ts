@@ -1,7 +1,7 @@
 import { Brawler } from "../entities/Brawler";
 import { Bot } from "../entities/Bot";
 import { BRAWLERS, getBrawlerById, pickBotStats } from "../entities/BrawlerData";
-import { createShowdownMap, GameMap, Crate } from "../game/MapRenderer";
+import { createShowdownMap, GameMap, Crate, renderTileGrid } from "../game/MapRenderer";
 import { Projectile, updateProjectiles, renderProjectiles } from "../entities/Projectile";
 import { Camera } from "../game/Camera";
 import { InputHandler } from "../game/InputHandler";
@@ -10,6 +10,13 @@ import { updateEffects, renderEffects, clearEffects } from "../utils/effects";
 import { renderMap } from "../game/MapRenderer";
 import { angleTo, autoAimAngle, distance, randomInt } from "../utils/helpers";
 import { recordGameResult, getCurrentUsername } from "../utils/localStorageAPI";
+import {
+  TileGrid, generateShowdownTileGrid,
+  collidesWithTileGrid, projectileBlockedByTile,
+  getTileHealRate, isTileInBush,
+  destroyTile, nearestGrassTile,
+} from "../game/TileMap";
+import { loadAllTileModels } from "../utils/tileModelCache";
 
 export interface DropItem {
   x: number;
@@ -28,6 +35,7 @@ export interface GasZone {
 
 export class ClashShowdown {
   map: GameMap;
+  tileGrid: TileGrid;
   player: Brawler;
   bots: Bot[] = [];
   projectiles: Projectile[] = [];
@@ -54,14 +62,14 @@ export class ClashShowdown {
     onSuper: () => void,
     spriteLoaded: boolean
   ) {
+    this.tileGrid = generateShowdownTileGrid();
     this.map = createShowdownMap();
+    this.map.tileGrid = this.tileGrid;
     this.spriteLoaded = spriteLoaded;
-    
+    loadAllTileModels().catch(() => {});
+
     const playerStats = getBrawlerById(playerBrawlerId) || BRAWLERS[0];
 
-    // Spawn the player and 7 bots at 8 random positions evenly spread around
-    // the map perimeter, just like a real Showdown match. The player gets a
-    // random one of those slots — no longer always at dead center.
     const spawnPadding = 350;
     const usedPositions: Array<{ x: number; y: number }> = [];
     const totalSlots = 10;
@@ -82,6 +90,8 @@ export class ClashShowdown {
         usedPositions.some(p => Math.abs(p.x - sx) < spawnPadding && Math.abs(p.y - sy) < spawnPadding) &&
         attempts < 50
       );
+      const snapped = nearestGrassTile(this.tileGrid, sx, sy);
+      sx = snapped.x; sy = snapped.y;
       usedPositions.push({ x: sx, y: sy });
       allPositions.push({ x: sx, y: sy });
     }
@@ -169,6 +179,18 @@ export class ClashShowdown {
     const allBrawlers = [this.player, ...this.bots];
     
     this.player.update(dt, this.map);
+    // Tile-based collision correction
+    {
+      const tc = collidesWithTileGrid(this.player.x, this.player.y, this.player.radius, this.tileGrid);
+      if (tc.collides) { this.player.x = tc.nx; this.player.y = tc.ny; }
+    }
+    // Heal platform
+    {
+      const healRate = getTileHealRate(this.player.x, this.player.y, this.tileGrid);
+      if (healRate > 0) this.player.hp = Math.min(this.player.maxHp, this.player.hp + healRate * dt);
+    }
+    // Bush detection via tile grid
+    this.player.inBush = isTileInBush(this.player.x, this.player.y, this.tileGrid);
     
     for (const bot of this.bots) {
       const wasAlive = bot.alive;
@@ -222,6 +244,11 @@ export class ClashShowdown {
           }
         }
         bot.update(dt, this.map);
+        const bc = collidesWithTileGrid(bot.x, bot.y, bot.radius, this.tileGrid);
+        if (bc.collides) { bot.x = bc.nx; bot.y = bc.ny; }
+        const bHeal = getTileHealRate(bot.x, bot.y, this.tileGrid);
+        if (bHeal > 0) bot.hp = Math.min(bot.maxHp, bot.hp + bHeal * dt);
+        bot.inBush = isTileInBush(bot.x, bot.y, this.tileGrid);
         bot.updateAI(dt, allBrawlers, this.map, this.projectiles);
       }
       if (wasAlive && !bot.alive) {
@@ -241,6 +268,7 @@ export class ClashShowdown {
     }
     
     updateProjectiles(this.projectiles, dt, this.map);
+    this.handleTileHits();
     this.handleProjectileHits(allBrawlers);
     this.projectiles = this.projectiles.filter(p => p.active);
     
@@ -304,6 +332,17 @@ export class ClashShowdown {
       if (!this.resultRecorded) {
         recordGameResult({ won: true, mode: "showdown", place: 1, totalPlayers: 10 });
         this.resultRecorded = true;
+      }
+    }
+  }
+
+  private handleTileHits(): void {
+    for (const proj of this.projectiles) {
+      if (!proj.active) continue;
+      const { blocked, tx, ty } = projectileBlockedByTile(proj.x, proj.y, this.tileGrid);
+      if (blocked) {
+        destroyTile(this.tileGrid, tx, ty);
+        if (!proj.piercing) proj.active = false;
       }
     }
   }
@@ -394,6 +433,10 @@ export class ClashShowdown {
     ctx.clearRect(0, 0, 1200, 800);
     
     renderMap(ctx, this.map, this.camera.x, this.camera.y, 1200, 800, this.frame);
+
+    // Non-bush tile layer (walls, water, mountains, etc.)
+    renderTileGrid(ctx, this.tileGrid, this.camera.x, this.camera.y, 1200, 800,
+      this.player.x, this.player.y, false);
     
     this.renderDrops(ctx);
     this.renderGas(ctx);
@@ -406,6 +449,11 @@ export class ClashShowdown {
     
     renderProjectiles(ctx, this.projectiles, this.camera.x, this.camera.y, this.frame);
     renderEffects(ctx, this.camera.x, this.camera.y, this.frame);
+
+    // Bush tile layer (rendered on top of brawlers — transparent when nearby)
+    renderTileGrid(ctx, this.tileGrid, this.camera.x, this.camera.y, 1200, 800,
+      this.player.x, this.player.y, true);
+
     renderDamageNumbers(ctx, this.camera.x, this.camera.y);
     
     this.renderHUD(ctx);

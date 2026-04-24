@@ -28,6 +28,14 @@ A browser-based anime-style battle arena game inspired by Brawl Stars, built wit
 - `src/game/sprites.ts` — Sprite sheet loader and frame-draw utility
 - `src/game/Camera.ts` — World-to-screen transform
 - `src/game/InputHandler.ts` — WASD + mouse input, LMB attack, RMB/E super
+- `src/game/TileMap.ts` — Full tile system: TileType enum, TILE_PROPS, TileGrid, generateShowdownTileGrid(), collidesWithTileGrid(), projectileBlockedByTile(), destroyTile(), getTileHealRate(), isTileInBush(), nearestGrassTile()
+
+### Tile System (Showdown mode)
+- TILE_CELL_SIZE=50wu, GRID_SIZE=100×100 → 5000×5000 total map
+- 12 tile types: GRASS, WALL, MOUNTAIN, BUSH, WATER, DECORATION, FENCE, HEAL, TREE, CACTUS, WOOD, SAND_WALL
+- `src/utils/tileModelCache.ts` — renders each GLB model top-down to a 64px canvas; falls back to colored rect if WebGL unavailable
+- `src/game/MapRenderer.ts` (renderTileGrid) — frustum-culled tile rendering; bush layer is drawn on top of brawlers with alpha=0.35 within 4-cell radius of player
+- Collision: tile collision correction runs every frame after brawler.update(); projectile-blocking also destroys destructible tiles on impact
 - `src/game/MapRenderer.ts` — Tile map generation + rendering for both modes
 - `src/entities/BrawlerData.ts` — 10 brawler stats + `getScaledStats()`
 - `src/entities/Brawler.ts` — Player/ally brawler class with HP bar, regen, attacks

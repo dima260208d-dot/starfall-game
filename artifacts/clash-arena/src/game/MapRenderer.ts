@@ -1,5 +1,6 @@
 import { getPlatformTileCanvas } from "../utils/platformTile";
-
+import { TileGrid, TileType, getTile, TILE_PROPS } from "./TileMap";
+import { getTileCanvas } from "../utils/tileModelCache";
 
 export interface Wall {
   x: number;
@@ -41,6 +42,7 @@ export interface GameMap {
   rivers: River[];
   tileSize: number;
   name: string;
+  tileGrid?: TileGrid;
 }
 
 function makeCrate(x: number, y: number): Crate {
@@ -543,4 +545,73 @@ export function collidesWithWalls(x: number, y: number, radius: number, walls: W
     }
   }
   return { collides, nx, ny };
+}
+
+const BUSH_REVEAL_RADIUS = 4 * 50; // 4 tiles in world units
+
+export function renderTileGrid(
+  ctx: CanvasRenderingContext2D,
+  grid: TileGrid,
+  camX: number, camY: number,
+  canvasW: number, canvasH: number,
+  playerX: number, playerY: number,
+  bushLayer: boolean
+): void {
+  const C = grid.cellSize;
+  const startTX = Math.max(0, Math.floor(camX / C));
+  const endTX = Math.min(grid.width - 1, Math.ceil((camX + canvasW) / C));
+  const startTY = Math.max(0, Math.floor(camY / C));
+  const endTY = Math.min(grid.height - 1, Math.ceil((camY + canvasH) / C));
+
+  for (let tx = startTX; tx <= endTX; tx++) {
+    for (let ty = startTY; ty <= endTY; ty++) {
+      const type = getTile(grid, tx, ty);
+      if (type === TileType.GRASS) continue;
+
+      const isBush = type === TileType.BUSH;
+      if (isBush !== bushLayer) continue;
+
+      const sx = tx * C - camX;
+      const sy = ty * C - camY;
+
+      if (isBush) {
+        const worldX = tx * C + C / 2;
+        const worldY = ty * C + C / 2;
+        const dx = worldX - playerX;
+        const dy = worldY - playerY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const alpha = dist < BUSH_REVEAL_RADIUS ? 0.35 : 1.0;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+      }
+
+      const tileCanvas = getTileCanvas(type);
+      if (tileCanvas) {
+        ctx.drawImage(tileCanvas, sx, sy, C, C);
+      } else {
+        const props = TILE_PROPS[type];
+        const colors: Record<number, string> = {
+          [TileType.WALL]:       "#6E6E6E",
+          [TileType.MOUNTAIN]:   "#404040",
+          [TileType.BUSH]:       "#2D7A2D",
+          [TileType.WATER]:      "#1565C0",
+          [TileType.DECORATION]: "#8B4513",
+          [TileType.FENCE]:      "#C8A45A",
+          [TileType.HEAL]:       "#C2185B",
+          [TileType.TREE]:       "#1B5E20",
+          [TileType.CACTUS]:     "#558B2F",
+          [TileType.WOOD]:       "#A0522D",
+          [TileType.SAND_WALL]:  "#C2A04A",
+        };
+        void props;
+        ctx.fillStyle = colors[type] ?? "#888";
+        ctx.fillRect(sx, sy, C, C);
+        ctx.strokeStyle = "rgba(0,0,0,0.3)";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(sx + 0.5, sy + 0.5, C - 1, C - 1);
+      }
+
+      if (isBush) ctx.restore();
+    }
+  }
 }
