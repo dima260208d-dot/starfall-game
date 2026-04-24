@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
-const TILE_PX = 256;
+const TILE_PX = 32;
 
 let cachedCanvas: HTMLCanvasElement | null = null;
 let loadPromise: Promise<HTMLCanvasElement | null> | null = null;
