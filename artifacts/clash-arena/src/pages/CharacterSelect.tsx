@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { BRAWLERS, BRAWLER_LORE, BRAWLER_GEM_COST, BRAWLER_RARITY_LABEL, getScaledStats } from "../entities/BrawlerData";
 import { CHESTS, CHEST_RARITY_ORDER } from "../utils/chests";
 import {
@@ -14,6 +14,7 @@ import {
 } from "../utils/localStorageAPI";
 import BrawlerViewer3D from "../components/BrawlerViewer3D";
 import BrawlerRankRewardsModal from "../components/BrawlerRankRewardsModal";
+import { CoinIcon, GemIcon, PowerIcon } from "../components/GameIcons";
 
 export type BrawlerSortKey = "rarity" | "name" | "level" | "hp" | "damage" | "speed" | "range";
 
@@ -859,17 +860,17 @@ function ResourcesBar({ coins, gems, powerPoints }: { coins: number; gems: numbe
       borderRadius: 12, padding: "6px 10px",
       backdropFilter: "blur(10px)",
     }}>
-      <ResourceItem icon="🪙" value={coins} color="#FFD700" />
-      <ResourceItem icon="💎" value={gems} color="#40C4FF" />
-      <ResourceItem icon="✨" value={powerPoints} color="#CE93D8" />
+      <ResourceItem icon={<CoinIcon size={20} />} value={coins} color="#FFD700" />
+      <ResourceItem icon={<GemIcon size={20} />} value={gems} color="#40C4FF" />
+      <ResourceItem icon={<PowerIcon size={20} />} value={powerPoints} color="#CE93D8" />
     </div>
   );
 }
 
-function ResourceItem({ icon, value, color }: { icon: string; value: number; color: string }) {
+function ResourceItem({ icon, value, color }: { icon: ReactNode; value: number; color: string }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "0 6px", fontSize: 14 }}>
-      <span>{icon}</span>
+      {icon}
       <span style={{ color, fontWeight: 800 }}>{value}</span>
     </div>
   );

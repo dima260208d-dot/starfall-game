@@ -13,7 +13,7 @@ interface BrawlerViewer3DProps {
 // idleIdx = direct clip index inside the GLB (most reliable selector)
 // Extracted from the binary GLB files; animation order confirmed from raw GLTF JSON.
 const MODEL_URLS: Record<string, { url: string; idleAnim: string; idleIdx: number }> = {
-  miya:  { url: "models/miya.glb",  idleAnim: "Thoughtful_Walk", idleIdx: 2 },
+  miya:  { url: "models/miya.glb",  idleAnim: "Walking",         idleIdx: 3 },
   ronin: { url: "models/ronin.glb", idleAnim: "Walking",         idleIdx: 2 },
   yuki:  { url: "models/yuki.glb",  idleAnim: "Walking",         idleIdx: 2 },
   kenji: { url: "models/kenji.glb", idleAnim: "Walking",         idleIdx: 2 },

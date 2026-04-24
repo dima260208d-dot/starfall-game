@@ -10,6 +10,7 @@ import {
 import BrawlerViewer3D from "../components/BrawlerViewer3D";
 import BrawlerRankRewardsModal from "../components/BrawlerRankRewardsModal";
 import { sortBrawlers, type BrawlerSortKey } from "./CharacterSelect";
+import { CoinIcon, PowerIcon } from "../components/GameIcons";
 
 interface CollectionPageProps {
   onBack: () => void;
@@ -118,9 +119,9 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
         <h2 style={{ flex: 1, textAlign: "center", margin: 0, fontSize: 22, fontWeight: 800, color: "#CE93D8" }}>
 Коллекция
         </h2>
-        <div style={{ display: "flex", gap: 14, fontSize: 14 }}>
-          <span style={{ color: "#FFD700" }}>🪙 {profile?.coins || 0}</span>
-          <span style={{ color: "#CE93D8" }}>✨ {profile?.powerPoints || 0}</span>
+        <div style={{ display: "flex", gap: 14, fontSize: 14, alignItems: "center" }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "#FFD700" }}><CoinIcon size={18} /> {profile?.coins || 0}</span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "#CE93D8" }}><PowerIcon size={18} /> {profile?.powerPoints || 0}</span>
         </div>
       </div>
 

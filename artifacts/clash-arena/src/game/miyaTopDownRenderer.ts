@@ -26,21 +26,26 @@ const SIZE = 256;
 const MODEL_TARGET_H = 3.2;
 
 // Exact animation clip names per character (extracted from the GLB files).
-interface CharAnimNames { idle: string; run: string; attack: string; }
+interface CharAnimNames {
+  idle: string; idleIdx?: number;
+  run: string;  runIdx?: number;
+  attack: string; attackIdx?: number;
+}
 
 const CHAR_ANIM_NAMES: Record<string, CharAnimNames> = {
-  miya:  { idle: "Thoughtful_Walk",    run: "Running", attack: "Attack" },
-  sora:  { idle: "Walking",            run: "Running", attack: "mage_soell_cast_2" },
-  goro:  { idle: "Walking",            run: "Running", attack: "Double_Combo_Attack" },
-  ronin: { idle: "Walking",            run: "Running", attack: "Step_Step_Turn_Kick" },
-  hana:  { idle: "Walking",            run: "Running", attack: "Archery_Shot_3" },
-  kenji: { idle: "Walking",            run: "Running", attack: "Axe_Spin_Attack" },
-  yuki:  { idle: "Walking",            run: "Running", attack: "Axe_Spin_Attack" },
-  rin:   { idle: "Walking",            run: "Running", attack: "Left_Slash" },
-  taro:  { idle: "Walking",            run: "Running", attack: "Archery_Shot_1" },
+  miya:  { idle: "Walking",         idleIdx: 3, run: "Running", runIdx: 1, attack: "Attack",              attackIdx: 0 },
+  sora:  { idle: "Walking",         idleIdx: 1, run: "Running", runIdx: 0, attack: "mage_soell_cast_2",   attackIdx: 2 },
+  goro:  { idle: "Walking",         idleIdx: 2, run: "Running", runIdx: 1, attack: "Double_Combo_Attack", attackIdx: 0 },
+  ronin: { idle: "Walking",         idleIdx: 2, run: "Running", runIdx: 0, attack: "Step_Step_Turn_Kick", attackIdx: 1 },
+  hana:  { idle: "Walking",         idleIdx: 2, run: "Running", runIdx: 1, attack: "Archery_Shot_3",      attackIdx: 0 },
+  kenji: { idle: "Walking",         idleIdx: 2, run: "Running", runIdx: 1, attack: "Axe_Spin_Attack",     attackIdx: 0 },
+  yuki:  { idle: "Walking",         idleIdx: 2, run: "Running", runIdx: 1, attack: "Axe_Spin_Attack",     attackIdx: 0 },
+  rin:   { idle: "Walking",         idleIdx: 2, run: "Running", runIdx: 1, attack: "Left_Slash",          attackIdx: 0 },
+  taro:  { idle: "Walking",         idleIdx: 2, run: "Running", runIdx: 1, attack: "Archery_Shot_1",      attackIdx: 0 },
 };
 
-function findClip(clips: THREE.AnimationClip[], name: string): THREE.AnimationClip | null {
+function findClip(clips: THREE.AnimationClip[], name: string, idx?: number): THREE.AnimationClip | null {
+  if (idx !== undefined && clips[idx]) return clips[idx];
   return clips.find(c => c.name === name) ?? null;
 }
 
@@ -99,10 +104,13 @@ class CharacterTopDownRenderer {
       this.camera.up.set(0, 0, -1);
       this.camera.lookAt(0, 0, 0);
 
-      this.scene.add(new THREE.AmbientLight(0xffffff, 0.85));
-      const key = new THREE.DirectionalLight(0xffffff, 1.0);
+      this.scene.add(new THREE.AmbientLight(0xffffff, 2.5));
+      const key = new THREE.DirectionalLight(0xffffff, 3.5);
       key.position.set(2, 6, 2);
       this.scene.add(key);
+      const fill = new THREE.DirectionalLight(0xffffff, 1.5);
+      fill.position.set(-2, 4, -2);
+      this.scene.add(fill);
 
       const loader = new GLTFLoader();
       loader.load(
@@ -155,9 +163,9 @@ class CharacterTopDownRenderer {
     const mixer = new THREE.AnimationMixer(model);
     const actions: Partial<Record<CharAnim, THREE.AnimationAction>> = {};
 
-    const idleClip   = findClip(this.clips, this.animNames.idle);
-    const runClip    = findClip(this.clips, this.animNames.run);
-    const attackClip = findClip(this.clips, this.animNames.attack);
+    const idleClip   = findClip(this.clips, this.animNames.idle,   this.animNames.idleIdx);
+    const runClip    = findClip(this.clips, this.animNames.run,    this.animNames.runIdx);
+    const attackClip = findClip(this.clips, this.animNames.attack, this.animNames.attackIdx);
 
     for (const [anim, clip] of [
       ["idle", idleClip] as const,
@@ -229,10 +237,13 @@ class CharacterTopDownRenderer {
     }
 
     this.scene.clear();
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.85));
-    const key = new THREE.DirectionalLight(0xffffff, 1.0);
+    this.scene.add(new THREE.AmbientLight(0xffffff, 2.5));
+    const key = new THREE.DirectionalLight(0xffffff, 3.5);
     key.position.set(2, 6, 2);
     this.scene.add(key);
+    const fill = new THREE.DirectionalLight(0xffffff, 1.5);
+    fill.position.set(-2, 4, -2);
+    this.scene.add(fill);
     this.scene.add(inst.model);
 
     this.renderer.render(this.scene, this.camera);

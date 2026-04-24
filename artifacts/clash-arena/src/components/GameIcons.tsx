@@ -20,10 +20,10 @@ export function CoinIcon({ size = 18, style }: IconProps) {
   return (
     <SpinningModel3D
       modelPath="models/coin.glb"
-      size={size}
+      size={Math.round(size * 1.3)}
       color="#FFD700"
-      ambientMult={1.5}
-      dirMult={1.4}
+      ambientMult={3.5}
+      dirMult={3.5}
       style={style}
     />
   );
@@ -33,8 +33,10 @@ export function GemIcon({ size = 18, style }: IconProps) {
   return (
     <SpinningModel3D
       modelPath="models/gem.glb"
-      size={size}
+      size={Math.round(size * 1.3)}
       color="#40C4FF"
+      ambientMult={2.5}
+      dirMult={2.5}
       style={style}
     />
   );
@@ -44,8 +46,10 @@ export function PowerIcon({ size = 18, style }: IconProps) {
   return (
     <SpinningModel3D
       modelPath="models/powerpoint.glb"
-      size={size}
+      size={Math.round(size * 1.3)}
       color="#CE93D8"
+      ambientMult={3.0}
+      dirMult={3.0}
       style={style}
     />
   );
@@ -55,10 +59,10 @@ export function TrophyIcon({ size = 18, style }: IconProps) {
   return (
     <SpinningModel3D
       modelPath="models/trophy.glb"
-      size={size}
+      size={Math.round(size * 1.3)}
       color="#FFD700"
-      ambientMult={1.2}
-      dirMult={1.1}
+      ambientMult={3.5}
+      dirMult={3.5}
       style={style}
     />
   );
