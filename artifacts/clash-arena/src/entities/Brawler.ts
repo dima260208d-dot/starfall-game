@@ -48,6 +48,7 @@ export class Brawler {
   regenTimer = 0;
   regenDelay = 3;
   lastDamageTime = 0;
+  lastAttackTime = 0;
   
   statusEffects: StatusEffect[] = [];
   
@@ -191,8 +192,15 @@ export class Brawler {
       }
     }
 
-    const timeSinceDamage = (Date.now() / 1000) - this.lastDamageTime;
-    if (timeSinceDamage >= this.regenDelay && this.hp < this.maxHp) {
+    const now = Date.now() / 1000;
+    const timeSinceDamage = now - this.lastDamageTime;
+    const timeSinceAttack = now - this.lastAttackTime;
+    if (
+      timeSinceDamage >= this.regenDelay &&
+      timeSinceAttack >= this.regenDelay &&
+      !this.isAttacking &&
+      this.hp < this.maxHp
+    ) {
       this.hp = Math.min(this.maxHp, this.hp + this.stats.regenRate * dt);
     }
 
@@ -302,6 +310,7 @@ export class Brawler {
     this.attackCharges--;
     this.isAttacking = true;
     this.attackAnim = 1;
+    this.lastAttackTime = Date.now() / 1000;
     if (this.attackCharges < this.maxAttackCharges && this.attackCooldownTimer <= 0) {
       this.attackCooldownTimer = this.attackCooldown;
     }
