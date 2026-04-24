@@ -325,8 +325,8 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
 
             {level < 10 ? (
               <div>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 8, textAlign: "center" }}>
-Улучшить до уровня {level + 1}: {upgradeCost.coins} монет + {upgradeCost.pp} очков
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 8, textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 4, flexWrap: "wrap" }}>
+                  Улучшить до ур. {level + 1}: <CoinIcon size={14} /> {upgradeCost.coins} + <PowerIcon size={14} /> {upgradeCost.pp}
                 </div>
                 <button
                   onClick={handleUpgrade}
@@ -342,9 +342,10 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
                     fontSize: 15,
                     cursor: canUpgrade ? "pointer" : "not-allowed",
                     letterSpacing: 1,
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                   }}
                 >
-{canUpgrade ? "УЛУЧШИТЬ" : `Нужно ${upgradeCost.coins} монет + ${upgradeCost.pp} очков`}
+                  {canUpgrade ? <>УЛУЧШИТЬ</> : <><CoinIcon size={14} /> {upgradeCost.coins} + <PowerIcon size={14} /> {upgradeCost.pp}</>}
                 </button>
               </div>
             ) : (

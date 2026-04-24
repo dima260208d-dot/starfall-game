@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { CoinIcon, TrophyIcon } from "../components/GameIcons";
 import { ClashShowdown } from "../modes/ClashShowdown";
 import { ClashCrystals } from "../modes/ClashCrystals";
 import { ClashHeist } from "../modes/ClashHeist";
@@ -258,19 +259,19 @@ export default function GameScreen({ mode, brawlerId, onExit }: GameScreenProps)
           )}
           <div style={{ display: "flex", gap: 18, marginBottom: 30, flexWrap: "wrap", justifyContent: "center" }}>
             <ResultChip
-              icon="🏆"
+              icon={<TrophyIcon size={28} />}
               label="Кубки"
               value={result ? (result.trophyDelta >= 0 ? `+${result.trophyDelta}` : `${result.trophyDelta}`) : "—"}
               color={result && result.trophyDelta >= 0 ? "#FFD700" : "#FF7043"}
             />
             <ResultChip
-              icon="🪙"
+              icon={<CoinIcon size={28} />}
               label="Монеты"
               value={`+${won ? 100 : 40}`}
               color="#FFD700"
             />
             <ResultChip
-              icon="⭐"
+              icon={<span style={{ fontSize: 26 }}>⭐</span>}
               label="Опыт"
               value={result ? `+${result.xpGained}` : "—"}
               color="#7C4DFF"
@@ -312,7 +313,7 @@ export default function GameScreen({ mode, brawlerId, onExit }: GameScreenProps)
   );
 }
 
-function ResultChip({ icon, label, value, color }: { icon: string; label: string; value: string; color: string }) {
+function ResultChip({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string; color: string }) {
   return (
     <div
       style={{
@@ -327,7 +328,7 @@ function ResultChip({ icon, label, value, color }: { icon: string; label: string
         boxShadow: `0 0 20px ${color}33`,
       }}
     >
-      <div style={{ fontSize: 26 }}>{icon}</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>{icon}</div>
       <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
         <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 11, letterSpacing: 1 }}>{label}</span>
         <span style={{ color, fontSize: 20, fontWeight: 800 }}>{value}</span>

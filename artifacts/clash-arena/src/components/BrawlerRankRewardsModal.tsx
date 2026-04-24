@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { BRAWLERS } from "../entities/BrawlerData";
 import {
   getCurrentProfile,
@@ -9,16 +9,17 @@ import {
   BRAWLER_RANK_TABLE,
   MAX_BRAWLER_RANK,
 } from "../utils/localStorageAPI";
+import { CoinIcon, GemIcon, PowerIcon, TrophyIcon } from "./GameIcons";
 
 interface Props {
   brawlerId: string;
   onClose: () => void;
 }
 
-const rewardIcon = (type: string) =>
-  type === "coins" ? "🪙" :
-  type === "gems" ? "✨" :
-  type === "powerPoints" ? "⭐" : "🎁";
+const rewardIcon = (type: string): ReactNode =>
+  type === "coins" ? <CoinIcon size={22} /> :
+  type === "gems" ? <GemIcon size={22} /> :
+  type === "powerPoints" ? <PowerIcon size={22} /> : "🎁";
 
 export default function BrawlerRankRewardsModal({ brawlerId, onClose }: Props) {
   const [profile, setProfile] = useState(getCurrentProfile());
@@ -69,7 +70,7 @@ export default function BrawlerRankRewardsModal({ brawlerId, onClose }: Props) {
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 18, fontWeight: 800, color: brawler.color }}>{brawler.name} — Награды за ранги</div>
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginTop: 2 }}>
-              🏆 {trophies} кубков • Ранг {rank} / {MAX_BRAWLER_RANK} • ⚡ Сила {level}
+              <TrophyIcon size={14} style={{ verticalAlign: "middle" }} /> {trophies} кубков • Ранг {rank} / {MAX_BRAWLER_RANK} • ⚡ Сила {level}
             </div>
           </div>
           <button
@@ -117,11 +118,11 @@ export default function BrawlerRankRewardsModal({ brawlerId, onClose }: Props) {
                   fontWeight: 800, color: "#FFD700",
                 }}>{row.rank}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "white" }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "white", display: "flex", alignItems: "center", gap: 5 }}>
                     {rewardIcon(row.type)} {row.label}
                   </div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
-                    🏆 {row.trophies} кубков
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", display: "flex", alignItems: "center", gap: 4 }}>
+                    <TrophyIcon size={12} /> {row.trophies} кубков
                   </div>
                 </div>
                 {claimed ? (

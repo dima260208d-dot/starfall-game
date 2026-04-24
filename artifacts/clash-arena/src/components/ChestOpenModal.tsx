@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { CHESTS, type ChestRarity, type ChestRoll } from "../utils/chests";
 import { BRAWLERS } from "../entities/BrawlerData";
 import ChestVisual from "./ChestVisual";
+import { CoinIcon, GemIcon, PowerIcon } from "./GameIcons";
 
 interface Props {
   rarity: ChestRarity;
@@ -172,12 +173,12 @@ function RewardCard({ roll }: { roll: ChestRoll }) {
     );
   }
 
-  const meta = {
-    coins:        { icon: "🪙", color: "#FFD700", label: "монет" },
-    gems:         { icon: "💎", color: "#40C4FF", label: "кристаллов" },
-    powerPoints:  { icon: "✨", color: "#CE93D8", label: "ОП" },
+  const meta: { icon: ReactNode; color: string; label: string } = {
+    coins:        { icon: <CoinIcon size={36} />, color: "#FFD700", label: "монет" },
+    gems:         { icon: <GemIcon size={36} />,  color: "#40C4FF", label: "кристаллов" },
+    powerPoints:  { icon: <PowerIcon size={36} />, color: "#CE93D8", label: "ОП" },
     brawler:      { icon: "🦸", color: "#CE93D8", label: "боец" },
-  }[roll.type];
+  }[roll.type] ?? { icon: "🎁", color: "#FFD700", label: "" };
   return (
     <div style={{
       background: "rgba(255,255,255,0.06)",
@@ -189,7 +190,7 @@ function RewardCard({ roll }: { roll: ChestRoll }) {
       boxShadow: `0 0 20px ${meta.color}33`,
       minWidth: 120,
     }}>
-      <div style={{ fontSize: 28 }}>{meta.icon}</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 40 }}>{meta.icon}</div>
       <div>
         <div style={{ fontSize: 22, fontWeight: 900, color: meta.color, lineHeight: 1 }}>
           +{roll.amount}
