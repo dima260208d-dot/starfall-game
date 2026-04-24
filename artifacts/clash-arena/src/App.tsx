@@ -15,6 +15,7 @@ import ChestsPage from "./pages/ChestsPage";
 import LoadingScreen from "./pages/LoadingScreen";
 import RotateDeviceOverlay from "./components/RotateDeviceOverlay";
 import { preloadCharRenderers } from "./game/miyaTopDownRenderer";
+import { preloadAllModels } from "./utils/modelPreloader";
 
 type Screen =
   | "auth"
@@ -52,6 +53,7 @@ export default function App() {
     return { mode: m, brawler: b };
   };
   const [bootLoading, setBootLoading] = useState(true);
+  const [bootProgress, setBootProgress] = useState(0);
   const [transitionTo, setTransitionTo] = useState<Screen | null>(null);
   const [transitionLabel, setTransitionLabel] = useState("ЗАГРУЗКА");
   // Transient one-shot mode override (used by "Испытать" → training).
@@ -61,6 +63,9 @@ export default function App() {
 
   useEffect(() => {
     document.title = "Clash Arena";
+    // Kick off parallel preloading of all GLB models immediately on boot.
+    const base = (import.meta as any).env?.BASE_URL ?? "/";
+    preloadAllModels(base, (p) => setBootProgress(p)).catch(() => setBootProgress(1));
   }, []);
 
   const go = (s: Screen) => setScreen(s);
@@ -105,7 +110,14 @@ export default function App() {
 
   function renderContent() {
   if (bootLoading) {
-    return <LoadingScreen onDone={() => setBootLoading(false)} duration={4500} label="ДОБРО ПОЖАЛОВАТЬ" />;
+    return (
+      <LoadingScreen
+        onDone={() => setBootLoading(false)}
+        duration={1500}
+        label="ДОБРО ПОЖАЛОВАТЬ"
+        progress={bootProgress}
+      />
+    );
   }
 
   if (transitionTo) {

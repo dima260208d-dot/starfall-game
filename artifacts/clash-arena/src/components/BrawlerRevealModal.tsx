@@ -12,7 +12,7 @@ import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js
 import { BRAWLERS, BRAWLER_RARITY_LABEL } from "../entities/BrawlerData";
 
 // ── Model registry ────────────────────────────────────────────────────────────
-const MODEL_URLS: Record<string, { url: string; anim: string; animIdx?: number }> = {
+export const MODEL_URLS: Record<string, { url: string; anim: string; animIdx?: number }> = {
   miya:  { url: "models/miya.glb",  anim: "Walking", animIdx: 3 },
   ronin: { url: "models/ronin.glb", anim: "Walking", animIdx: 2 },
   yuki:  { url: "models/yuki.glb",  anim: "Walking", animIdx: 2 },
@@ -35,7 +35,7 @@ interface CachedGLTF {
 }
 const gltfCache = new Map<string, Promise<CachedGLTF>>();
 
-function loadGLTFCached(url: string): Promise<CachedGLTF> {
+export function loadGLTFCached(url: string): Promise<CachedGLTF> {
   const hit = gltfCache.get(url);
   if (hit) return hit;
   const p = new Promise<CachedGLTF>((resolve, reject) => {
