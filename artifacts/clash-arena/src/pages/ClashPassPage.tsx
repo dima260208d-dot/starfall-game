@@ -9,6 +9,7 @@ import {
 } from "../utils/localStorageAPI";
 import QuestsModal from "../components/QuestsModal";
 import ChestVisual from "../components/ChestVisual";
+import { CoinIcon, GemIcon, PowerIcon } from "../components/GameIcons";
 
 interface Props {
   onBack: () => void;
@@ -85,7 +86,7 @@ export default function ClashPassPage({ onBack }: Props) {
                   : `${profile.xp} / ${levelXpNeed} опыта до следующего уровня`}
               </div>
             </div>
-            <div style={{ color: "#40C4FF", fontSize: 16 }}>💎 {profile.gems}</div>
+            <div style={{ color: "#40C4FF", fontSize: 16, display: "flex", alignItems: "center", gap: 6 }}><GemIcon size={22} /> {profile.gems}</div>
           </div>
           <div style={{
             marginTop: 14, height: 14, borderRadius: 7,
@@ -118,7 +119,9 @@ export default function ClashPassPage({ onBack }: Props) {
                     fontWeight: 700, opacity: profile.gems >= b.gems ? 1 : 0.4,
                   }}
                 >
-                  +{b.xp} ⭐ <span style={{ opacity: 0.8 }}>за</span> 💎 {b.gems}
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    +{b.xp} ⭐ <span style={{ opacity: 0.8 }}>за</span> <GemIcon size={16} /> {b.gems}
+                  </span>
                 </button>
               ))}
             </div>
@@ -140,7 +143,13 @@ export default function ClashPassPage({ onBack }: Props) {
             const reward = clashPassRewardForLevel(lvl);
             const reached = profile.clashPassLevel >= lvl;
             const claimed = profile.clashPassClaimed.includes(lvl);
-            const tierIcon = reward.type === "gems" ? "💎" : reward.type === "powerPoints" ? "✨" : reward.type === "chest" ? "🗝️" : "🪙";
+            const tierIconEl = reward.type === "gems"
+              ? <GemIcon size={40} />
+              : reward.type === "powerPoints"
+              ? <PowerIcon size={40} />
+              : reward.type === "chest"
+              ? <span style={{ fontSize: 32 }}>🗝️</span>
+              : <CoinIcon size={40} />;
             const tierColor = reward.type === "gems" ? "#40C4FF" : reward.type === "powerPoints" ? "#CE93D8" : reward.type === "chest" ? "#FF7043" : "#FFD700";
             return (
               <div key={lvl} style={{
@@ -156,7 +165,7 @@ export default function ClashPassPage({ onBack }: Props) {
                     <ChestVisual rarity={reward.chestRarity} size={56} animated={reached} />
                   </div>
                 ) : (
-                  <div style={{ fontSize: 32, marginTop: 4 }}>{tierIcon}</div>
+                  <div style={{ marginTop: 4, display: "flex", alignItems: "center", justifyContent: "center" }}>{tierIconEl}</div>
                 )}
                 <div style={{ fontSize: 13, color: tierColor, fontWeight: 800, lineHeight: 1.2 }}>
                   {reward.type === "chest" ? reward.label : reward.amount}

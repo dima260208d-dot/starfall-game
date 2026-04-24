@@ -13,7 +13,6 @@ import QuestsModal from "../components/QuestsModal";
 import BrawlerRankRewardsModal from "../components/BrawlerRankRewardsModal";
 import BrawlerViewer3D from "../components/BrawlerViewer3D";
 import HamburgerDrawer from "../components/HamburgerDrawer";
-import SpinningModel3D from "../components/SpinningModel3D";
 
 interface MainMenuProps {
   onPlay: () => void;
@@ -270,9 +269,9 @@ export default function MainMenu(props: MainMenuProps) {
           background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.08)",
           borderRadius: 12, padding: compact ? "4px 6px" : "6px 10px", backdropFilter: "blur(10px)",
         }}>
-          <Resource icon={<SpinningModel3D modelPath="models/coin.glb" size={compact ? 24 : 30} color="#FFD700" />} value={profile.coins} color="#FFD700" compact={compact} />
-          <Resource icon={<SpinningModel3D modelPath="models/gem.glb" size={compact ? 24 : 30} color="#40C4FF" />} value={profile.gems} color="#40C4FF" compact={compact} />
-          <Resource icon={<SpinningModel3D modelPath="models/powerpoint.glb" size={compact ? 24 : 30} color="#CE93D8" />} value={profile.powerPoints} color="#CE93D8" compact={compact} />
+          <Resource icon={<CoinIcon size={compact ? 24 : 30} />} value={profile.coins} color="#FFD700" compact={compact} />
+          <Resource icon={<GemIcon size={compact ? 24 : 30} />} value={profile.gems} color="#40C4FF" compact={compact} />
+          <Resource icon={<PowerIcon size={compact ? 24 : 30} />} value={profile.powerPoints} color="#CE93D8" compact={compact} />
         </div>
       </div>
 

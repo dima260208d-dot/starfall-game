@@ -10,6 +10,7 @@ import {
 } from "../utils/localStorageAPI";
 import { BRAWLERS } from "../entities/BrawlerData";
 import BrawlerRankRewardsModal from "../components/BrawlerRankRewardsModal";
+import { TrophyIcon, GemIcon } from "../components/GameIcons";
 
 interface Props {
   onBack: () => void;
@@ -106,7 +107,7 @@ export default function ProfilePage({ onBack }: Props) {
                 fontSize: 12, fontWeight: 900, letterSpacing: 0.5,
                 border: "1px solid rgba(255,215,0,0.5)",
               }}>
-                🏆 {favTrophies}
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><TrophyIcon size={14} /> {favTrophies}</span>
               </span>
             </button>
             <div style={{
@@ -134,7 +135,7 @@ export default function ProfilePage({ onBack }: Props) {
                 onClick={() => { setRenaming(true); setNewName(profile.username); }}
                 style={{ ...miniBtn, marginTop: 14, width: "100%" }}
               >
-                ✏️ Сменить имя ({RENAME_GEM_COST} 💎)
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>✏️ Сменить имя ({RENAME_GEM_COST} <GemIcon size={14} />)</span>
               </button>
             ) : (
               <div style={{ marginTop: 14 }}>
@@ -167,7 +168,7 @@ export default function ProfilePage({ onBack }: Props) {
           {/* Right: stats */}
           <div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
-              <Stat label="Кубков" value={profile.trophies} color="#FFD700" icon="🏆" />
+              <Stat label="Кубков" value={profile.trophies} color="#FFD700" icon={<TrophyIcon size={32} />} />
               <Stat label="Игр" value={profile.totalGamesPlayed} color="#40C4FF" icon="🎮" />
               <Stat label="Винрейт" value={`${winrate}%`} color="#69F0AE" icon="📈" />
               <Stat label="Побед" value={profile.totalWins} color="#69F0AE" icon="🥇" />
@@ -257,10 +258,10 @@ const miniBtn: React.CSSProperties = {
   cursor: "pointer", fontWeight: 700,
 };
 
-function Stat({ label, value, color, icon }: { label: string; value: number | string; color: string; icon: string }) {
+function Stat({ label, value, color, icon }: { label: string; value: number | string; color: string; icon: React.ReactNode }) {
   return (
     <div style={{ ...card, display: "flex", alignItems: "center", gap: 10, padding: 14 }}>
-      <div style={{ fontSize: 28 }}>{icon}</div>
+      <div style={{ fontSize: 28, display: "flex", alignItems: "center" }}>{icon}</div>
       <div>
         <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, letterSpacing: 1 }}>{label}</div>
         <div style={{ color, fontSize: 22, fontWeight: 800, lineHeight: 1 }}>{value}</div>
