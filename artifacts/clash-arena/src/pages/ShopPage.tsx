@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { getCurrentProfile, openBox, addGems, claimDailyBonus, buyChest, openChest, canClaimDailyLadder, unlockBrawlerWithGems } from "../utils/localStorageAPI";
 import { CHESTS, CHEST_RARITY_ORDER, type ChestRarity, type ChestRoll } from "../utils/chests";
 import { BRAWLERS, BRAWLER_GEM_COST, BRAWLER_RARITY_LABEL } from "../entities/BrawlerData";
-import ChestVisual from "../components/ChestVisual";
+import Chest3DViewer from "../components/Chest3DViewer";
+import ChestOpenAnimation from "../components/ChestOpenAnimation";
 import ChestOpenModal from "../components/ChestOpenModal";
 import BrawlerRevealModal from "../components/BrawlerRevealModal";
 import { CoinBadge, GemBadge, PowerBadge, CoinIcon, GemIcon, PowerIcon, BoxIcon } from "../components/GameIcons";
@@ -17,6 +18,7 @@ export default function ShopPage({ onBack }: ShopPageProps) {
   const [isOpening, setIsOpening] = useState(false);
   const [msg, setMsg] = useState("");
   const [chestOpening, setChestOpening] = useState<{ rarity: ChestRarity; rolls: ChestRoll[] } | null>(null);
+  const [chestAnimating, setChestAnimating] = useState<{ rarity: ChestRarity; rolls: ChestRoll[] } | null>(null);
   const [purchasedBrawler, setPurchasedBrawler] = useState<string | null>(null);
 
   const handleUnlockBrawler = (brawlerId: string) => {
@@ -44,8 +46,15 @@ export default function ShopPage({ onBack }: ShopPageProps) {
       setTimeout(() => setMsg(""), 2000);
       return;
     }
-    setChestOpening({ rarity, rolls: r.rolls! });
     setProfile(getCurrentProfile());
+    setChestAnimating({ rarity, rolls: r.rolls! });
+  };
+
+  const handleChestAnimationDone = () => {
+    if (!chestAnimating) return;
+    const data = { ...chestAnimating };
+    setChestAnimating(null);
+    setChestOpening(data);
   };
 
   useEffect(() => {
@@ -256,8 +265,12 @@ setMsg("+100 кристаллов добавлено!");
                   display: "flex", flexDirection: "column", alignItems: "center",
                   boxShadow: `0 0 16px ${def.color}22`,
                 }}>
-                  <div style={{ height: 90, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <ChestVisual rarity={rarity} size={80} animated />
+                  <div
+                    style={{ height: 90, display: "flex", alignItems: "center", justifyContent: "center", cursor: owned > 0 ? "pointer" : "default" }}
+                    onClick={() => owned > 0 && handleOpenChestRarity(rarity)}
+                    title={owned > 0 ? "Нажмите, чтобы открыть" : undefined}
+                  >
+                    <Chest3DViewer rarity={rarity} size={84} />
                   </div>
                   <div style={{ fontSize: 13, fontWeight: 900, color: def.color, marginTop: 4, textAlign: "center" }}>
                     {def.name}
@@ -451,6 +464,13 @@ setMsg("+100 кристаллов добавлено!");
           </div>
         )}
       </div>
+
+      {chestAnimating && (
+        <ChestOpenAnimation
+          rarity={chestAnimating.rarity}
+          onDone={handleChestAnimationDone}
+        />
+      )}
 
       {chestOpening && (
         <ChestOpenModal

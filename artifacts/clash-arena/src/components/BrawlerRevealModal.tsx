@@ -235,8 +235,9 @@ export default function BrawlerRevealModal({
     scene.add(glowLight);
 
     const rootGroup = new THREE.Group();
-    // Start far away (small due to perspective). Models face +Z by default (toward camera).
+    // Start far away (small due to perspective). π rotation so models face the camera.
     rootGroup.position.z = -22;
+    rootGroup.rotation.y = Math.PI;
     scene.add(rootGroup);
 
     // ── Run-toward-camera state ───────────────────────────────────────────────
@@ -320,7 +321,9 @@ export default function BrawlerRevealModal({
         const model = cloneSkinned(cached.scene) as THREE.Group;
         fixMaterials(model);
         model.scale.setScalar(cached.normScale);
-        model.position.set(cached.normOffX, cached.normOffY, cached.normOffZ);
+        // rootGroup has rotation.y = π so local-X maps to world-X negated.
+        // Force local X = 0 so the model is exactly at world X = 0 (screen center).
+        model.position.set(0, cached.normOffY, 0);
         rootGroup.add(model);
         mixer = new THREE.AnimationMixer(model);
         const clip = resolveClip(cached.animations, modelCfg.anim, modelCfg.animIdx);
