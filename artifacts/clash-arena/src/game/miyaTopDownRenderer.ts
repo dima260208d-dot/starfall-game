@@ -35,12 +35,13 @@ interface CharAnimNames {
 const CHAR_ANIM_NAMES: Record<string, CharAnimNames> = {
   miya:  { idle: "Walking",         idleIdx: 3, run: "Running", runIdx: 1, attack: "Attack",              attackIdx: 0 },
   sora:  { idle: "Walking",         idleIdx: 1, run: "Running", runIdx: 0, attack: "mage_soell_cast_2",   attackIdx: 2 },
-  goro:  { idle: "Walking",         idleIdx: 2, run: "Running", runIdx: 1, attack: "Double_Combo_Attack", attackIdx: 0 },
+  // goro/rin: name-only — exact GLB clip names found by THREE.js loader (no idx to avoid ordering ambiguity)
+  goro:  { idle: "Walking",                     run: "Running",            attack: "Double_Combo_Attack"              },
+  rin:   { idle: "Walking",                     run: "Running",            attack: "Left_Slash"                       },
   ronin: { idle: "Walking",         idleIdx: 2, run: "Running", runIdx: 0, attack: "Step_Step_Turn_Kick", attackIdx: 1 },
   hana:  { idle: "Walking",         idleIdx: 2, run: "Running", runIdx: 1, attack: "Archery_Shot_3",      attackIdx: 0 },
   kenji: { idle: "Walking",         idleIdx: 2, run: "Running", runIdx: 1, attack: "Axe_Spin_Attack",     attackIdx: 0 },
   yuki:  { idle: "Walking",         idleIdx: 2, run: "Running", runIdx: 1, attack: "Axe_Spin_Attack",     attackIdx: 0 },
-  rin:   { idle: "Walking",         idleIdx: 2, run: "Running", runIdx: 1, attack: "Left_Slash",          attackIdx: 0 },
   taro:  { idle: "Walking",         idleIdx: 2, run: "Running", runIdx: 1, attack: "Archery_Shot_1",      attackIdx: 0 },
 };
 
@@ -174,8 +175,8 @@ class CharacterTopDownRenderer {
     ]) {
       if (clip) {
         const a = mixer.clipAction(clip);
-        a.setLoop(anim === "attack" ? THREE.LoopOnce : THREE.LoopRepeat, Infinity);
-        if (anim === "attack") a.clampWhenFinished = true;
+        a.setLoop(THREE.LoopRepeat, Infinity);
+        a.clampWhenFinished = false;
         actions[anim] = a;
       }
     }

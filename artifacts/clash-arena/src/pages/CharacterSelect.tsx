@@ -592,8 +592,8 @@ function CharacterDetail({
         >
           <span>{!isUnlocked ? "🔒 НЕДОСТУПНО" : isMax ? "✓ МАКС. УРОВЕНЬ" : `▲ УЛУЧШИТЬ ДО УР. ${level + 1}`}</span>
           {isUnlocked && !isMax && (
-            <span style={{ fontSize: 11, opacity: 0.8, fontWeight: 700 }}>
-              🪙 {cost.coins} • ✨ {cost.powerPoints}
+            <span style={{ fontSize: 11, opacity: 0.8, fontWeight: 700, display: "flex", alignItems: "center", gap: 4, justifyContent: "center" }}>
+              <CoinIcon size={14} /> {cost.coins} • <PowerIcon size={14} /> {cost.powerPoints}
             </span>
           )}
         </button>
