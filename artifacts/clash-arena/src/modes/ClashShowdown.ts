@@ -260,7 +260,7 @@ export class ClashShowdown {
       if (!b.alive) continue;
       const d = distance(b.x, b.y, this.gas.centerX, this.gas.centerY);
       if (d > this.gas.safeRadius) {
-        b.takeDamage(60 * this.gas.damageMultiplier * dt, null);
+        b.takeDamage(270 * this.gas.damageMultiplier * dt, null);
       }
     }
     
