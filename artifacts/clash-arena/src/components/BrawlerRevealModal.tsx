@@ -207,20 +207,26 @@ export default function BrawlerRevealModal({
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     } catch { return; }
 
-    const W = mount.clientWidth  || window.innerWidth;
-    const H = mount.clientHeight || window.innerHeight;
+    // Always use window dimensions so the aspect ratio is correct regardless
+    // of when the portal div receives its layout (avoids mount.clientWidth=0).
+    const W = window.innerWidth;
+    const H = window.innerHeight;
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     renderer.setSize(W, H, false);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.domElement.style.position = "absolute";
     renderer.domElement.style.inset    = "0";
+    renderer.domElement.style.width    = "100%";
+    renderer.domElement.style.height   = "100%";
     renderer.domElement.style.pointerEvents = "none";
     mount.appendChild(renderer.domElement);
 
     const scene  = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(30, W / H, 0.1, 200);
-    camera.position.set(0, 1.6, 5.8);
-    camera.lookAt(0, 1.1, 0);
+    // FOV=55 gives a natural view; camera at z=7 keeps the character a good size;
+    // camera Y=1.0 matches the model's visual centre so it projects to screen centre.
+    const camera = new THREE.PerspectiveCamera(55, W / H, 0.1, 200);
+    camera.position.set(0, 1.0, 7);
+    camera.lookAt(0, 1.0, 0);
 
     // Lighting
     scene.add(new THREE.AmbientLight(0xffffff, 0.95));
