@@ -699,12 +699,13 @@ export class Brawler {
     camY: number,
     spriteLoaded: boolean,
     viewerTeam?: string,
-    friendlies?: { x: number; y: number }[]
+    friendlies?: { x: number; y: number }[],
+    projSY?: number
   ): void {
     // Dead brawlers remain visible (lying on the ground) — never fully hidden.
     
     const sx = this.x - camX;
-    const sy = this.y - camY;
+    const sy = projSY !== undefined ? projSY : this.y - camY;
     
     if (sx < -this.radius * 2 || sx > 1200 + this.radius * 2) return;
     if (sy < -this.radius * 2 || sy > 800 + this.radius * 2) return;

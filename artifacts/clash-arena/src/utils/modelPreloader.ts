@@ -6,6 +6,8 @@
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { loadGLTFCached, MODEL_URLS } from "../components/BrawlerRevealModal";
 import { loadChestCached, CHEST_MODELS } from "../components/Chest3DViewer";
+import { loadAllTileModels } from "./tileModelCache";
+import { loadPlatformTile } from "./platformTile";
 
 // ── Resource model cache (coin / gem / powerpoint) ────────────────────────────
 const resourceCache = new Map<string, Promise<void>>();
@@ -36,8 +38,10 @@ export async function preloadAllModels(
   const resourceTasks = (["models/coin.glb", "models/gem.glb", "models/powerpoint.glb"] as const).map(
     (p) => loadResourceCached(`${b}${p}`),
   );
+  // Tile GLBs + platform tile — must be ready before Showdown starts
+  const tileTasks: Promise<unknown>[] = [loadAllTileModels(), loadPlatformTile()];
 
-  const allTasks: Promise<unknown>[] = [...brawlerTasks, ...chestTasks, ...resourceTasks];
+  const allTasks: Promise<unknown>[] = [...brawlerTasks, ...chestTasks, ...resourceTasks, ...tileTasks];
   const total = allTasks.length;
   let done = 0;
 

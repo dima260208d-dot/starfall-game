@@ -516,7 +516,13 @@ export function renderTileGrid(
 
       const tileCanvas = getTileCanvas(type);
       if (tileCanvas) {
-        ctx.drawImage(tileCanvas, sx, sy, C, C);
+        if (isBush) {
+          // Overflow bush tiles so the model fills the cell with no gaps
+          const ov = C * 0.28;
+          ctx.drawImage(tileCanvas, sx - ov, sy - ov, C + ov * 2, C + ov * 2);
+        } else {
+          ctx.drawImage(tileCanvas, sx, sy, C, C);
+        }
       } else {
         const props = TILE_PROPS[type];
         const colors: Record<number, string> = {

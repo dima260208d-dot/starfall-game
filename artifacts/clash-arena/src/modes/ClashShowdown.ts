@@ -16,7 +16,6 @@ import {
   getTileHealRate, isTileInBush,
   destroyTile, nearestGrassTile,
 } from "../game/TileMap";
-import { loadAllTileModels } from "../utils/tileModelCache";
 
 export interface DropItem {
   x: number;
@@ -66,7 +65,6 @@ export class ClashShowdown {
     this.map = createShowdownMap();
     this.map.tileGrid = this.tileGrid;
     this.spriteLoaded = spriteLoaded;
-    loadAllTileModels().catch(() => {});
 
     const playerStats = getBrawlerById(playerBrawlerId) || BRAWLERS[0];
 
@@ -435,6 +433,8 @@ export class ClashShowdown {
     // ── 45° isometric view: compress Y axis by 0.65 for all world elements ──
     const ISO = 0.65;
     const ISO_SHIFT = 800 * (1 - ISO) * 0.28; // shift world up so bottom stays visible
+
+    // ─── ISO layer: map tiles + drops + gas + projectiles + effects ───
     ctx.save();
     ctx.transform(1, 0, 0, ISO, 0, ISO_SHIFT);
 
@@ -444,13 +444,7 @@ export class ClashShowdown {
       this.player.x, this.player.y, false);
     
     this.renderDrops(ctx);
-    this.renderGas(ctx);
-    
-    const allBrawlers = [this.player, ...this.bots];
-    const friendlies = [{ x: this.player.x, y: this.player.y }];
-    for (const b of allBrawlers) {
-      b.render(ctx, this.camera.x, this.camera.y, this.spriteLoaded, this.player.team, friendlies);
-    }
+    this.renderGas(ctx, ISO);
     
     renderProjectiles(ctx, this.projectiles, this.camera.x, this.camera.y, this.frame);
     renderEffects(ctx, this.camera.x, this.camera.y, this.frame);
@@ -461,6 +455,17 @@ export class ClashShowdown {
     renderDamageNumbers(ctx, this.camera.x, this.camera.y);
 
     ctx.restore();
+
+    // ─── Screen layer: brawlers rendered upright at iso-projected positions ───
+    const allBrawlers = [this.player, ...this.bots];
+    const friendlies = [{ x: this.player.x, y: this.player.y }];
+    // Sort back-to-front so characters further north are drawn first (painter's algo)
+    allBrawlers.sort((a, b) => a.y - b.y);
+    for (const b of allBrawlers) {
+      const projSY = (b.y - this.camera.y) * ISO + ISO_SHIFT;
+      b.render(ctx, this.camera.x, this.camera.y, this.spriteLoaded, this.player.team, friendlies, projSY);
+    }
+
     // ── HUD rendered flat (no iso transform) ──
     this.renderHUD(ctx);
   }
@@ -496,16 +501,18 @@ export class ClashShowdown {
     }
   }
 
-  private renderGas(ctx: CanvasRenderingContext2D): void {
+  private renderGas(ctx: CanvasRenderingContext2D, iso: number): void {
     ctx.save();
     const gsx = this.gas.centerX - this.camera.x;
     const gsy = this.gas.centerY - this.camera.y;
-    
+    // Cover the full world-space canvas visible through the ISO transform
+    const worldH = Math.ceil(800 / iso) + 400;
+
     ctx.beginPath();
-    ctx.rect(0, 0, 1200, 800);
+    ctx.rect(-200, -200, 1600, worldH);
     ctx.arc(gsx, gsy, this.gas.safeRadius, 0, Math.PI * 2, true);
-    ctx.fillStyle = "rgba(0, 200, 0, 0.15)";
-    ctx.fill();
+    ctx.fillStyle = "rgba(0, 200, 0, 0.13)";
+    ctx.fill("evenodd");
     
     ctx.strokeStyle = "rgba(0, 255, 0, 0.5)";
     ctx.lineWidth = 3;
