@@ -93,10 +93,11 @@ function getSharedRenderer(): { renderer: THREE.WebGLRenderer; scene: THREE.Scen
   _sharedRenderer.setClearColor(0x000000, 0);
 
   _sharedScene = new THREE.Scene();
-  _sharedCamera = new THREE.OrthographicCamera(-1.5, 1.5, 1.5, -1.5, 0.1, 20);
-  _sharedCamera.position.set(0, 6, 0);
-  _sharedCamera.up.set(0, 0, -1);
-  _sharedCamera.lookAt(0, 0, 0);
+  // 45° isometric elevation — matches the in-game ISO view
+  _sharedCamera = new THREE.OrthographicCamera(-1.8, 1.8, 2.0, -1.4, 0.1, 30);
+  _sharedCamera.position.set(0, 6, 6);
+  _sharedCamera.up.set(0, 1, 0);
+  _sharedCamera.lookAt(0, 1.5, 0);
 
   _sharedRendererReady = true;
   return { renderer: _sharedRenderer, scene: _sharedScene, camera: _sharedCamera };
