@@ -229,12 +229,12 @@ function normalizeProfile(p: UserProfile): UserProfile {
   // brawlers — see character-lock requirement).
   const unlockedBrawlers = (() => {
     const ids = new Set<string>(p.unlockedBrawlers || []);
-    ids.add("miya"); // Always guarantee the starter brawler.
+    ids.add("hana"); // Always guarantee the starter brawler.
     return Array.from(ids);
   })();
 
   const safeSelected = (id: string | undefined) =>
-    id && unlockedBrawlers.includes(id) ? id : "miya";
+    id && unlockedBrawlers.includes(id) ? id : "hana";
 
   return {
     username: p.username,

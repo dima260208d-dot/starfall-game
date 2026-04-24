@@ -8,6 +8,7 @@ import {
 import ChestVisual from "../components/ChestVisual";
 import { CHESTS } from "../utils/chests";
 import { TrophyIcon, CoinIcon, GemIcon, PowerIcon } from "../components/GameIcons";
+import RewardDropModal, { type RewardInfo } from "../components/RewardDropModal";
 
 interface Props {
   onBack: () => void;
@@ -16,17 +17,28 @@ interface Props {
 export default function TrophyRoadPage({ onBack }: Props) {
   const [profile, setProfile] = useState(getCurrentProfile());
   const [msg, setMsg] = useState<string | null>(null);
+  const [pendingReward, setPendingReward] = useState<RewardInfo | null>(null);
   if (!profile) return null;
   const refresh = () => setProfile(getCurrentProfile());
 
   const handleClaim = (idx: number) => {
     const r = claimTrophyRoadReward(idx);
-    setMsg(r.success ? `Получено: ${r.reward?.label}` : (r.error || "Ошибка"));
     refresh();
-    setTimeout(() => setMsg(null), 2200);
+    if (r.success && r.reward) {
+      setPendingReward({
+        type: r.reward.type as RewardInfo["type"],
+        amount: r.reward.amount,
+        chestRarity: r.reward.chestRarity,
+        label: r.reward.label,
+      });
+    } else {
+      setMsg(r.error || "Ошибка");
+      setTimeout(() => setMsg(null), 2200);
+    }
   };
 
   return (
+    <>
     <div style={{ minHeight: "100%", background: "linear-gradient(135deg, #050020 0%, #0a0040 100%)", padding: "30px 20px", color: "white", fontFamily: "'Segoe UI', Arial, sans-serif" }}>
       <button onClick={onBack} style={backBtn}>← Назад</button>
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
@@ -105,6 +117,14 @@ export default function TrophyRoadPage({ onBack }: Props) {
         </div>
       </div>
     </div>
+
+    {pendingReward && (
+      <RewardDropModal
+        reward={pendingReward}
+        onDone={() => setPendingReward(null)}
+      />
+    )}
+  </>
   );
 }
 

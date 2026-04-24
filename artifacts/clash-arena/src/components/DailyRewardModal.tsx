@@ -8,6 +8,7 @@ import {
 import { getRewardForDay, type DailyReward } from "../utils/dailyLadder";
 import { formatHmsShort } from "../utils/quests";
 import ChestVisual from "./ChestVisual";
+import RewardDropModal, { type RewardInfo } from "./RewardDropModal";
 
 interface Props {
   onClose: () => void;
@@ -17,6 +18,7 @@ export default function DailyRewardModal({ onClose }: Props) {
   const [profile, setProfile] = useState(getCurrentProfile());
   const [, setTick] = useState(0);
   const [msg, setMsg] = useState<string | null>(null);
+  const [pendingReward, setPendingReward] = useState<RewardInfo | null>(null);
 
   useEffect(() => {
     const id = setInterval(() => setTick(t => t + 1), 1000);
@@ -36,16 +38,22 @@ export default function DailyRewardModal({ onClose }: Props) {
 
   const handleClaim = () => {
     const r = claimDailyLadderReward();
-    if (r.success) {
-      setMsg(`Получено: ${r.reward?.label || ""}`);
-      setProfile(getCurrentProfile());
+    setProfile(getCurrentProfile());
+    if (r.success && r.reward) {
+      setPendingReward({
+        type: r.reward.type as RewardInfo["type"],
+        amount: r.reward.amount,
+        chestRarity: r.reward.chestRarity,
+        label: r.reward.label,
+      });
     } else {
       setMsg(r.error || "Ошибка");
+      setTimeout(() => setMsg(null), 2200);
     }
-    setTimeout(() => setMsg(null), 2200);
   };
 
   return (
+    <>
     <div
       onClick={onClose}
       style={{
@@ -217,5 +225,13 @@ export default function DailyRewardModal({ onClose }: Props) {
         </div>
       </div>
     </div>
+
+    {pendingReward && (
+      <RewardDropModal
+        reward={pendingReward}
+        onDone={() => setPendingReward(null)}
+      />
+    )}
+    </>
   );
 }

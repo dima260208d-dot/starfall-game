@@ -6,6 +6,7 @@ import {
 } from "../utils/localStorageAPI";
 import { timeUntilQuestRefresh, formatHmsShort } from "../utils/quests";
 import ChestVisual from "./ChestVisual";
+import RewardDropModal, { type RewardInfo } from "./RewardDropModal";
 
 interface Props {
   onClose: () => void;
@@ -15,6 +16,7 @@ export default function QuestsModal({ onClose }: Props) {
   const [profile, setProfile] = useState(getCurrentProfile());
   const [, setTick] = useState(0);
   const [msg, setMsg] = useState<string | null>(null);
+  const [pendingReward, setPendingReward] = useState<RewardInfo | null>(null);
 
   useEffect(() => {
     // Trigger quest generation (no-op if already exists & fresh)
@@ -28,14 +30,24 @@ export default function QuestsModal({ onClose }: Props) {
   const dq = profile.dailyQuests;
   const left = timeUntilQuestRefresh(dq);
 
-  const handleClaim = (id: string) => {
-    const r = claimQuestReward(id);
-    setMsg(r.success ? `Получено: ${r.rewardLabel}` : (r.error || "Ошибка"));
+  const handleClaim = (q: NonNullable<typeof profile>["dailyQuests"]["quests"][number]) => {
+    const r = claimQuestReward(q.id);
     setProfile(getCurrentProfile());
-    setTimeout(() => setMsg(null), 1800);
+    if (r.success) {
+      setPendingReward({
+        type: q.reward.type as RewardInfo["type"],
+        amount: q.reward.amount,
+        chestRarity: q.reward.chestRarity,
+        label: q.reward.label,
+      });
+    } else {
+      setMsg(r.error || "Ошибка");
+      setTimeout(() => setMsg(null), 1800);
+    }
   };
 
   return (
+    <>
     <div
       onClick={onClose}
       style={{
@@ -161,7 +173,7 @@ export default function QuestsModal({ onClose }: Props) {
                     </div>
                   ) : null}
                   <button
-                    onClick={() => handleClaim(q.id)}
+                    onClick={() => handleClaim(q)}
                     disabled={!ready}
                     style={{
                       marginTop: 6, width: "100%",
@@ -185,5 +197,13 @@ export default function QuestsModal({ onClose }: Props) {
         </div>
       </div>
     </div>
+
+    {pendingReward && (
+      <RewardDropModal
+        reward={pendingReward}
+        onDone={() => setPendingReward(null)}
+      />
+    )}
+    </>
   );
 }
