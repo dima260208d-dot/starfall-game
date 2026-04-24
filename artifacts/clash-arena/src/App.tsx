@@ -81,7 +81,11 @@ export default function App() {
   const isGame = screen === "game";
   return (
     <>
-      {isGame ? content : (
+      {isGame ? (
+        <div style={{ position: "fixed", inset: 0, zIndex: 0 }}>
+          {content}
+        </div>
+      ) : (
         <div style={{
           zoom: 1.3,
           width: `${(100 / 1.3).toFixed(4)}%`,
