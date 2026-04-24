@@ -47,7 +47,7 @@ function loadGLTFCached(url: string): Promise<CachedGLTF> {
       box.getSize(sz);
       const center = new THREE.Vector3();
       box.getCenter(center);
-      const TARGET_H = 2.0;
+      const TARGET_H = 2.7;
       const normScale = sz.y > 0.001 ? TARGET_H / sz.y : 1;
       resolve({
         scene, animations: gltf.animations ?? [],
@@ -225,8 +225,8 @@ export default function BrawlerRevealModal({
     // FOV=55 gives a natural view; camera at z=7 keeps the character a good size;
     // camera Y=1.0 matches the model's visual centre so it projects to screen centre.
     const camera = new THREE.PerspectiveCamera(55, W / H, 0.1, 200);
-    camera.position.set(0, 1.0, 7);
-    camera.lookAt(0, 1.0, 0);
+    camera.position.set(0, 1.35, 7);
+    camera.lookAt(0, 1.35, 0);
 
     // Lighting
     scene.add(new THREE.AmbientLight(0xffffff, 0.95));

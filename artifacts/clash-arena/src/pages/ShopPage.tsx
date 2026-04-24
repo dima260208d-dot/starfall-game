@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { getCurrentProfile, openBox, addGems, claimDailyBonus, buyChest, openChest, canClaimDailyLadder, unlockBrawlerWithGems } from "../utils/localStorageAPI";
+import RewardDropModal, { type RewardInfo } from "../components/RewardDropModal";
 import { CHESTS, CHEST_RARITY_ORDER, type ChestRarity, type ChestRoll } from "../utils/chests";
 import { BRAWLERS, BRAWLER_GEM_COST, BRAWLER_RARITY_LABEL } from "../entities/BrawlerData";
 import Chest3DViewer from "../components/Chest3DViewer";
@@ -20,6 +21,7 @@ export default function ShopPage({ onBack }: ShopPageProps) {
   const [chestAnimating, setChestAnimating] = useState<{ rarity: ChestRarity; rolls: ChestRoll[] } | null>(null);
   const [chestOpening, setChestOpening] = useState<{ rarity: ChestRarity; rolls: ChestRoll[] } | null>(null);
   const [purchasedBrawler, setPurchasedBrawler] = useState<string | null>(null);
+  const [pendingReward, setPendingReward] = useState<RewardInfo | null>(null);
 
   const handleUnlockBrawler = (brawlerId: string) => {
     const r = unlockBrawlerWithGems(brawlerId);
@@ -84,13 +86,13 @@ setMsg("+100 кристаллов добавлено!");
 
   const handleDailyBonus = () => {
     const r = claimDailyBonus();
-    if (r.success) {
+    if (r.success && r.coins) {
       setProfile(getCurrentProfile());
-      setMsg(`Ежедневный бонус: +${r.coins} монет!`);
+      setPendingReward({ type: "coins", amount: r.coins, label: `${r.coins} монет` });
     } else {
       setMsg("Ежедневный бонус уже получен. Возвращайтесь завтра!");
+      setTimeout(() => setMsg(""), 3000);
     }
-    setTimeout(() => setMsg(""), 3000);
   };
 
   const canClaimDaily = !!profile && canClaimDailyLadder(profile);
@@ -484,6 +486,12 @@ setMsg("+100 кристаллов добавлено!");
         <BrawlerRevealModal
           brawlerId={purchasedBrawler}
           onDone={() => setPurchasedBrawler(null)}
+        />
+      )}
+      {pendingReward && (
+        <RewardDropModal
+          reward={pendingReward}
+          onDone={() => setPendingReward(null)}
         />
       )}
     </div>

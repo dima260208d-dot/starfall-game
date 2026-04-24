@@ -10,6 +10,7 @@ import {
   MAX_BRAWLER_RANK,
 } from "../utils/localStorageAPI";
 import { CoinIcon, GemIcon, PowerIcon, TrophyIcon } from "./GameIcons";
+import RewardDropModal, { type RewardInfo } from "./RewardDropModal";
 
 interface Props {
   brawlerId: string;
@@ -24,6 +25,7 @@ const rewardIcon = (type: string): ReactNode =>
 export default function BrawlerRankRewardsModal({ brawlerId, onClose }: Props) {
   const [profile, setProfile] = useState(getCurrentProfile());
   const [msg, setMsg] = useState("");
+  const [pendingReward, setPendingReward] = useState<RewardInfo | null>(null);
   if (!profile) return null;
   const brawler = BRAWLERS.find(b => b.id === brawlerId) || BRAWLERS[0];
   const trophies = getBrawlerTrophies(profile, brawler.id);
@@ -33,16 +35,21 @@ export default function BrawlerRankRewardsModal({ brawlerId, onClose }: Props) {
 
   const handleClaim = (r: number) => {
     const result = claimBrawlerRankReward(brawler.id, r);
-    if (result.success) {
-      setProfile(getCurrentProfile());
-      setMsg(`Получено: ${result.reward?.label ?? ""}`);
+    setProfile(getCurrentProfile());
+    if (result.success && result.reward) {
+      setPendingReward({
+        type: result.reward.type as RewardInfo["type"],
+        amount: result.reward.amount,
+        label: result.reward.label,
+      });
     } else {
       setMsg(result.error || "Не удалось получить");
+      setTimeout(() => setMsg(""), 2500);
     }
-    setTimeout(() => setMsg(""), 2500);
   };
 
   return (
+    <>
     <div
       onClick={onClose}
       style={{
@@ -150,5 +157,13 @@ export default function BrawlerRankRewardsModal({ brawlerId, onClose }: Props) {
         </div>
       </div>
     </div>
+
+    {pendingReward && (
+      <RewardDropModal
+        reward={pendingReward}
+        onDone={() => setPendingReward(null)}
+      />
+    )}
+  </>
   );
 }

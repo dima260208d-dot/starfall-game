@@ -10,6 +10,7 @@ import {
 import QuestsModal from "../components/QuestsModal";
 import ChestVisual from "../components/ChestVisual";
 import { CoinIcon, GemIcon, PowerIcon } from "../components/GameIcons";
+import RewardDropModal, { type RewardInfo } from "../components/RewardDropModal";
 
 interface Props {
   onBack: () => void;
@@ -25,6 +26,7 @@ export default function ClashPassPage({ onBack }: Props) {
   const [profile, setProfile] = useState(getCurrentProfile());
   const [msg, setMsg] = useState<string | null>(null);
   const [showQuests, setShowQuests] = useState(false);
+  const [pendingReward, setPendingReward] = useState<RewardInfo | null>(null);
   const refresh = () => setProfile(getCurrentProfile());
   if (!profile) return null;
 
@@ -35,9 +37,18 @@ export default function ClashPassPage({ onBack }: Props) {
 
   const handleClaim = (lvl: number) => {
     const r = claimClashPassReward(lvl);
-    setMsg(r.success ? `Получено: ${r.reward?.label}` : (r.error || "Ошибка"));
     refresh();
-    setTimeout(() => setMsg(null), 2200);
+    if (r.success && r.reward) {
+      setPendingReward({
+        type: r.reward.type as RewardInfo["type"],
+        amount: r.reward.amount,
+        chestRarity: r.reward.chestRarity,
+        label: r.reward.label,
+      });
+    } else {
+      setMsg(r.error || "Ошибка");
+      setTimeout(() => setMsg(null), 2200);
+    }
   };
 
   const handleBuy = (xp: number, gems: number) => {
@@ -190,6 +201,12 @@ export default function ClashPassPage({ onBack }: Props) {
         </div>
       </div>
       {showQuests && <QuestsModal onClose={() => { setShowQuests(false); refresh(); }} />}
+      {pendingReward && (
+        <RewardDropModal
+          reward={pendingReward}
+          onDone={() => setPendingReward(null)}
+        />
+      )}
     </div>
   );
 }
