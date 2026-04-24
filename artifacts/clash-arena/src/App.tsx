@@ -78,9 +78,21 @@ export default function App() {
   };
 
   const content = renderContent();
+  const isGame = screen === "game";
   return (
     <>
-      {content}
+      {isGame ? content : (
+        <div style={{
+          zoom: 1.3,
+          width: `${(100 / 1.3).toFixed(4)}%`,
+          height: `${(100 / 1.3).toFixed(4)}%`,
+          overflowX: "hidden",
+          overflowY: "auto",
+          position: "relative",
+        }}>
+          {content}
+        </div>
+      )}
       <RotateDeviceOverlay />
     </>
   );

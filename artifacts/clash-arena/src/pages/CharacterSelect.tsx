@@ -139,7 +139,7 @@ function CharacterGrid({ profile, sortKey, onChangeSort, onBack, onOpen, onOpenR
 
   return (
     <div style={{
-      minHeight: "100vh",
+      minHeight: "100%",
       background: "linear-gradient(135deg, #050020 0%, #0a0040 100%)",
       fontFamily: "'Segoe UI', Arial, sans-serif",
       color: "white",
@@ -381,7 +381,7 @@ function CharacterDetail({
 
   return (
     <div style={{
-      minHeight: "100vh",
+      minHeight: "100%",
       background: `radial-gradient(ellipse at center, ${brawler.color}22 0%, #060025 60%, #03001a 100%)`,
       fontFamily: "'Segoe UI', Arial, sans-serif",
       color: "white",

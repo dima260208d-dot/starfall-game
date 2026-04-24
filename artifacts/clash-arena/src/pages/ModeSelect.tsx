@@ -76,7 +76,7 @@ export default function ModeSelect({ onSelect, onBack }: ModeSelectProps) {
   return (
     <div
       style={{
-        minHeight: "100vh",
+        minHeight: "100%",
         background: "linear-gradient(135deg, #050020 0%, #0a0040 100%)",
         display: "flex",
         flexDirection: "column",

@@ -123,7 +123,7 @@ export default function MainMenu(props: MainMenuProps) {
   return (
     <div
       style={{
-        height: "100vh",
+        height: "100%",
         width: "100%",
         background: "radial-gradient(ellipse at center, #160048 0%, #060025 70%, #03001a 100%)",
         position: "relative",

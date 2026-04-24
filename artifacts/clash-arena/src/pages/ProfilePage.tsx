@@ -54,7 +54,7 @@ export default function ProfilePage({ onBack }: Props) {
   return (
     <div
       style={{
-        minHeight: "100vh",
+        minHeight: "100%",
         background: "linear-gradient(135deg, #050020 0%, #0a0040 100%)",
         padding: "30px 20px",
         fontFamily: "'Segoe UI', Arial, sans-serif",

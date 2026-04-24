@@ -27,7 +27,7 @@ export default function TrophyRoadPage({ onBack }: Props) {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #050020 0%, #0a0040 100%)", padding: "30px 20px", color: "white", fontFamily: "'Segoe UI', Arial, sans-serif" }}>
+    <div style={{ minHeight: "100%", background: "linear-gradient(135deg, #050020 0%, #0a0040 100%)", padding: "30px 20px", color: "white", fontFamily: "'Segoe UI', Arial, sans-serif" }}>
       <button onClick={onBack} style={backBtn}>← Назад</button>
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
         <h1 style={{

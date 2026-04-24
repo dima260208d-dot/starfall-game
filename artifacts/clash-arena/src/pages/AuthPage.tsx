@@ -42,7 +42,7 @@ export default function AuthPage({ onAuth }: AuthPageProps) {
   return (
     <div
       style={{
-        minHeight: "100vh",
+        minHeight: "100%",
         background: "linear-gradient(135deg, #0a0015 0%, #0d0030 50%, #0a001a 100%)",
         display: "flex",
         alignItems: "center",

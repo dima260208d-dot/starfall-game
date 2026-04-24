@@ -46,7 +46,7 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
   if (!profile || ownedSorted.length === 0 || !activeId) {
     return (
       <div style={{
-        minHeight: "100vh",
+        minHeight: "100%",
         background: "linear-gradient(135deg, #050020 0%, #0a0040 100%)",
         color: "white", display: "flex", flexDirection: "column",
         fontFamily: "'Segoe UI', Arial, sans-serif",
@@ -99,7 +99,7 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
   return (
     <div
       style={{
-        height: "100vh",
+        height: "100%",
         background: "linear-gradient(135deg, #050020 0%, #0a0040 100%)",
         display: "flex",
         flexDirection: "column",
