@@ -19,8 +19,11 @@ const RIM_COLOR: Record<ResourceType, number> = {
 const MAX_COUNT = 30;
 const COIN_RADIUS = 0.28;
 const FLOOR_Y = -1.6;
+const WALL_X = 3.3;   // left/right wall
+const WALL_Z = 1.8;   // front/back wall
 const GRAVITY = -0.022;
 const BOUNCE = 0.44;
+const WALL_BOUNCE = 0.38;
 const FRICTION = 0.86;
 
 interface Particle {
@@ -109,8 +112,8 @@ export default function ChestItemScene({ type, amount, onAllSettled }: Props) {
       for (let i = 0; i < count; i++) {
         const obj = template.clone(true);
 
-        const x = (Math.random() - 0.5) * 6.5;
-        const z = (Math.random() - 0.5) * 2.2;
+        const x = (Math.random() - 0.5) * (WALL_X * 2 - COIN_RADIUS * 2);
+        const z = (Math.random() - 0.5) * (WALL_Z * 2 - COIN_RADIUS * 2);
         const y = 9 + i * 0.18 + Math.random() * 2;
 
         obj.position.set(x, y, z);
@@ -168,6 +171,26 @@ export default function ChestItemScene({ type, amount, onAllSettled }: Props) {
             p.settled = true;
             p.vel.set(0, 0, 0);
           }
+        }
+
+        // Left/right wall collisions
+        const effectiveWallX = WALL_X - COIN_RADIUS;
+        if (p.pos.x < -effectiveWallX) {
+          p.pos.x = -effectiveWallX;
+          p.vel.x = Math.abs(p.vel.x) * WALL_BOUNCE;
+        } else if (p.pos.x > effectiveWallX) {
+          p.pos.x = effectiveWallX;
+          p.vel.x = -Math.abs(p.vel.x) * WALL_BOUNCE;
+        }
+
+        // Front/back wall collisions
+        const effectiveWallZ = WALL_Z - COIN_RADIUS;
+        if (p.pos.z < -effectiveWallZ) {
+          p.pos.z = -effectiveWallZ;
+          p.vel.z = Math.abs(p.vel.z) * WALL_BOUNCE;
+        } else if (p.pos.z > effectiveWallZ) {
+          p.pos.z = effectiveWallZ;
+          p.vel.z = -Math.abs(p.vel.z) * WALL_BOUNCE;
         }
 
         // Spin
