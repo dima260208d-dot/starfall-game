@@ -4,6 +4,7 @@ import { CHESTS, type ChestRarity, type ChestRoll } from "../utils/chests";
 import { BRAWLERS } from "../entities/BrawlerData";
 import ChestVisual from "./ChestVisual";
 import ChestItemScene from "./ChestItemScene";
+import BrawlerRevealModal from "./BrawlerRevealModal";
 
 interface Props {
   rarity: ChestRarity;
@@ -77,62 +78,7 @@ const STYLES = `
   }
 `;
 
-// ── Brawler reveal (during "brawler" phase) ───────────────────────────────────
-function BrawlerReveal({ roll, onRevealDone }: { roll: ChestRoll; onRevealDone: () => void }) {
-  const base = (import.meta as any).env?.BASE_URL ?? "/";
-  const brawler = BRAWLERS.find(b => b.id === roll.brawlerId);
-  const [phase, setPhase] = useState<"silhouette" | "reveal">("silhouette");
-
-  useEffect(() => {
-    const t = setTimeout(() => { setPhase("reveal"); onRevealDone(); }, 2000);
-    return () => clearTimeout(t);
-  }, []);
-
-  if (!brawler) { onRevealDone(); return null; }
-
-  return (
-    <div style={{ position: "relative", width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{
-        position: "absolute", inset: 0,
-        background: `radial-gradient(circle at center, ${brawler.color}33 0%, transparent 68%)`,
-        animation: phase === "reveal" ? "pulseGlow 1.6s ease-in-out infinite" : "none",
-        "--gc": `${brawler.color}55`,
-      } as React.CSSProperties} />
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "center",
-        gap: 36, zIndex: 2, padding: "0 24px",
-      }}>
-        <div style={{
-          animation: phase === "silhouette"
-            ? "silhouetteGrow 2s cubic-bezier(0.22,1,0.36,1) forwards"
-            : "brawlerReveal 1s ease-out forwards, floatUp 2.5s ease-in-out infinite",
-          "--glow": brawler.color,
-        } as React.CSSProperties}>
-          <img
-            src={`${base}brawlers/${brawler.id}_front.png`}
-            alt={brawler.name}
-            style={{ width: 200, height: 200, objectFit: "contain" }}
-          />
-        </div>
-        {phase === "reveal" && (
-          <div style={{ animation: "brawlerInfoIn 0.5s ease-out", display: "flex", flexDirection: "column", gap: 10 }}>
-            <div style={{
-              background: `linear-gradient(135deg, ${brawler.color}, ${brawler.secondaryColor})`,
-              borderRadius: 8, padding: "4px 14px",
-              fontSize: 10, fontWeight: 900, letterSpacing: 3, color: "white",
-              alignSelf: "flex-start", textTransform: "uppercase",
-            }}>🎉 НОВЫЙ БОЕЦ</div>
-            <div style={{ fontSize: 38, fontWeight: 900, color: brawler.color, lineHeight: 1, textShadow: `0 0 28px ${brawler.color}` }}>
-              {brawler.name.toUpperCase()}
-            </div>
-            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", letterSpacing: 2, textTransform: "uppercase" }}>{brawler.role}</div>
-            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", lineHeight: 1.6, maxWidth: 260 }}>{brawler.description}</div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+// BrawlerReveal is now handled by BrawlerRevealModal (full-screen portal)
 
 // ── Summary ───────────────────────────────────────────────────────────────────
 function Summary({ rolls, def, onClose }: { rolls: ChestRoll[]; def: ReturnType<typeof CHESTS[keyof typeof CHESTS]>; onClose: () => void }) {
@@ -258,10 +204,9 @@ const TYPE_META: Record<string, { icon: string; color: string; label: string }> 
 // ── Main modal ────────────────────────────────────────────────────────────────
 export default function ChestOpenModal({ rarity, rolls, onClose }: Props) {
   const def = CHESTS[rarity];
-  const [phase, setPhase]           = useState<Phase>("chest");
-  const [chestSub, setChestSub]     = useState<"idle" | "shaking" | "exploding">("idle");
-  const [currentDrop, setCurrentDrop] = useState(-1);  // -1 = not started
-  const [revealDone, setRevealDone] = useState(false);
+  const [phase, setPhase]             = useState<Phase>("chest");
+  const [chestSub, setChestSub]       = useState<"idle" | "shaking" | "exploding">("idle");
+  const [currentDrop, setCurrentDrop] = useState(-1);
   const canTapRef = useRef(true);
 
   // ── Chest opening auto-sequence ──────────────────────────────────────────
@@ -292,23 +237,21 @@ export default function ChestOpenModal({ rarity, rolls, onClose }: Props) {
     setCurrentDrop(prev => {
       const next = prev + 1;
       if (next >= rolls.length) {
-        // All items shown → collecting
         setPhase("collecting");
         setTimeout(() => setPhase("done"), 1200);
         return prev;
       }
-      setRevealDone(false);
       const nextR = rolls[next];
       setPhase(nextR.type === "brawler" ? "brawler" : "dropping");
       return next;
     });
   }, [rolls]);
 
-  // ── Tap handler ───────────────────────────────────────────────────────────
+  // ── Tap handler (brawler phase is handled inside BrawlerRevealModal) ──────
   const handleTap = useCallback(() => {
     if (phase === "done") { onClose(); return; }
+    if (phase === "brawler") return;  // BrawlerRevealModal owns its taps
 
-    // Skip chest animation early
     if (phase === "chest") {
       setChestSub("exploding");
       setTimeout(() => {
@@ -318,13 +261,8 @@ export default function ChestOpenModal({ rarity, rolls, onClose }: Props) {
       return;
     }
 
-    // Brawler: only advance after reveal animation has started
-    if (phase === "brawler" && !revealDone) return;
-
-    if (phase === "dropping" || (phase === "brawler" && revealDone)) {
-      advance();
-    }
-  }, [phase, revealDone, advance, onClose]);
+    if (phase === "dropping") advance();
+  }, [phase, advance, onClose, rolls]);
 
   // ── Render ─────────────────────────────────────────────────────────────────
   const isResourceDrop = phase === "dropping" && roll && roll.type !== "brawler";
@@ -413,14 +351,12 @@ export default function ChestOpenModal({ rarity, rolls, onClose }: Props) {
         </div>
       )}
 
-      {/* ── Brawler reveal ── */}
-      {isBrawlerDrop && (
-        <div style={{ position: "absolute", inset: 0, zIndex: 2 }}>
-          <BrawlerReveal
-            roll={roll}
-            onRevealDone={() => setRevealDone(true)}
-          />
-        </div>
+      {/* ── Brawler reveal (separate full-screen portal) ── */}
+      {isBrawlerDrop && roll.brawlerId && (
+        <BrawlerRevealModal
+          brawlerId={roll.brawlerId}
+          onDone={() => advance()}
+        />
       )}
 
       {/* ── Collecting overlay ── */}
@@ -433,8 +369,8 @@ export default function ChestOpenModal({ rarity, rolls, onClose }: Props) {
         </div>
       )}
 
-      {/* ── Bottom-right counter ── */}
-      {(phase === "dropping" || phase === "brawler") && remaining > 0 && (
+      {/* ── Bottom-right counter (hidden during brawler — BrawlerRevealModal is on top) ── */}
+      {phase === "dropping" && remaining > 0 && (
         <div
           key={remaining}
           style={{
@@ -465,7 +401,7 @@ export default function ChestOpenModal({ rarity, rolls, onClose }: Props) {
       )}
 
       {/* ── Tap hint ── */}
-      {(phase === "dropping" || (phase === "brawler" && revealDone)) && (
+      {phase === "dropping" && (
         <div style={{
           position: "absolute", bottom: 40,
           left: "50%", transform: "translateX(-50%)",

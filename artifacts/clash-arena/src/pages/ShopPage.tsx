@@ -4,6 +4,7 @@ import { CHESTS, CHEST_RARITY_ORDER, type ChestRarity, type ChestRoll } from "..
 import { BRAWLERS, BRAWLER_GEM_COST, BRAWLER_RARITY_LABEL } from "../entities/BrawlerData";
 import ChestVisual from "../components/ChestVisual";
 import ChestOpenModal from "../components/ChestOpenModal";
+import BrawlerRevealModal from "../components/BrawlerRevealModal";
 import { CoinBadge, GemBadge, PowerBadge, CoinIcon, GemIcon, PowerIcon, BoxIcon } from "../components/GameIcons";
 
 interface ShopPageProps {
@@ -16,13 +17,17 @@ export default function ShopPage({ onBack }: ShopPageProps) {
   const [isOpening, setIsOpening] = useState(false);
   const [msg, setMsg] = useState("");
   const [chestOpening, setChestOpening] = useState<{ rarity: ChestRarity; rolls: ChestRoll[] } | null>(null);
+  const [purchasedBrawler, setPurchasedBrawler] = useState<string | null>(null);
 
   const handleUnlockBrawler = (brawlerId: string) => {
     const r = unlockBrawlerWithGems(brawlerId);
-    const b = BRAWLERS.find(x => x.id === brawlerId);
-    setMsg(r.success ? `${b?.name ?? "Боец"} разблокирован!` : (r.error || "Ошибка"));
-    setProfile(getCurrentProfile());
-    setTimeout(() => setMsg(""), 2200);
+    if (r.success) {
+      setProfile(getCurrentProfile());
+      setPurchasedBrawler(brawlerId);
+    } else {
+      setMsg(r.error || "Ошибка");
+      setTimeout(() => setMsg(""), 2200);
+    }
   };
 
   const handleBuyChest = (rarity: ChestRarity, currency: "coins" | "gems") => {
@@ -452,6 +457,13 @@ setMsg("+100 кристаллов добавлено!");
           rarity={chestOpening.rarity}
           rolls={chestOpening.rolls}
           onClose={() => setChestOpening(null)}
+        />
+      )}
+
+      {purchasedBrawler && (
+        <BrawlerRevealModal
+          brawlerId={purchasedBrawler}
+          onDone={() => setPurchasedBrawler(null)}
         />
       )}
     </div>
