@@ -1,3 +1,5 @@
 zipFile.zip filter=lfs diff=lfs merge=lfs -text
 artifacts/clash-arena/public/models/chest_epic.glb filter=lfs diff=lfs merge=lfs -text
 attached_assets/эпический_сундук_1777061451156.glb filter=lfs diff=lfs merge=lfs -text
+artifacts/clash-arena/public/models/platform.glb filter=lfs diff=lfs merge=lfs -text
+attached_assets/основная_площадка_1777066530745.glb filter=lfs diff=lfs merge=lfs -text

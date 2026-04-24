@@ -1,3 +1,8 @@
+import { getPlatformTileCanvas } from "../utils/platformTile";
+
+const patternCache = new WeakMap<CanvasRenderingContext2D, CanvasPattern>();
+const PLATFORM_TILE_WORLD = 240; // world-unit span of one tiled repeat
+
 export interface Wall {
   x: number;
   y: number;
@@ -204,59 +209,37 @@ export function renderMap(
 
   const isShowdown = map.name === "Заброшенный храм";
 
-  // ---------- GROUND TILES with realistic texture ----------
-  for (let tx = startTX; tx <= endTX; tx++) {
-    for (let ty = startTY; ty <= endTY; ty++) {
-      const wx = tx * map.tileSize;
-      const wy = ty * map.tileSize;
-      const sx = wx - camX;
-      const sy = wy - camY;
-
-      const isEdge = wx < 200 || wy < 200 || wx > map.width - 200 || wy > map.height - 200;
-      const isCenter = Math.abs(wx - map.width / 2) < 400 && Math.abs(wy - map.height / 2) < 400;
-
-      const n = noise2(tx, ty);
-      const nVar = (n - 0.5) * 18; // brightness variation per tile
-
-      let r: number, g: number, b: number;
-      if (isEdge) {
-        if (isShowdown) { r = 45; g = 74; b = 30; }
-        else { r = 26; g = 58; b = 42; }
-      } else if (isCenter) {
-        if (isShowdown) { r = 184; g = 150; b = 90; }
-        else { r = 74; g = 48; b = 96; }
-      } else {
+  // ---------- GROUND — platform GLB tile or colour fallback ----------
+  const tileCanvas = getPlatformTileCanvas();
+  if (tileCanvas) {
+    let pattern = patternCache.get(ctx);
+    if (!pattern) {
+      const p = ctx.createPattern(tileCanvas, "repeat");
+      if (p) { patternCache.set(ctx, p); pattern = p; }
+    }
+    if (pattern) {
+      const scaleFactor = PLATFORM_TILE_WORLD / tileCanvas.width;
+      const offsetX = -((camX % PLATFORM_TILE_WORLD) + PLATFORM_TILE_WORLD) % PLATFORM_TILE_WORLD;
+      const offsetY = -((camY % PLATFORM_TILE_WORLD) + PLATFORM_TILE_WORLD) % PLATFORM_TILE_WORLD;
+      pattern.setTransform(new DOMMatrix([scaleFactor, 0, 0, scaleFactor, offsetX, offsetY]));
+      ctx.fillStyle = pattern;
+      ctx.fillRect(0, 0, canvasW, canvasH);
+    }
+  } else {
+    // Fallback: solid colour while model loads
+    for (let tx = startTX; tx <= endTX; tx++) {
+      for (let ty = startTY; ty <= endTY; ty++) {
+        const wx = tx * map.tileSize;
+        const wy = ty * map.tileSize;
+        const sx = wx - camX;
+        const sy = wy - camY;
+        const n = noise2(tx, ty);
+        const nVar = (n - 0.5) * 18;
         const checker = (tx + ty) % 2;
-        if (isShowdown) {
-          r = checker ? 139 : 155;
-          g = checker ? 115 : 131;
-          b = checker ? 85 : 101;
-        } else {
-          r = checker ? 45 : 52;
-          g = checker ? 27 : 31;
-          b = checker ? 78 : 90;
-        }
+        let r = checker ? 139 : 155, g = checker ? 115 : 131, b = checker ? 85 : 101;
+        ctx.fillStyle = `rgb(${Math.max(0,Math.min(255,r+nVar))|0},${Math.max(0,Math.min(255,g+nVar))|0},${Math.max(0,Math.min(255,b+nVar))|0})`;
+        ctx.fillRect(sx, sy, map.tileSize + 1, map.tileSize + 1);
       }
-      r = Math.max(0, Math.min(255, r + nVar));
-      g = Math.max(0, Math.min(255, g + nVar));
-      b = Math.max(0, Math.min(255, b + nVar));
-
-      ctx.fillStyle = `rgb(${r | 0},${g | 0},${b | 0})`;
-      ctx.fillRect(sx, sy, map.tileSize + 1, map.tileSize + 1);
-
-      // Subtle stone speckles
-      const spec = noise2(tx * 7.13, ty * 5.41);
-      if (spec > 0.85) {
-        ctx.fillStyle = `rgba(255,255,255,${(spec - 0.85) * 0.6})`;
-        const px = sx + n * map.tileSize;
-        const py = sy + spec * map.tileSize;
-        ctx.fillRect(px, py, 2, 2);
-      }
-
-      // Tile grout lines for depth
-      ctx.strokeStyle = "rgba(0,0,0,0.12)";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(sx + 0.5, sy + 0.5, map.tileSize, map.tileSize);
     }
   }
 

@@ -16,6 +16,7 @@ import LoadingScreen from "./pages/LoadingScreen";
 import RotateDeviceOverlay from "./components/RotateDeviceOverlay";
 import { preloadCharRenderers } from "./game/miyaTopDownRenderer";
 import { preloadAllModels } from "./utils/modelPreloader";
+import { loadPlatformTile } from "./utils/platformTile";
 
 type Screen =
   | "auth"
@@ -66,6 +67,7 @@ export default function App() {
     // Kick off parallel preloading of all GLB models immediately on boot.
     const base = (import.meta as any).env?.BASE_URL ?? "/";
     preloadAllModels(base, (p) => setBootProgress(p)).catch(() => setBootProgress(1));
+    loadPlatformTile().catch(() => {});
   }, []);
 
   const go = (s: Screen) => setScreen(s);
