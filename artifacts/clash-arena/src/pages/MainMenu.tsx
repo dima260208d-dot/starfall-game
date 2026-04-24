@@ -366,9 +366,9 @@ export default function MainMenu(props: MainMenuProps) {
         position: "absolute", right: compact ? 8 : 18, top: "50%", transform: "translateY(-50%)",
         display: "flex", flexDirection: "column", gap: compact ? 6 : 12, zIndex: 4,
       }}>
-        <SideButton icon="🛒" label="Магазин" onClick={onShop} color="#FFD700" compact={compact} />
-        <SideButton icon="🎒" label="Коллекция" onClick={onCollection} color="#40C4FF" compact={compact} />
-        <SideButton icon="👥" label="Друзья" onClick={() => handleSoonNotice("Друзья — скоро")} color="#CE93D8" compact={compact} />
+        <SideButton icon="🛒" imgSrc="ui/nav-shop.png" label="Магазин" onClick={onShop} color="#FFD700" compact={compact} />
+        <SideButton icon="🎒" imgSrc="ui/nav-collection.png" label="Коллекция" onClick={onCollection} color="#40C4FF" compact={compact} />
+        <SideButton icon="👥" imgSrc="ui/nav-friends.png" label="Друзья" onClick={() => handleSoonNotice("Друзья — скоро")} color="#CE93D8" compact={compact} />
       </div>
 
       {/* LEFT SIDE — character pick shortcut */}
@@ -376,16 +376,17 @@ export default function MainMenu(props: MainMenuProps) {
         position: "absolute", left: compact ? 8 : 18, top: "50%", transform: "translateY(-50%)",
         display: "flex", flexDirection: "column", gap: compact ? 6 : 12, zIndex: 4,
       }}>
-        <SideButton icon="🦸" label="Персонаж" onClick={onBrawlerSelect} color="#CE93D8" compact={compact} />
+        <SideButton icon="🦸" imgSrc="ui/nav-character.png" label="Персонаж" onClick={onBrawlerSelect} color="#CE93D8" compact={compact} />
         <SideButton
           icon="🎁"
+          imgSrc="ui/nav-bonus.png"
           label="Бонус дня"
           onClick={() => setShowDaily(true)}
           color={canClaimDaily ? "#FFD700" : "#888"}
           pulse={canClaimDaily}
           compact={compact}
         />
-        <SideButton icon="🗝️" label="Сундуки" onClick={onChests} color="#FF7043" badge={chestsBadge} compact={compact} />
+        <SideButton icon="🗝️" imgSrc="ui/nav-chests.png" label="Сундуки" onClick={onChests} color="#FF7043" badge={chestsBadge} compact={compact} />
       </div>
 
       {/* BOTTOM-LEFT: Quests button + Clash Pass card */}
@@ -747,9 +748,10 @@ function Resource({ icon, value, color, compact }: { icon: React.ReactNode; valu
 }
 
 function SideButton({
-  icon, label, onClick, color, pulse, badge, compact,
-}: { icon: string; label: string; onClick: () => void; color: string; pulse?: boolean; badge?: number; compact?: boolean }) {
+  icon, imgSrc, label, onClick, color, pulse, badge, compact,
+}: { icon: string; imgSrc?: string; label: string; onClick: () => void; color: string; pulse?: boolean; badge?: number; compact?: boolean }) {
   const [hovered, setHovered] = useState(false);
+  const base = (import.meta as any).env?.BASE_URL ?? "/";
   return (
     <button
       onClick={onClick}
@@ -766,17 +768,32 @@ function SideButton({
         background: hovered ? `${color}26` : "rgba(0,0,0,0.4)",
         border: `1.5px solid ${hovered ? color : "rgba(255,255,255,0.1)"}`,
         borderRadius: compact ? 10 : 14,
-        padding: compact ? "4px 4px" : "10px 14px",
+        padding: compact ? "2px 4px" : "8px 14px",
         color: "white", cursor: "pointer",
         minWidth: compact ? 0 : 130,
-        width: compact ? 50 : undefined,
+        width: compact ? 54 : undefined,
         backdropFilter: "blur(10px)",
         transition: "all 0.2s",
         boxShadow: hovered ? `0 0 18px ${color}66` : "none",
         animation: pulse ? "pulse 1.6s ease-in-out infinite" : undefined,
       }}
     >
-      <span style={{ fontSize: compact ? 20 : 20, lineHeight: 1 }}>{icon}</span>
+      {imgSrc ? (
+        <img
+          src={`${base}${imgSrc}`}
+          alt={label}
+          style={{
+            width: compact ? 30 : 36,
+            height: compact ? 30 : 36,
+            objectFit: "contain",
+            borderRadius: 6,
+            filter: hovered ? `drop-shadow(0 0 8px ${color})` : "none",
+            transition: "filter 0.2s",
+          }}
+        />
+      ) : (
+        <span style={{ fontSize: compact ? 22 : 22, lineHeight: 1 }}>{icon}</span>
+      )}
       {compact ? (
         <span style={{
           fontSize: 8, fontWeight: 700, letterSpacing: 0.4, marginTop: 2,

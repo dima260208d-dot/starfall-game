@@ -49,15 +49,14 @@ export const BRAWLER_GEM_COST: Record<ChestRarity, number> = {
 };
 
 // Per-chest chance to drop a brawler (instead of a normal reward roll).
-// Higher rarity chests are rarer overall, so the chance is smaller —
-// but drops can yield brawlers of *equal or higher* rarity than the chest.
+// Higher rarity chests have a higher chance to drop brawlers.
 export const CHEST_BRAWLER_DROP_CHANCE: Record<ChestRarity, number> = {
-  common:    0.05,   // 5%
-  rare:      0.04,
-  epic:      0.03,
-  mega:      0.02,
-  legendary: 0.01,
-  mythic:    0.005,  // 0.5%
+  common:    0.05,   //  5%
+  rare:      0.08,   //  8%
+  epic:      0.12,   // 12%
+  mega:      0.20,   // 20%
+  legendary: 0.35,   // 35%
+  mythic:    0.50,   // 50%
 };
 
 // Backstory/lore for each brawler, shown on the character detail page.

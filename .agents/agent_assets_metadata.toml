@@ -186,6 +186,42 @@ uri = "file://artifacts/clash-arena/public/images/icon-trophy.png"
 type = "image"
 title = "generated_image"
 
+[[generated]]
+id = "vF64T357OWGYdrQ-rPIYA"
+uri = "file://artifacts/clash-arena/public/ui/nav-shop.png"
+type = "image"
+title = "nav shop icon"
+
+[[generated]]
+id = "cqNWdRp9-WK2E6hmBtQbe"
+uri = "file://artifacts/clash-arena/public/ui/nav-collection.png"
+type = "image"
+title = "nav collection icon"
+
+[[generated]]
+id = "bjBGM2yZVDrFg4PHRraC0"
+uri = "file://artifacts/clash-arena/public/ui/nav-friends.png"
+type = "image"
+title = "nav friends icon"
+
+[[generated]]
+id = "0hSdxX6nRI871DS2UlUaJ"
+uri = "file://artifacts/clash-arena/public/ui/nav-character.png"
+type = "image"
+title = "nav character icon"
+
+[[generated]]
+id = "FU4DGo3GAIJZJyLzYySL0"
+uri = "file://artifacts/clash-arena/public/ui/nav-bonus.png"
+type = "image"
+title = "nav bonus icon"
+
+[[generated]]
+id = "VeXnkMSiSnr3khNGBG8u4"
+uri = "file://artifacts/clash-arena/public/ui/nav-chests.png"
+type = "image"
+title = "nav chests icon"
+
 [[outputs]]
 id = "X9Tws63Uu-uL8M0CvEeAQ"
 uri = "file://artifacts/clash-arena/public/brawlers/miya_front.png"

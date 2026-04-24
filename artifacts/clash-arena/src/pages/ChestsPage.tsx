@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   getCurrentProfile,
   buyChest,
   openChest,
 } from "../utils/localStorageAPI";
 import { CHESTS, CHEST_RARITY_ORDER, type ChestRarity, type ChestRoll } from "../utils/chests";
+import { CHEST_BRAWLER_DROP_CHANCE } from "../entities/BrawlerData";
 import ChestVisual from "../components/ChestVisual";
 import ChestOpenModal from "../components/ChestOpenModal";
 import { CoinBadge, GemBadge, PowerBadge, CoinIcon, GemIcon } from "../components/GameIcons";
@@ -13,10 +15,109 @@ interface Props {
   onBack: () => void;
 }
 
+function pct(n: number) {
+  return `${Math.round(n * 100)}%`;
+}
+
+function ChestInfoModal({ rarity, onClose }: { rarity: ChestRarity; onClose: () => void }) {
+  const def = CHESTS[rarity];
+  const d = def.drops;
+  const brawlerChance = CHEST_BRAWLER_DROP_CHANCE[rarity];
+
+  const rollTotal = d.gemsChance + d.powerPointsChance;
+  const coinsChance = Math.max(0, 1 - rollTotal);
+
+  const modal = (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 99999,
+        background: "rgba(0,0,5,0.88)",
+        backdropFilter: "blur(10px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: `linear-gradient(180deg, ${def.color}22 0%, #0a0020 100%)`,
+          border: `2px solid ${def.borderColor}88`,
+          borderRadius: 24,
+          padding: "28px 32px",
+          maxWidth: 440,
+          width: "90%",
+          boxShadow: `0 0 60px ${def.color}44`,
+        }}
+      >
+        <div style={{ textAlign: "center", marginBottom: 20 }}>
+          <div style={{ fontSize: 24, fontWeight: 900, color: def.color, letterSpacing: 2 }}>
+            {def.name.toUpperCase()}
+          </div>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>
+            {"★".repeat(def.tier)}{"☆".repeat(6 - def.tier)} · {d.rolls} наград за открытие
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <Row label="Шанс бойца" value={pct(brawlerChance)} color={def.color} highlight />
+          <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "4px 0" }} />
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", letterSpacing: 1, textTransform: "uppercase", marginBottom: 4 }}>
+            За каждый из {d.rolls} бросков:
+          </div>
+          <Row label="💎 Кристаллы" value={`${pct(d.gemsChance)}  (${d.gemsRange[0]}–${d.gemsRange[1]})`} color="#40C4FF" />
+          <Row label="⚡ Очки прокачки" value={`${pct(d.powerPointsChance)}  (${d.powerPointsRange[0]}–${d.powerPointsRange[1]})`} color="#CE93D8" />
+          <Row label="🪙 Монеты" value={`~${pct(coinsChance)}  (${d.coinsRange[0]}–${d.coinsRange[1]})`} color="#FFD700" />
+          {(d.bonusGems || d.bonusPowerPoints || d.bonusCoins) && (
+            <>
+              <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "4px 0" }} />
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", letterSpacing: 1, textTransform: "uppercase", marginBottom: 4 }}>
+                Гарантированные бонусы:
+              </div>
+              {d.bonusGems ? <Row label="💎 Бонус кристаллы" value={`+${d.bonusGems}`} color="#40C4FF" /> : null}
+              {d.bonusPowerPoints ? <Row label="⚡ Бонус ОП" value={`+${d.bonusPowerPoints}`} color="#CE93D8" /> : null}
+              {d.bonusCoins ? <Row label="🪙 Бонус монеты" value={`+${d.bonusCoins}`} color="#FFD700" /> : null}
+            </>
+          )}
+        </div>
+
+        <button
+          onClick={onClose}
+          style={{
+            marginTop: 24, width: "100%",
+            background: `linear-gradient(135deg, ${def.color}, ${def.secondaryColor})`,
+            border: "none", borderRadius: 12, padding: "12px 0",
+            color: "white", fontWeight: 900, fontSize: 14, letterSpacing: 2,
+            cursor: "pointer",
+          }}
+        >
+          ЗАКРЫТЬ
+        </button>
+      </div>
+    </div>
+  );
+
+  return createPortal(modal, document.body);
+}
+
+function Row({ label, value, color, highlight }: { label: string; value: string; color: string; highlight?: boolean }) {
+  return (
+    <div style={{
+      display: "flex", justifyContent: "space-between", alignItems: "center",
+      background: highlight ? `${color}18` : "rgba(255,255,255,0.04)",
+      borderRadius: 8, padding: "7px 12px",
+      border: highlight ? `1px solid ${color}44` : "1px solid rgba(255,255,255,0.06)",
+    }}>
+      <span style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>{label}</span>
+      <span style={{ fontSize: 13, fontWeight: 900, color }}>{value}</span>
+    </div>
+  );
+}
+
 export default function ChestsPage({ onBack }: Props) {
   const [profile, setProfile] = useState(getCurrentProfile());
   const [msg, setMsg] = useState<string | null>(null);
   const [opening, setOpening] = useState<{ rarity: ChestRarity; rolls: ChestRoll[] } | null>(null);
+  const [infoRarity, setInfoRarity] = useState<ChestRarity | null>(null);
 
   useEffect(() => {
     const id = setInterval(() => setProfile(getCurrentProfile()), 500);
@@ -95,6 +196,7 @@ export default function ChestsPage({ onBack }: Props) {
           const owned = profile.chestInventory[rarity] || 0;
           const canBuyCoins = profile.coins >= def.priceCoins;
           const canBuyGems = profile.gems >= def.priceGems;
+          const brawlerPct = Math.round(CHEST_BRAWLER_DROP_CHANCE[rarity] * 100);
           return (
             <div key={rarity} style={{
               background: `linear-gradient(180deg, ${def.color}1A 0%, rgba(0,0,0,0.45) 100%)`,
@@ -103,7 +205,22 @@ export default function ChestsPage({ onBack }: Props) {
               padding: 16,
               display: "flex", flexDirection: "column", alignItems: "center",
               boxShadow: `0 0 30px ${def.color}33`,
+              position: "relative",
             }}>
+              <button
+                onClick={() => setInfoRarity(rarity)}
+                title="Шансы выпадения"
+                style={{
+                  position: "absolute", top: 10, right: 10,
+                  width: 26, height: 26, borderRadius: "50%",
+                  background: `${def.color}33`,
+                  border: `1px solid ${def.color}88`,
+                  color: def.color, fontWeight: 900, fontSize: 13,
+                  cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                  lineHeight: 1,
+                }}
+              >?</button>
+
               <div style={{ height: 150, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <ChestVisual rarity={rarity} size={130} animated />
               </div>
@@ -120,11 +237,14 @@ export default function ChestsPage({ onBack }: Props) {
                 marginTop: 8, fontSize: 11, color: "rgba(255,255,255,0.65)",
                 background: "rgba(0,0,0,0.35)", border: `1px solid ${def.color}33`,
                 borderRadius: 8, padding: "4px 10px",
+                display: "flex", gap: 10, alignItems: "center",
               }}>
-                {def.drops.rolls} наград + бонусы · ★{def.tier}
+                <span>{def.drops.rolls} наград · ★{def.tier}</span>
+                {brawlerPct > 0 && (
+                  <span style={{ color: def.color, fontWeight: 800 }}>🦸 {brawlerPct}%</span>
+                )}
               </div>
 
-              {/* Owned + open */}
               <div style={{ marginTop: 12, width: "100%" }}>
                 <div style={{
                   display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -151,7 +271,6 @@ export default function ChestsPage({ onBack }: Props) {
                 </button>
               </div>
 
-              {/* Buy options */}
               <div style={{ marginTop: 10, width: "100%", display: "flex", gap: 8 }}>
                 <button
                   onClick={() => handleBuy(rarity, "coins")}
@@ -193,6 +312,10 @@ export default function ChestsPage({ onBack }: Props) {
           rolls={opening.rolls}
           onClose={() => setOpening(null)}
         />
+      )}
+
+      {infoRarity && (
+        <ChestInfoModal rarity={infoRarity} onClose={() => setInfoRarity(null)} />
       )}
     </div>
   );
