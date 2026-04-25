@@ -32,6 +32,8 @@ export interface ChestDropDef {
   bonusGems?: number;
   bonusPowerPoints?: number;
   bonusCoins?: number;
+  // Clash Pass XP granted on open (same as daily rewards)
+  xp: number;
 }
 
 export const CHESTS: Record<ChestRarity, ChestDef> = {
@@ -54,6 +56,7 @@ export const CHESTS: Record<ChestRarity, ChestDef> = {
       gemsRange: [1, 2],
       powerPointsChance: 0.4,
       powerPointsRange: [1, 5],
+      xp: 25,
     },
   },
   rare: {
@@ -76,6 +79,7 @@ export const CHESTS: Record<ChestRarity, ChestDef> = {
       powerPointsChance: 0.6,
       powerPointsRange: [2, 8],
       bonusPowerPoints: 2,
+      xp: 50,
     },
   },
   epic: {
@@ -99,6 +103,7 @@ export const CHESTS: Record<ChestRarity, ChestDef> = {
       powerPointsRange: [5, 15],
       bonusGems: 1,
       bonusPowerPoints: 4,
+      xp: 100,
     },
   },
   mega: {
@@ -123,6 +128,7 @@ export const CHESTS: Record<ChestRarity, ChestDef> = {
       bonusGems: 3,
       bonusPowerPoints: 8,
       bonusCoins: 200,
+      xp: 200,
     },
   },
   mythic: {
@@ -147,6 +153,7 @@ export const CHESTS: Record<ChestRarity, ChestDef> = {
       bonusGems: 8,
       bonusPowerPoints: 15,
       bonusCoins: 500,
+      xp: 350,
     },
   },
   legendary: {
@@ -171,6 +178,7 @@ export const CHESTS: Record<ChestRarity, ChestDef> = {
       bonusGems: 20,
       bonusPowerPoints: 30,
       bonusCoins: 1500,
+      xp: 600,
     },
   },
   ultralegendary: {
@@ -195,6 +203,7 @@ export const CHESTS: Record<ChestRarity, ChestDef> = {
       bonusGems: 40,
       bonusPowerPoints: 60,
       bonusCoins: 5000,
+      xp: 1000,
     },
   },
 };

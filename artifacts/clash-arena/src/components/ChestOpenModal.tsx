@@ -97,6 +97,7 @@ function Summary({ rolls, def, onClose }: { rolls: ChestRoll[]; def: ReturnType<
         {coins > 0 && <SummaryCard icon="🪙" color="#FFD700" value={coins} label="МОНЕТ" />}
         {gems > 0  && <SummaryCard icon="💎" color="#40C4FF" value={gems}  label="КРИСТАЛЛОВ" />}
         {power > 0 && <SummaryCard icon="⚡" color="#CE93D8" value={power} label="ОП" />}
+        {def.drops.xp > 0 && <SummaryCard icon="⭐" color="#FFD700" value={def.drops.xp} label="ОПЫТ PASS" />}
         {brawler && (
           <div style={{
             background: `linear-gradient(180deg, ${brawler.color}22 0%, rgba(0,0,0,0.55) 100%)`,

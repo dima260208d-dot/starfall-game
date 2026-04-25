@@ -909,7 +909,7 @@ export function grantChest(rarity: ChestRarity, count = 1): void {
   });
 }
 
-export function openChest(rarity: ChestRarity): { success: boolean; rolls?: ChestRoll[]; error?: string } {
+export function openChest(rarity: ChestRarity): { success: boolean; rolls?: ChestRoll[]; xpGained?: number; error?: string } {
   const profile = getCurrentProfile();
   if (!profile) return { success: false, error: "Not logged in" };
   if ((profile.chestInventory[rarity] || 0) < 1) return { success: false, error: "Нет такого сундука" };
@@ -941,10 +941,23 @@ export function openChest(rarity: ChestRarity): { success: boolean; rolls?: Ches
       unlockedBrawlers = [...unlockedBrawlers, r.brawlerId];
     }
   }
+
+  // Apply XP gain — same as daily/quest rewards so Clash Pass levels consistently
+  const xpGain = CHESTS[rarity].drops.xp;
+  let newXp = profile.xp + xpGain;
+  let newLevel = profile.clashPassLevel;
+  while (newLevel < MAX_CLASHPASS_LEVEL && newXp >= clashPassXpForLevel(newLevel)) {
+    newXp -= clashPassXpForLevel(newLevel);
+    newLevel++;
+  }
+  if (newLevel >= MAX_CLASHPASS_LEVEL) newXp = 0;
+
   updateProfile({
     coins: profile.coins + coinsGain,
     gems: profile.gems + gemsGain,
     powerPoints: profile.powerPoints + ppGain,
+    xp: newXp,
+    clashPassLevel: newLevel,
     chestInventory: {
       ...profile.chestInventory,
       [rarity]: profile.chestInventory[rarity] - 1,
@@ -952,7 +965,7 @@ export function openChest(rarity: ChestRarity): { success: boolean; rolls?: Ches
     unlockedBrawlers,
   });
   trackQuestProgress("open_chests", 1);
-  return { success: true, rolls };
+  return { success: true, rolls, xpGained: xpGain };
 }
 
 // =========================================================================
