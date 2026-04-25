@@ -487,16 +487,25 @@ export function renderTileGrid(
   bushLayer: boolean
 ): void {
   const C = grid.cellSize;
-  // Extra rows above viewport needed for tall blocks that overflow upward
-  const TALL_ROWS_ABOVE = 3;
+  // Extra rows above the viewport to render — bushes can overflow up to ~2C
+  // above their cell, so we need more look-ahead rows than for regular blocks.
+  const TALL_ROWS_ABOVE = 4;
   const startTX = Math.max(0, Math.floor(camX / C));
   const endTX = Math.min(grid.width - 1, Math.ceil((camX + canvasW) / C));
   const startTY = Math.max(0, Math.floor(camY / C) - TALL_ROWS_ABOVE);
   const endTY = Math.min(grid.height - 1, Math.ceil((camY + canvasH) / C));
 
-  // TALL_OVERFLOW: fraction of C that tall block models extend above their cell.
-  // Value tuned so models look natural without floating.
+  // TALL_OVERFLOW: how far tall block sprites extend above their cell.
   const TALL_OVERFLOW = C * 0.9;
+
+  // BUSH drawing constants — canvas is 256×512 (1:2 aspect).
+  // The bush is drawn wider than one cell and tall enough to be proportional
+  // to brawler characters (~1.5–2 cells in height).
+  const BUSH_W = C * 1.35;           // draw width (slightly wider than cell)
+  const BUSH_H = BUSH_W * 2;          // draw height (2× canvas aspect ratio)
+  const BUSH_X_OFF = (C - BUSH_W) / 2; // centre horizontally on cell
+  // Anchor bottom of bush to cell bottom (sy + C), then subtract full height.
+  const BUSH_Y_TOP_OFF = BUSH_H - C;  // how far above sy the top of the bush is
 
   for (let tx = startTX; tx <= endTX; tx++) {
     for (let ty = startTY; ty <= endTY; ty++) {
@@ -523,9 +532,16 @@ export function renderTileGrid(
       const tileCanvas = getTileCanvas(type);
       if (tileCanvas) {
         if (isBush) {
-          // Grass/bush tiles: slight overflow on all sides for gapless coverage
-          const ov = C * 0.15;
-          ctx.drawImage(tileCanvas, sx - ov, sy - ov, C + ov * 2, C + ov * 2);
+          // Bush uses a 256×512 (1:2) canvas rendered from a low frontal angle.
+          // Draw it anchored at the bottom of the cell and extending upward so
+          // it is proportional to brawler characters.
+          ctx.drawImage(
+            tileCanvas,
+            sx + BUSH_X_OFF,
+            sy - BUSH_Y_TOP_OFF,
+            BUSH_W,
+            BUSH_H,
+          );
         } else if (TALL_TILE_TYPES.has(type)) {
           // Tall blocks overflow upward — occupy cell footprint but reach up
           ctx.drawImage(tileCanvas, sx, sy - TALL_OVERFLOW, C, C + TALL_OVERFLOW);
