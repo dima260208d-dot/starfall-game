@@ -22,7 +22,7 @@ export type CharAnim = "idle" | "run" | "attack" | "dead";
 /** @deprecated use CharAnim */
 export type MiyaAnim = CharAnim;
 
-const SIZE = 256;
+const SIZE = 512;
 const MODEL_TARGET_H = 3.2;
 
 // Exact animation clip names per character (extracted from the GLB files).
@@ -43,7 +43,7 @@ const CHAR_ANIM_NAMES: Record<string, CharAnimNames> = {
   kenji:   { idle: "Walking",         idleIdx: 2, run: "Running", runIdx: 1, attack: "Axe_Spin_Attack",     attackIdx: 0 },
   yuki:    { idle: "Walking",         idleIdx: 2, run: "Running", runIdx: 1, attack: "Axe_Spin_Attack",     attackIdx: 0 },
   taro:    { idle: "Walking",         idleIdx: 2, run: "Running", runIdx: 1, attack: "Archery_Shot_1",      attackIdx: 0 },
-  zafkiel: { idle: "Walking",         idleIdx: 2, run: "Running", runIdx: 1, attack: "Archery_Shot_3",      attackIdx: 0 },
+  zafkiel: { idle: "Walking",         idleIdx: 2, run: "Archery_Shot_3", runIdx: 0, attack: "Running",           attackIdx: 1 },
 };
 
 function findClip(clips: THREE.AnimationClip[], name: string, idx?: number): THREE.AnimationClip | null {
