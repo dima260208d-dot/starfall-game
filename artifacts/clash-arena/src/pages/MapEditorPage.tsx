@@ -7,15 +7,16 @@ import {
   EDITOR_MODES, OV,
   type MapSave, type EditorMode, type OVType,
 } from "../utils/mapEditorAPI";
-import { getTileCanvas, loadAllTileModels, TALL_TILE_TYPES, PYRAMID_TILE } from "../utils/tileModelCache";
+import { getTileCanvas, loadAllTileModels } from "../utils/tileModelCache";
 import { getPlatformTileCanvas, loadPlatformTile } from "../utils/platformTile";
 
 const GS = 60;
 const IDX = (x: number, y: number) => y * GS + x;
 
 // ── Tile palette definition ───────────────────────────────────────────────────
+// Note: type 0 (grass/ground) is NOT in the palette — it's the default background.
+// Use the Erase tool to return a cell to ground.
 const TILE_DEFS = [
-  { type: 0,  label: "Трава",      color: "#5BAD4E", icon: "🌿", desc: "Проходимая" },
   { type: 1,  label: "Стена",      color: "#8B6060", icon: "🧱", desc: "Непроходимая" },
   { type: 2,  label: "Гора",       color: "#607060", icon: "⛰️", desc: "Непроходимая" },
   { type: 3,  label: "Куст",       color: "#4CAF50", icon: "🌳", desc: "Укрытие" },
@@ -29,7 +30,8 @@ const TILE_DEFS = [
   { type: 12, label: "Пирамида",   color: "#FDD835", icon: "🔺", desc: "Непроходимая" },
 ] as const;
 
-const OVERLAY_DEFS: { ov: OVType; label: string; color: string; icon: string }[] = [
+// All possible overlay markers
+const ALL_OVERLAY_DEFS: { ov: OVType; label: string; color: string; icon: string }[] = [
   { ov: OV.SPAWN_SD,   label: "Спавн SD",      color: "#FF9800", icon: "🔶" },
   { ov: OV.SPAWN_BLUE, label: "Спавн синих",   color: "#1976D2", icon: "🔵" },
   { ov: OV.SPAWN_RED,  label: "Спавн красных", color: "#D32F2F", icon: "🔴" },
@@ -41,6 +43,16 @@ const OVERLAY_DEFS: { ov: OVType; label: string; color: string; icon: string }[]
   { ov: OV.GOAL_BLUE,  label: "Ворота синих",   color: "#0288D1", icon: "⚽" },
   { ov: OV.GOAL_RED,   label: "Ворота красных", color: "#C62828", icon: "⚽" },
 ];
+
+// Which overlays are valid for each mode
+const MODE_OVERLAYS: Record<EditorMode, OVType[]> = {
+  showdown:  [OV.SPAWN_SD],
+  gemgrab:   [OV.SPAWN_BLUE, OV.SPAWN_RED, OV.GEM_CENTER],
+  heist:     [OV.SPAWN_BLUE, OV.SPAWN_RED, OV.SAFE_BLUE, OV.SAFE_RED],
+  bounty:    [OV.SPAWN_BLUE, OV.SPAWN_RED],
+  brawlball: [OV.SPAWN_BLUE, OV.SPAWN_RED, OV.GOAL_BLUE, OV.GOAL_RED],
+  siege:     [OV.SPAWN_BLUE, OV.SPAWN_RED, OV.BASE_BLUE, OV.BASE_RED],
+};
 
 type Tool = "pan" | "place" | "erase" | "brush" | "fill_rect";
 type Mirror = "none" | "h" | "v" | "both";
@@ -351,7 +363,7 @@ function EditorCore({ onBack }: { onBack: () => void }) {
 
     ctx.clearRect(0, 0, W, H);
 
-    // Dark background outside map bounds
+    // Dark void outside the map area
     ctx.fillStyle = "#0d0d1a";
     ctx.fillRect(0, 0, W, H);
 
@@ -362,26 +374,22 @@ function EditorCore({ onBack }: { onBack: () => void }) {
 
     const platformCanvas = getPlatformTileCanvas();
 
-    // ── Pass 1: Ground layer (all cells, back to front) ─────────────────────
-    for (let gy = y0; gy <= y1; gy++) {
-      for (let gx = x0; gx <= x1; gx++) {
-        const sx = gx * cs - ox, sy = gy * cs - oy;
-        // Always draw the ground/grass tile as base
-        if (platformCanvas) {
-          ctx.drawImage(platformCanvas, sx, sy, cs, cs);
-        } else {
-          ctx.fillStyle = "#4a7c3f";
-          ctx.fillRect(sx, sy, cs, cs);
-        }
-      }
+    // ── Pass 1: ONE platform image stretched across the entire 60×60 map ───
+    const mapSX = -ox, mapSY = -oy, mapSW = GS * cs, mapSH = GS * cs;
+    if (platformCanvas) {
+      ctx.drawImage(platformCanvas, mapSX, mapSY, mapSW, mapSH);
+    } else {
+      ctx.fillStyle = "#5a8c44";
+      ctx.fillRect(mapSX, mapSY, mapSW, mapSH);
     }
 
-    // ── Pass 2: Tile models (rendered back-to-front so tall front rows cover) ─
-    // Extra rows above viewport for tall tiles that overflow upward
-    const EXTRA_ROWS = 3;
-    const y0ext = Math.max(0, y0 - EXTRA_ROWS);
+    // ── Pass 2: Tile models — back to front (row order = correct isometric depth) ─
+    // Overdraw fills the transparent border around each pre-rendered model so
+    // adjacent tiles appear perfectly seamless.
+    const SOLID_OD = cs * 0.10; // 10 % overdraw per side for solid tiles
+    const BUSH_OD  = cs * 0.22; // 22 % overdraw per side for bush (diamond shape)
 
-    for (let gy = y0ext; gy <= y1; gy++) {
+    for (let gy = y0; gy <= y1; gy++) {
       for (let gx = x0; gx <= x1; gx++) {
         const sx = gx * cs - ox, sy = gy * cs - oy;
         const t = cells.current[IDX(gx, gy)];
@@ -391,28 +399,16 @@ function EditorCore({ onBack }: { onBack: () => void }) {
 
         if (t !== 0) {
           const modelCanvas = getTileCanvas(t);
-          const tileDef = TILE_DEFS.find(d => d.type === t);
+          const tileDef = (TILE_DEFS as readonly { type: number; color: string; icon: string }[]).find(d => d.type === t);
 
           if (modelCanvas) {
-            const isBush = t === 3; // BUSH has a 256×512 tall canvas
-            const isTall = TALL_TILE_TYPES.has(t) || t === PYRAMID_TILE;
-
-            if (isBush) {
-              // Bush canvas is 256×512 (1:2 aspect), rendered from a low angle.
-              // Draw it anchored at the cell bottom, extending upward 1 full cell.
-              const bw = cs * 1.2;
-              const bh = bw * 2;
-              ctx.drawImage(modelCanvas, sx + (cs - bw) / 2, sy + cs - bh, bw, bh);
-            } else if (isTall) {
-              // Tall solid block: draw with 45% upward overflow so it looks 3-D
-              const overflow = cs * 0.45;
-              ctx.drawImage(modelCanvas, sx, sy - overflow, cs, cs + overflow);
-            } else {
-              // Flat tile (heal barrel, water, etc.): fill the cell exactly
-              ctx.drawImage(modelCanvas, sx, sy, cs, cs);
-            }
+            const isBush = t === 3;
+            const od = isBush ? BUSH_OD : SOLID_OD;
+            // All tiles rendered within their cell (+ overdraw on all sides, no upward overflow).
+            // This keeps cursor position perfectly aligned with the placed tile.
+            ctx.drawImage(modelCanvas, sx - od, sy - od, cs + od * 2, cs + od * 2);
           } else {
-            // Model not yet loaded — flat colour fallback
+            // Models not loaded yet — fallback flat colour + icon
             ctx.fillStyle = tileDef?.color ?? "#888";
             ctx.fillRect(sx, sy, cs, cs);
             if (cs >= 18) {
@@ -423,14 +419,13 @@ function EditorCore({ onBack }: { onBack: () => void }) {
           }
         }
 
-        // Overlay markers (spawn points, safes, bases, etc.)
+        // Overlay markers (spawn points, safes, goals, etc.)
         if (ov !== 0) {
-          const ovDef = OVERLAY_DEFS.find(d => d.ov === ov);
+          const ovDef = ALL_OVERLAY_DEFS.find(d => d.ov === ov);
           if (ovDef) {
-            // Semi-transparent coloured badge centred in cell
             const r = cs * 0.38;
             ctx.save();
-            ctx.globalAlpha = 0.88;
+            ctx.globalAlpha = 0.92;
             ctx.fillStyle = ovDef.color;
             ctx.beginPath();
             ctx.arc(sx + cs / 2, sy + cs / 2, r, 0, Math.PI * 2);
@@ -503,12 +498,20 @@ function EditorCore({ onBack }: { onBack: () => void }) {
   }, [forceRedraw, hovCell, fillSel, zoom.current, camX.current, camY.current]);
 
   // ── Resize canvas to parent ─────────────────────────────────────────────────
+  const initialCamSet = useRef(false);
   useEffect(() => {
     const resize = () => {
       const c = canvasRef.current;
       if (!c) return;
       c.width  = c.parentElement?.clientWidth  ?? window.innerWidth;
       c.height = c.parentElement?.clientHeight ?? window.innerHeight;
+      // On first load, center the map so it fills the visible viewport
+      if (!initialCamSet.current) {
+        initialCamSet.current = true;
+        const mapPx = GS * zoom.current;
+        camX.current = Math.max(0, (mapPx - c.width)  / 2);
+        camY.current = Math.max(0, (mapPx - c.height) / 2);
+      }
       clampCam();
       redraw();
     };
@@ -940,8 +943,8 @@ function EditorCore({ onBack }: { onBack: () => void }) {
 
         <div style={{ width: 2, height: 54, background: "rgba(255,255,255,0.15)", flexShrink: 0, margin: "0 4px" }} />
 
-        {/* Overlay palette */}
-        {OVERLAY_DEFS.map(od => (
+        {/* Overlay palette — filtered to current mode only */}
+        {ALL_OVERLAY_DEFS.filter(od => mode && MODE_OVERLAYS[mode]?.includes(od.ov)).map(od => (
           <PaletteItem
             key={od.ov}
             icon={od.icon} label={od.label} color={od.color}
