@@ -176,7 +176,7 @@ export const CHESTS: Record<ChestRarity, ChestDef> = {
 };
 
 export const CHEST_RARITY_ORDER: ChestRarity[] = [
-  "common", "rare", "epic", "mega", "legendary", "mythic",
+  "common", "rare", "epic", "mega", "mythic", "legendary",
 ];
 
 export interface ChestRoll {
