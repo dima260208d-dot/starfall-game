@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   getCurrentProfile, MAX_TROPHIES, clashPassXpForLevel, MAX_CLASHPASS_LEVEL,
   canClaimDailyLadder, getOrRollDailyQuests,
@@ -13,7 +13,7 @@ import QuestsModal from "../components/QuestsModal";
 import BrawlerRankRewardsModal from "../components/BrawlerRankRewardsModal";
 import BrawlerViewer3D from "../components/BrawlerViewer3D";
 import HamburgerDrawer from "../components/HamburgerDrawer";
-import { isAdminUnlocked } from "../utils/mapEditorAPI";
+import { isAdminUnlocked, getPublishedMap, type EditorMode } from "../utils/mapEditorAPI";
 
 interface MainMenuProps {
   onPlay: () => void;
@@ -587,6 +587,78 @@ export default function MainMenu(props: MainMenuProps) {
   );
 }
 
+const TILE_THUMB_COLORS: Record<number, string> = {
+  0: "#5a8c44", 1: "#8B6060", 2: "#607060", 3: "#4CAF50",
+  4: "#1565C0", 5: "#BDBDBD", 6: "#C8A45A", 7: "#C2185B",
+  9: "#558B2F", 10: "#8D6E63", 11: "#78909C", 12: "#FDD835",
+};
+const THUMB_GS = 60; // grid cells
+const THUMB_PX = 3;  // pixels per cell
+
+function MapThumbnail({ modeId, color }: { modeId: string; color: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const cv = canvasRef.current;
+    if (!cv) return;
+    const ctx = cv.getContext("2d");
+    if (!ctx) return;
+    const pubMap = getPublishedMap(modeId as EditorMode);
+    const size = THUMB_GS * THUMB_PX;
+    ctx.clearRect(0, 0, size, size);
+    // background grass
+    ctx.fillStyle = TILE_THUMB_COLORS[0];
+    ctx.fillRect(0, 0, size, size);
+    if (!pubMap) {
+      // placeholder
+      ctx.fillStyle = "rgba(255,255,255,0.08)";
+      ctx.fillRect(0, 0, size, size);
+      ctx.fillStyle = "rgba(255,255,255,0.3)";
+      ctx.font = "22px serif";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText("🗺️", size / 2, size / 2);
+      return;
+    }
+    for (let y = 0; y < THUMB_GS; y++) {
+      for (let x = 0; x < THUMB_GS; x++) {
+        const t = pubMap.cells[y * THUMB_GS + x] ?? 0;
+        if (t !== 0) {
+          ctx.fillStyle = TILE_THUMB_COLORS[t] ?? "#888";
+          ctx.fillRect(x * THUMB_PX, y * THUMB_PX, THUMB_PX, THUMB_PX);
+        }
+      }
+    }
+    // Overlay dots
+    if (pubMap.overlays) {
+      for (let y = 0; y < THUMB_GS; y++) {
+        for (let x = 0; x < THUMB_GS; x++) {
+          const ov = pubMap.overlays[y * THUMB_GS + x] ?? 0;
+          if (ov !== 0) {
+            ctx.fillStyle = ov === 3 ? "#FF9800" : ov <= 2 ? (ov === 1 ? "#1976D2" : "#D32F2F") : "#9C27B0";
+            ctx.fillRect(x * THUMB_PX, y * THUMB_PX, THUMB_PX, THUMB_PX);
+          }
+        }
+      }
+    }
+  }, [modeId]);
+  const size = THUMB_GS * THUMB_PX;
+  const pubMap = getPublishedMap(modeId as EditorMode);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "center" }}>
+      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", letterSpacing: 1, textTransform: "uppercase" }}>
+        {pubMap ? pubMap.name : "Карта не загружена"}
+      </div>
+      <div style={{
+        borderRadius: 10, overflow: "hidden",
+        border: `2px solid ${color}55`,
+        boxShadow: `0 0 18px ${color}44`,
+        lineHeight: 0,
+      }}>
+        <canvas ref={canvasRef} width={size} height={size} style={{ display: "block", width: size, height: size }} />
+      </div>
+    </div>
+  );
+}
+
 function ModeInfoModal({ mode, onClose }: { mode: ModeInfo; onClose: () => void }) {
   return (
     <div
@@ -605,10 +677,11 @@ function ModeInfoModal({ mode, onClose }: { mode: ModeInfo; onClose: () => void 
           background: "linear-gradient(160deg, #160048 0%, #060025 100%)",
           border: `2px solid ${mode.color}`,
           borderRadius: 18, padding: 24,
-          maxWidth: 460, width: "100%",
+          maxWidth: 640, width: "100%",
           boxShadow: `0 0 50px ${mode.color}66, 0 10px 40px rgba(0,0,0,0.7)`,
           color: "white",
           position: "relative",
+          display: "flex", gap: 24, alignItems: "flex-start",
         }}
       >
         <button
@@ -621,52 +694,55 @@ function ModeInfoModal({ mode, onClose }: { mode: ModeInfo; onClose: () => void 
           }}
         >×</button>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
+        {/* Left: mode info */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
+            <div
+              style={{
+                width: 56, height: 56, borderRadius: 14,
+                background: mode.gradient,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 32,
+                boxShadow: `0 4px 14px ${mode.color}88`,
+                flexShrink: 0,
+              }}
+            >{mode.icon}</div>
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 900, color: mode.color, letterSpacing: 1 }}>
+                {mode.name}
+              </div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", letterSpacing: 1 }}>
+                {mode.subtitle.toUpperCase()}
+              </div>
+            </div>
+          </div>
+
           <div
             style={{
-              width: 56, height: 56, borderRadius: 14,
-              background: mode.gradient,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 32,
-              boxShadow: `0 4px 14px ${mode.color}88`,
+              background: "rgba(0,0,0,0.4)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: 12, padding: "10px 14px",
+              display: "flex", alignItems: "center", gap: 10,
+              marginBottom: 14,
             }}
-          >{mode.icon}</div>
-          <div>
-            <div style={{ fontSize: 22, fontWeight: 900, color: mode.color, letterSpacing: 1 }}>
-              {mode.name}
+          >
+            <span style={{ fontSize: 22 }}>👥</span>
+            <div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", letterSpacing: 1 }}>ФОРМАТ</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: mode.color }}>{mode.players}</div>
             </div>
-            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", letterSpacing: 1 }}>
-              {mode.subtitle.toUpperCase()}
-            </div>
+          </div>
+
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", letterSpacing: 1, marginBottom: 6 }}>
+            КАК ИГРАТЬ
+          </div>
+          <div style={{ fontSize: 14, lineHeight: 1.55, color: "rgba(255,255,255,0.92)" }}>
+            {mode.desc}
           </div>
         </div>
 
-        <div
-          style={{
-            background: "rgba(0,0,0,0.4)",
-            border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: 12, padding: "10px 14px",
-            display: "flex", alignItems: "center", gap: 10,
-            marginBottom: 14,
-          }}
-        >
-          <span style={{ fontSize: 22 }}>🗺️</span>
-          <div>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", letterSpacing: 1 }}>КАРТА</div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: "#FFD700" }}>{mode.mapName}</div>
-          </div>
-          <div style={{ marginLeft: "auto", textAlign: "right" }}>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", letterSpacing: 1 }}>ИГРОКИ</div>
-            <div style={{ fontSize: 13, fontWeight: 800, color: mode.color }}>{mode.players}</div>
-          </div>
-        </div>
-
-        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", letterSpacing: 1, marginBottom: 6 }}>
-          КАК ИГРАТЬ
-        </div>
-        <div style={{ fontSize: 14, lineHeight: 1.55, color: "rgba(255,255,255,0.92)" }}>
-          {mode.desc}
-        </div>
+        {/* Right: map thumbnail */}
+        <MapThumbnail modeId={mode.id} color={mode.color} />
       </div>
     </div>
   );

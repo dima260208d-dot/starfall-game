@@ -384,10 +384,15 @@ function EditorCore({ onBack }: { onBack: () => void }) {
     }
 
     // ── Pass 2: Tile models — back to front (row order = correct isometric depth) ─
-    // Overdraw fills the transparent border around each pre-rendered model so
-    // adjacent tiles appear perfectly seamless.
-    const SOLID_OD = cs * 0.30; // 30 % overdraw per side — closes transparent model margins
-    const BUSH_OD  = cs * 0.40; // 40 % overdraw per side for bush (diamond shape)
+    const SOLID_OD = cs * 0.30;
+    const BUSH_OD  = cs * 0.40;
+    const WATER_OD = cs * 0.55; // larger to fully close water tile gaps
+    // Tall solid tiles (wall, mountain, cactus, wood, stone, pyramid) use extra
+    // upward overdraw: since we draw back-to-front, the lower tile covers the
+    // upper tile's visible bottom edge — only the bottommost block shows its side.
+    const TALL_TILES = new Set([1, 2, 9, 10, 11, 12]);
+    // Line tiles (fence, bone) auto-rotate 90° when they only have vertical neighbors
+    const LINE_TILES = new Set([5, 6]);
 
     for (let gy = y0; gy <= y1; gy++) {
       for (let gx = x0; gx <= x1; gx++) {
@@ -402,11 +407,34 @@ function EditorCore({ onBack }: { onBack: () => void }) {
           const tileDef = (TILE_DEFS as readonly { type: number; color: string; icon: string }[]).find(d => d.type === t);
 
           if (modelCanvas) {
-            const isBush = t === 3;
-            const od = isBush ? BUSH_OD : SOLID_OD;
-            // All tiles rendered within their cell (+ overdraw on all sides, no upward overflow).
-            // This keeps cursor position perfectly aligned with the placed tile.
-            ctx.drawImage(modelCanvas, sx - od, sy - od, cs + od * 2, cs + od * 2);
+            if (LINE_TILES.has(t)) {
+              // Auto-detect orientation: vertical wins when only vertical neighbors present
+              const tAbove = gy > 0       ? cells.current[IDX(gx, gy - 1)] : 0;
+              const tBelow = gy < GS - 1  ? cells.current[IDX(gx, gy + 1)] : 0;
+              const tLeft  = gx > 0       ? cells.current[IDX(gx - 1, gy)] : 0;
+              const tRight = gx < GS - 1  ? cells.current[IDX(gx + 1, gy)] : 0;
+              const hasVert  = (tAbove === t || tBelow === t);
+              const hasHoriz = (tLeft  === t || tRight === t);
+              const isVertical = hasVert && !hasHoriz;
+              const od = SOLID_OD;
+              if (isVertical) {
+                ctx.save();
+                ctx.translate(sx + cs / 2, sy + cs / 2);
+                ctx.rotate(Math.PI / 2);
+                ctx.drawImage(modelCanvas, -cs / 2 - od, -cs / 2 - od, cs + od * 2, cs + od * 2);
+                ctx.restore();
+              } else {
+                ctx.drawImage(modelCanvas, sx - od, sy - od, cs + od * 2, cs + od * 2);
+              }
+            } else if (TALL_TILES.has(t)) {
+              // Asymmetric overdraw: big upward so lower tiles cover upper tiles' bottom edges
+              const odSide = SOLID_OD;
+              const odTop  = cs * 0.65;
+              ctx.drawImage(modelCanvas, sx - odSide, sy - odTop, cs + odSide * 2, cs + odTop + odSide);
+            } else {
+              const od = t === 3 ? BUSH_OD : t === 4 ? WATER_OD : SOLID_OD;
+              ctx.drawImage(modelCanvas, sx - od, sy - od, cs + od * 2, cs + od * 2);
+            }
           } else {
             // Models not loaded yet — fallback flat colour + icon
             ctx.fillStyle = tileDef?.color ?? "#888";
@@ -503,8 +531,11 @@ function EditorCore({ onBack }: { onBack: () => void }) {
     const resize = () => {
       const c = canvasRef.current;
       if (!c) return;
-      c.width  = c.parentElement?.clientWidth  ?? window.innerWidth;
-      c.height = c.parentElement?.clientHeight ?? window.innerHeight;
+      const pw = c.parentElement?.clientWidth  ?? window.innerWidth;
+      const ph = c.parentElement?.clientHeight ?? window.innerHeight;
+      if (pw === 0 || ph === 0) return; // layout not settled yet
+      c.width  = pw;
+      c.height = ph;
       // On first load, zoom so the full 60-cell map fills the canvas width
       if (!initialCamSet.current) {
         initialCamSet.current = true;
@@ -516,9 +547,15 @@ function EditorCore({ onBack }: { onBack: () => void }) {
       clampCam();
       redraw();
     };
-    resize();
+    // Defer so parent flex container has settled to its final dimensions
+    const rafId = requestAnimationFrame(resize);
     window.addEventListener("resize", resize);
-    return () => window.removeEventListener("resize", resize);
+    document.addEventListener("fullscreenchange", resize);
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener("resize", resize);
+      document.removeEventListener("fullscreenchange", resize);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
