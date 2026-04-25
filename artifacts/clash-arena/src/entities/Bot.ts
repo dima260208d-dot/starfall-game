@@ -226,8 +226,10 @@ export class Bot extends Brawler {
         const wy = Math.sin(this.wanderAngle);
         const steered = this.steerAroundWalls(wx, wy, map, tileGrid);
         if (steered.x === 0 && steered.y === 0) {
-          this.wanderAngle += Math.PI / 2 + randomFloat(-0.5, 0.5);
+          // Completely blocked — pick a new random direction immediately and skip movement
+          this.wanderAngle = Math.random() * Math.PI * 2;
           this.wanderTimer = randomFloat(0.5, 1.5);
+          break;
         }
         this.move(steered.x, steered.y, dt * 0.6);
         break;

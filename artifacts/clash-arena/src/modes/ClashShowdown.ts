@@ -11,11 +11,12 @@ import { renderMap } from "../game/MapRenderer";
 import { angleTo, autoAimAngle, distance, randomInt } from "../utils/helpers";
 import { recordGameResult, getCurrentUsername } from "../utils/localStorageAPI";
 import {
-  TileGrid, generateShowdownTileGrid,
+  TileGrid, TILE_CELL_SIZE, generateShowdownTileGrid,
   collidesWithTileGrid, projectileBlockedByTile,
   getTileHealRate, isTileInBush,
   destroyTile, nearestGrassTile,
 } from "../game/TileMap";
+import { getPublishedMap, OV } from "../utils/mapEditorAPI";
 
 export interface DropItem {
   x: number;
@@ -66,32 +67,64 @@ export class ClashShowdown {
     this.map.tileGrid = this.tileGrid;
     this.spriteLoaded = spriteLoaded;
 
+    // ── Load published map if one exists ──────────────────────────────────
+    const pubMap = getPublishedMap("showdown");
+    if (pubMap && pubMap.cells && pubMap.cells.length === 60 * 60) {
+      for (let i = 0; i < pubMap.cells.length; i++) {
+        this.tileGrid.cells[i] = pubMap.cells[i];
+      }
+      this.map.name = pubMap.name;
+    }
+
     const playerStats = getBrawlerById(playerBrawlerId) || BRAWLERS[0];
 
-    const spawnPadding = 350;
-    const usedPositions: Array<{ x: number; y: number }> = [];
+    // ── Collect spawn positions from SPAWN_SD overlays (published map) ────
+    let overlaySpawns: Array<{ x: number; y: number }> = [];
+    if (pubMap && pubMap.overlays && pubMap.overlays.length === 60 * 60) {
+      for (let i = 0; i < pubMap.overlays.length; i++) {
+        if (pubMap.overlays[i] === OV.SPAWN_SD) {
+          const tx = i % 60;
+          const ty = Math.floor(i / 60);
+          overlaySpawns.push({ x: (tx + 0.5) * TILE_CELL_SIZE, y: (ty + 0.5) * TILE_CELL_SIZE });
+        }
+      }
+      // Shuffle so every game picks a random subset of spawn points
+      overlaySpawns = overlaySpawns.sort(() => Math.random() - 0.5);
+    }
+
     const totalSlots = 10;
-    const slotOffset = Math.random() * Math.PI * 2;
     const allPositions: Array<{ x: number; y: number }> = [];
-    for (let i = 0; i < totalSlots; i++) {
-      let sx = 0, sy = 0;
-      let attempts = 0;
-      do {
-        const angle = (i / totalSlots) * Math.PI * 2 + slotOffset + (Math.random() - 0.5) * 0.4;
-        const ringDist = 700 + Math.random() * 400;
-        sx = Math.round(1500 + Math.cos(angle) * ringDist);
-        sy = Math.round(1500 + Math.sin(angle) * ringDist);
-        sx = Math.max(200, Math.min(this.map.width - 200, sx));
-        sy = Math.max(200, Math.min(this.map.height - 200, sy));
-        attempts++;
-      } while (
-        usedPositions.some(p => Math.abs(p.x - sx) < spawnPadding && Math.abs(p.y - sy) < spawnPadding) &&
-        attempts < 50
-      );
-      const snapped = nearestGrassTile(this.tileGrid, sx, sy);
-      sx = snapped.x; sy = snapped.y;
-      usedPositions.push({ x: sx, y: sy });
-      allPositions.push({ x: sx, y: sy });
+
+    if (overlaySpawns.length >= 2) {
+      // Use map-defined spawn points, cycling if there are fewer than 10
+      for (let i = 0; i < totalSlots; i++) {
+        allPositions.push(overlaySpawns[i % overlaySpawns.length]);
+      }
+    } else {
+      // Procedural fallback: ring of positions around the centre
+      const spawnPadding = 350;
+      const usedPositions: Array<{ x: number; y: number }> = [];
+      const slotOffset = Math.random() * Math.PI * 2;
+      for (let i = 0; i < totalSlots; i++) {
+        let sx = 0, sy = 0;
+        let attempts = 0;
+        do {
+          const angle = (i / totalSlots) * Math.PI * 2 + slotOffset + (Math.random() - 0.5) * 0.4;
+          const ringDist = 700 + Math.random() * 400;
+          sx = Math.round(1500 + Math.cos(angle) * ringDist);
+          sy = Math.round(1500 + Math.sin(angle) * ringDist);
+          sx = Math.max(200, Math.min(this.map.width - 200, sx));
+          sy = Math.max(200, Math.min(this.map.height - 200, sy));
+          attempts++;
+        } while (
+          usedPositions.some(p => Math.abs(p.x - sx) < spawnPadding && Math.abs(p.y - sy) < spawnPadding) &&
+          attempts < 50
+        );
+        const snapped = nearestGrassTile(this.tileGrid, sx, sy);
+        sx = snapped.x; sy = snapped.y;
+        usedPositions.push({ x: sx, y: sy });
+        allPositions.push({ x: sx, y: sy });
+      }
     }
 
     // Pick a random slot for the player; the rest go to bots.
@@ -592,13 +625,7 @@ export class ClashShowdown {
     ctx.font = "bold 11px Arial";
     ctx.fillText(this.player.superReady ? "СУПЕР ГОТОВ! [E]" : "Заряжаем супер...", 20, 73);
     
-    const aliveCount = this.bots.filter(b => b.alive).length;
-    ctx.fillStyle = "rgba(0,0,0,0.6)";
-    ctx.fillRect(1050, 10, 140, 40);
-    ctx.fillStyle = "#FF5252";
-    ctx.font = "bold 14px Arial";
-    ctx.textAlign = "right";
-    ctx.fillText(`Враги: ${aliveCount}`, 1185, 36);
+    // Enemy count shown in minimap panel — no separate top-right overlay needed
     
     // Ammo dots are now drawn above the brawler (under the HP bar) by Brawler.render().
 

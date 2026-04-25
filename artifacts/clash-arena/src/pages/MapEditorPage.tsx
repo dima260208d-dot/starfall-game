@@ -386,8 +386,8 @@ function EditorCore({ onBack }: { onBack: () => void }) {
     // ── Pass 2: Tile models — back to front (row order = correct isometric depth) ─
     // Overdraw fills the transparent border around each pre-rendered model so
     // adjacent tiles appear perfectly seamless.
-    const SOLID_OD = cs * 0.10; // 10 % overdraw per side for solid tiles
-    const BUSH_OD  = cs * 0.22; // 22 % overdraw per side for bush (diamond shape)
+    const SOLID_OD = cs * 0.30; // 30 % overdraw per side — closes transparent model margins
+    const BUSH_OD  = cs * 0.40; // 40 % overdraw per side for bush (diamond shape)
 
     for (let gy = y0; gy <= y1; gy++) {
       for (let gx = x0; gx <= x1; gx++) {
@@ -505,11 +505,12 @@ function EditorCore({ onBack }: { onBack: () => void }) {
       if (!c) return;
       c.width  = c.parentElement?.clientWidth  ?? window.innerWidth;
       c.height = c.parentElement?.clientHeight ?? window.innerHeight;
-      // On first load, center the map so it fills the visible viewport
+      // On first load, zoom so the full 60-cell map fills the canvas width
       if (!initialCamSet.current) {
         initialCamSet.current = true;
+        zoom.current = Math.max(6, Math.min(24, Math.floor(c.width / GS)));
         const mapPx = GS * zoom.current;
-        camX.current = Math.max(0, (mapPx - c.width)  / 2);
+        camX.current = 0;
         camY.current = Math.max(0, (mapPx - c.height) / 2);
       }
       clampCam();

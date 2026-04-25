@@ -77,6 +77,7 @@ export class Brawler {
   
   inBush = false;
   inRiver = false;
+  bushRevealTimer = 0; // > 0 while briefly visible after attacking from a bush
   
   turret: Brawler | null = null;
   
@@ -179,6 +180,7 @@ export class Brawler {
     if (this.superAnim > 0) this.superAnim -= dt * 2;
     
     if (this.hitFlash > 0) this.hitFlash -= dt * 3;
+    if (this.bushRevealTimer > 0) this.bushRevealTimer -= dt;
     if (this.invulnerable) {
       this.invulnerableTimer -= dt;
       if (this.invulnerableTimer <= 0) this.invulnerable = false;
@@ -350,6 +352,9 @@ export class Brawler {
     const projs: Projectile[] = [];
     const spd = 400;
     const dmg = this.scaledDamage;
+    
+    // Shooting from a bush briefly reveals the brawler to enemies (0.8s)
+    if (this.inBush) this.bushRevealTimer = 0.8;
     
     this.useAttackCharge();
 
@@ -904,12 +909,12 @@ export class Brawler {
     if (sx < -this.radius * 2 || sx > 1200 + this.radius * 2) return;
     if (sy < -this.radius * 2 || sy > 800 + this.radius * 2) return;
     
-    // Hide enemies in bushes completely until a friendly is close enough
+    // Hide enemies in bushes — revealed only when a friendly is close or they shot recently
     const isEnemyToViewer = viewerTeam !== undefined && !this.isPlayer && this.team !== viewerTeam;
     if (this.alive && this.inBush && isEnemyToViewer) {
       const REVEAL_RADIUS = 140;
-      let revealed = false;
-      if (friendlies) {
+      let revealed = this.bushRevealTimer > 0; // briefly visible after shooting
+      if (!revealed && friendlies) {
         for (const f of friendlies) {
           const ddx = f.x - this.x;
           const ddy = f.y - this.y;

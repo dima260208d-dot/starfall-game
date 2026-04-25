@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { GameMode } from "../App";
 
-interface Brawler { x: number; y: number; alive: boolean; stats?: { id?: string }; hp?: number; maxHp?: number; }
+interface Brawler { x: number; y: number; alive: boolean; inBush?: boolean; stats?: { id?: string }; hp?: number; maxHp?: number; }
 interface GameInstance {
   player: Brawler;
   bots?: Brawler[];
@@ -68,8 +68,9 @@ export default function MiniMap({ gameRef, mode }: Props) {
 
       const allies: Brawler[] = (game.allies ?? []).filter(b => b.alive);
 
-      // Draw enemies as red dots
+      // Draw enemies as red dots — hide if they are in a bush (same as in-game visibility)
       for (const b of enemies) {
+        if (b.inBush) continue;
         const ex = b.x * scale;
         const ey = b.y * scale;
         ctx.beginPath();
