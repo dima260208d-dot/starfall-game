@@ -1,7 +1,12 @@
 /**
- * Preloads every GLB model used by the game so they are already cached when
- * the first gameplay screen opens.  Call this during the boot loading screen
- * and pass an onProgress callback to drive the real progress bar.
+ * Preloads GLB models used by the game.
+ *
+ * Strategy:
+ *  – Brawler / chest / resource models are awaited on the loading screen so
+ *    the main menu and reveal animations are ready immediately.
+ *  – Tile models (large terrain GLBs) and the platform tile are fired off in
+ *    the background the moment the loading screen starts.  They resolve when
+ *    ready; the tile renderer already falls back to solid colours until then.
  */
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { loadGLTFCached, MODEL_URLS } from "../components/BrawlerRevealModal";
@@ -29,23 +34,32 @@ export async function preloadAllModels(
 ): Promise<void> {
   const b = base.endsWith("/") ? base : `${base}/`;
 
+  // Start tile + platform loading immediately in the background (non-blocking).
+  // These resolve asynchronously; the map renderer uses solid-colour fallbacks
+  // until the 3-D tiles are ready.
+  loadAllTileModels();
+  loadPlatformTile();
+
+  // Only these tasks gate the loading screen.
   const brawlerTasks = Object.values(MODEL_URLS).map((m) =>
     loadGLTFCached(`${b}${m.url}`),
   );
   const chestTasks = Object.values(CHEST_MODELS).map((path) =>
     loadChestCached(`${b}${path}`),
   );
-  const resourceTasks = (["models/coin.glb", "models/gem.glb", "models/powerpoint.glb"] as const).map(
-    (p) => loadResourceCached(`${b}${p}`),
-  );
-  // Tile GLBs + platform tile — must be ready before Showdown starts
-  const tileTasks: Promise<unknown>[] = [loadAllTileModels(), loadPlatformTile()];
+  const resourceTasks = (
+    ["models/coin.glb", "models/gem.glb", "models/powerpoint.glb"] as const
+  ).map((p) => loadResourceCached(`${b}${p}`));
 
-  const allTasks: Promise<unknown>[] = [...brawlerTasks, ...chestTasks, ...resourceTasks, ...tileTasks];
+  const allTasks: Promise<unknown>[] = [
+    ...brawlerTasks,
+    ...chestTasks,
+    ...resourceTasks,
+  ];
   const total = allTasks.length;
   let done = 0;
 
-  onProgress(0.04); // immediate 4 % so the bar doesn't look stuck at 0
+  onProgress(0.04); // immediate 4 % so the bar never looks stuck at zero
 
   await Promise.all(
     allTasks.map((task) =>

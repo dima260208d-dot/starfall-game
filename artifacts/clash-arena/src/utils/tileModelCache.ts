@@ -142,17 +142,32 @@ export function loadAllTileModels(): Promise<void> {
 
     const entries = Object.entries(TILE_MODEL) as [string, string][];
 
-    // Load and render each model one at a time so we don't create too many
-    // simultaneous fetches, and so each render pass starts from a clean state.
-    for (const [typeStr, filename] of entries) {
-      const type = Number(typeStr);
-      const fallback = TILE_FALLBACK_COLOR[type] ?? "#888888";
-      const url = `${base}/models/${filename}`;
-      try {
+    // Fetch all GLBs in parallel so network latency for multiple files overlaps.
+    const fetched = await Promise.allSettled(
+      entries.map(async ([typeStr, filename]) => {
+        const type = Number(typeStr);
+        const url = `${base}/models/${filename}`;
         const loader = new GLTFLoader();
         const gltf = await new Promise<any>((res, rej) =>
           loader.load(url, res, undefined, rej)
         );
+        return { type, gltf };
+      })
+    );
+
+    // Render each loaded model sequentially through the shared WebGL renderer
+    // (the renderer is single-context — concurrent render calls would collide).
+    for (let i = 0; i < fetched.length; i++) {
+      const result = fetched[i];
+      const type = Number(entries[i][0]);
+      const fallback = TILE_FALLBACK_COLOR[type] ?? "#888888";
+
+      if (result.status === "rejected") {
+        cache.set(type, makeFallback(fallback));
+        continue;
+      }
+      try {
+        const { gltf } = result.value;
         const model = gltf.scene.clone(true);
         fixMaterials(model);
 
