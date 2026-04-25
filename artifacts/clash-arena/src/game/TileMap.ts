@@ -14,6 +14,7 @@ export enum TileType {
   CACTUS = 9,
   WOOD = 10,
   SAND_WALL = 11,
+  PYRAMID = 12,
 }
 
 export interface TileProps {
@@ -27,17 +28,18 @@ export interface TileProps {
 
 export const TILE_PROPS: Record<number, TileProps> = {
   [TileType.GRASS]:      { walkable: true,  shootThrough: true,  destructible: false, soraDestructible: false, healRate: 0,   cover: false },
-  [TileType.WALL]:       { walkable: false, shootThrough: false, destructible: false, soraDestructible: true,  healRate: 0,   cover: false },
+  [TileType.WALL]:       { walkable: false, shootThrough: false, destructible: false, soraDestructible: false, healRate: 0,   cover: false },
   [TileType.MOUNTAIN]:   { walkable: false, shootThrough: false, destructible: false, soraDestructible: false, healRate: 0,   cover: false },
   [TileType.BUSH]:       { walkable: true,  shootThrough: true,  destructible: false, soraDestructible: false, healRate: 0,   cover: true  },
   [TileType.WATER]:      { walkable: false, shootThrough: true,  destructible: false, soraDestructible: false, healRate: 0,   cover: false },
   [TileType.DECORATION]: { walkable: false, shootThrough: false, destructible: true,  soraDestructible: true,  healRate: 0,   cover: false },
   [TileType.FENCE]:      { walkable: false, shootThrough: true,  destructible: false, soraDestructible: false, healRate: 0,   cover: false },
   [TileType.HEAL]:       { walkable: true,  shootThrough: true,  destructible: false, soraDestructible: false, healRate: 500, cover: false },
-  [TileType.TREE]:       { walkable: false, shootThrough: false, destructible: false, soraDestructible: true,  healRate: 0,   cover: false },
-  [TileType.CACTUS]:     { walkable: false, shootThrough: false, destructible: false, soraDestructible: true,  healRate: 0,   cover: false },
-  [TileType.WOOD]:       { walkable: false, shootThrough: false, destructible: true,  soraDestructible: true,  healRate: 0,   cover: false },
-  [TileType.SAND_WALL]:  { walkable: false, shootThrough: false, destructible: false, soraDestructible: true,  healRate: 0,   cover: false },
+  [TileType.TREE]:       { walkable: false, shootThrough: false, destructible: false, soraDestructible: false, healRate: 0,   cover: false },
+  [TileType.CACTUS]:     { walkable: false, shootThrough: false, destructible: false, soraDestructible: false, healRate: 0,   cover: false },
+  [TileType.WOOD]:       { walkable: false, shootThrough: false, destructible: false, soraDestructible: false, healRate: 0,   cover: false },
+  [TileType.SAND_WALL]:  { walkable: false, shootThrough: false, destructible: false, soraDestructible: false, healRate: 0,   cover: false },
+  [TileType.PYRAMID]:    { walkable: false, shootThrough: false, destructible: false, soraDestructible: false, healRate: 0,   cover: false },
 };
 
 export interface TileGrid {
@@ -274,11 +276,12 @@ export function generateShowdownTileGrid(seedVal = Date.now()): TileGrid {
     }
   }
 
-  const numTrees = 7 + Math.floor(lcg(seed) * 10);
-  for (let i = 0; i < numTrees; i++) {
+  // Trees removed — replaced by pyramid blocks scattered across the map
+  const numPyramids = 6 + Math.floor(lcg(seed) * 8);
+  for (let i = 0; i < numPyramids; i++) {
     const tx = 4 + Math.floor(lcg(seed) * (W - 8));
     const ty = 4 + Math.floor(lcg(seed) * (H - 8));
-    if (getTile(grid, tx, ty) === TileType.GRASS) setTile(grid, tx, ty, TileType.TREE);
+    if (getTile(grid, tx, ty) === TileType.GRASS) setTile(grid, tx, ty, TileType.PYRAMID);
   }
 
   const numCacti = 5 + Math.floor(lcg(seed) * 7);

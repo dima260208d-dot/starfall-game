@@ -1,6 +1,6 @@
 import { getPlatformTileCanvas } from "../utils/platformTile";
 import { TileGrid, TileType, getTile, TILE_PROPS } from "./TileMap";
-import { getTileCanvas } from "../utils/tileModelCache";
+import { getTileCanvas, TALL_TILE_TYPES, PYRAMID_TILE } from "../utils/tileModelCache";
 
 export interface Wall {
   x: number;
@@ -487,10 +487,16 @@ export function renderTileGrid(
   bushLayer: boolean
 ): void {
   const C = grid.cellSize;
+  // Extra rows above viewport needed for tall blocks that overflow upward
+  const TALL_ROWS_ABOVE = 3;
   const startTX = Math.max(0, Math.floor(camX / C));
   const endTX = Math.min(grid.width - 1, Math.ceil((camX + canvasW) / C));
-  const startTY = Math.max(0, Math.floor(camY / C));
+  const startTY = Math.max(0, Math.floor(camY / C) - TALL_ROWS_ABOVE);
   const endTY = Math.min(grid.height - 1, Math.ceil((camY + canvasH) / C));
+
+  // TALL_OVERFLOW: fraction of C that tall block models extend above their cell.
+  // Value tuned so models look natural without floating.
+  const TALL_OVERFLOW = C * 0.9;
 
   for (let tx = startTX; tx <= endTX; tx++) {
     for (let ty = startTY; ty <= endTY; ty++) {
@@ -517,26 +523,35 @@ export function renderTileGrid(
       const tileCanvas = getTileCanvas(type);
       if (tileCanvas) {
         if (isBush) {
-          // Overflow bush tiles so the model fills the cell with no gaps
-          const ov = C * 0.28;
+          // Grass/bush tiles: slight overflow on all sides for gapless coverage
+          const ov = C * 0.15;
+          ctx.drawImage(tileCanvas, sx - ov, sy - ov, C + ov * 2, C + ov * 2);
+        } else if (TALL_TILE_TYPES.has(type)) {
+          // Tall blocks overflow upward — occupy cell footprint but reach up
+          ctx.drawImage(tileCanvas, sx, sy - TALL_OVERFLOW, C, C + TALL_OVERFLOW);
+        } else if (type === TileType.WATER) {
+          // Water: tiny overflow on sides to close gaps in the river
+          const ov = C * 0.06;
           ctx.drawImage(tileCanvas, sx - ov, sy - ov, C + ov * 2, C + ov * 2);
         } else {
+          // Flat tiles (heal barrel, etc.) fill their cell exactly
           ctx.drawImage(tileCanvas, sx, sy, C, C);
         }
       } else {
         const props = TILE_PROPS[type];
         const colors: Record<number, string> = {
-          [TileType.WALL]:       "#6E6E6E",
-          [TileType.MOUNTAIN]:   "#404040",
-          [TileType.BUSH]:       "#2D7A2D",
+          [TileType.WALL]:       "#8B6060",
+          [TileType.MOUNTAIN]:   "#607060",
+          [TileType.BUSH]:       "#4CAF50",
           [TileType.WATER]:      "#1565C0",
-          [TileType.DECORATION]: "#8B4513",
+          [TileType.DECORATION]: "#E0E0E0",
           [TileType.FENCE]:      "#C8A45A",
           [TileType.HEAL]:       "#C2185B",
           [TileType.TREE]:       "#1B5E20",
           [TileType.CACTUS]:     "#558B2F",
-          [TileType.WOOD]:       "#A0522D",
-          [TileType.SAND_WALL]:  "#C2A04A",
+          [TileType.WOOD]:       "#8D6E63",
+          [TileType.SAND_WALL]:  "#78909C",
+          [PYRAMID_TILE]:        "#FDD835",
         };
         void props;
         ctx.fillStyle = colors[type] ?? "#888";

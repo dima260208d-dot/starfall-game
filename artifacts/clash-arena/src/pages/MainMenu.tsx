@@ -276,33 +276,6 @@ export default function MainMenu(props: MainMenuProps) {
         </div>
       </div>
 
-      {/* TOP-CENTER: title on a bright panel so it pops against the radial bg */}
-      <div style={{
-        position: "absolute", top: compact ? 8 : 14, left: "50%", transform: "translateX(-50%)",
-        zIndex: 5, pointerEvents: "none",
-        textAlign: "center",
-      }}>
-        <div style={{
-          display: "inline-flex", flexDirection: "column", alignItems: "center",
-          padding: compact ? "5px 16px 6px" : "10px 32px 12px",
-          background: "linear-gradient(135deg, #CE93D8 0%, #FFD700 50%, #40C4FF 100%)",
-          backgroundSize: "200% auto", animation: "shimmer 4s linear infinite",
-          borderRadius: compact ? 12 : 18,
-          boxShadow: "0 0 50px rgba(206,147,216,0.55), 0 6px 22px rgba(0,0,0,0.5)",
-          border: "2px solid rgba(255,255,255,0.35)",
-        }}>
-          <div style={{
-            fontSize: compact ? 22 : 44, fontWeight: 900, color: "white",
-            letterSpacing: compact ? 4 : 8, lineHeight: 1,
-            textShadow: "0 2px 10px rgba(0,0,0,0.55), 0 0 18px rgba(255,255,255,0.4)",
-          }}>CLASH</div>
-          <div style={{
-            fontSize: compact ? 9 : 16, fontWeight: 800, color: "white",
-            letterSpacing: compact ? 6 : 12, marginTop: 2,
-            textShadow: "0 2px 8px rgba(0,0,0,0.55)",
-          }}>ARENA</div>
-        </div>
-      </div>
 
       {/* CENTER: brawler showcase */}
       <div style={{
@@ -350,15 +323,6 @@ export default function MainMenu(props: MainMenuProps) {
             <PowerPill level={brawlerLevel} />
             <span style={{ color: "#FFD700", fontSize: 12, fontWeight: 800, display: "inline-flex", alignItems: "center", gap: 3 }}><TrophyIcon size={12} /> {brawlerTrophies}</span>
           </button>
-          <div style={{
-            position: "absolute", bottom: -52, left: "50%", transform: "translateX(-50%)",
-            background: "rgba(0,0,0,0.55)", border: `1px solid ${brawler.color}`,
-            borderRadius: 12, padding: "6px 18px",
-            fontSize: 18, fontWeight: 800, color: brawler.color,
-            letterSpacing: 2, whiteSpace: "nowrap",
-          }}>
-            {brawler.name.toUpperCase()}
-          </div>
         </div>
       </div>
 

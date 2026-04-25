@@ -441,88 +441,109 @@ export class Brawler {
       }
       case "zafkiel": {
         const cIdx = this.zafkielChargeIdx % 3;
+        // Muzzle origin slightly ahead of the caster
+        const muzzleX = this.x + Math.cos(angle) * 18;
+        const muzzleY = this.y + Math.sin(angle) * 18;
+
         if (this.zafkielMode === "normal") {
-          // Dalet (0): temporal rewind — grey beam, slow + rewind
-          // Bet   (1): dark-blue, slow -40%
-          // Zayin (2): purple beam, stun 0.6s
           if (cIdx === 0) {
-            // Dalet — grey ash beam with temporal rewind
+            // ── Dalet: temporal ash beam — grey-white, slow + rewind ──
             projs.push(createProjectile({
               x: this.x, y: this.y,
               vx: Math.cos(angle) * 380, vy: Math.sin(angle) * 380,
-              radius: 10, damage: 300,
+              radius: 11, damage: 300,
               speed: 380, range: this.stats.attackRange,
               ownerId: this.id, ownerTeam: this.team,
-              color: "#B0BEC5", type: "beam", piercing: false,
+              color: "#ECEFF1", type: "beam", piercing: false,
               slow: true, temporalRewind: 1.0,
             }));
-            spawnEffect({ kind: "burst", x: this.x, y: this.y, radius: 22, color: "#CFD8DC", timer: 0.3, maxTimer: 0.3 });
+            // Ghostly muzzle burst — clockface particles
+            spawnEffect({ kind: "burst", x: muzzleX, y: muzzleY, radius: 28, color: "#CFD8DC", timer: 0.35, maxTimer: 0.35, secondary: "#90A4AE" });
+            // Pale shockwave ring around caster
+            spawnEffect({ kind: "shockwave", x: this.x, y: this.y, radius: 18, color: "#B0BEC5", timer: 0.22, maxTimer: 0.22 });
+            // Trailing clock-hand spark along fire direction
+            spawnEffect({ kind: "trail", x: this.x, y: this.y, toX: muzzleX + Math.cos(angle) * 40, toY: muzzleY + Math.sin(angle) * 40, radius: 3, color: "#E0E0E0", timer: 0.18, maxTimer: 0.18 });
           } else if (cIdx === 1) {
-            // Bet — dark-blue, heavy slow
+            // ── Bet: deep-blue slow orb ──
             projs.push(createProjectile({
               x: this.x, y: this.y,
               vx: Math.cos(angle) * 360, vy: Math.sin(angle) * 360,
-              radius: 11, damage: 350,
+              radius: 13, damage: 350,
               speed: 360, range: this.stats.attackRange,
               ownerId: this.id, ownerTeam: this.team,
-              color: "#1565C0", type: "snowball", piercing: false,
+              color: "#1E88E5", type: "snowball", piercing: false,
               slow: true,
             }));
+            // Frosty muzzle burst with cyan inner glow
+            spawnEffect({ kind: "burst", x: muzzleX, y: muzzleY, radius: 26, color: "#42A5F5", timer: 0.30, maxTimer: 0.30, secondary: "#0D47A1" });
+            spawnEffect({ kind: "shockwave", x: this.x, y: this.y, radius: 16, color: "#1565C0", timer: 0.20, maxTimer: 0.20 });
           } else {
-            // Zayin — purple beam, stun
+            // ── Zayin: purple stun beam ──
             projs.push(createProjectile({
               x: this.x, y: this.y,
               vx: Math.cos(angle) * 340, vy: Math.sin(angle) * 340,
-              radius: 10, damage: 450,
+              radius: 11, damage: 450,
               speed: 340, range: this.stats.attackRange,
               ownerId: this.id, ownerTeam: this.team,
-              color: "#7B1FA2", type: "beam", piercing: false,
+              color: "#9C27B0", type: "beam", piercing: false,
               stunDuration: 0.6,
             }));
-            spawnEffect({ kind: "burst", x: this.x, y: this.y, radius: 20, color: "#9C27B0", timer: 0.28, maxTimer: 0.28 });
+            spawnEffect({ kind: "burst", x: muzzleX, y: muzzleY, radius: 30, color: "#CE93D8", timer: 0.35, maxTimer: 0.35, secondary: "#6A1B9A" });
+            // Lightning snap along attack direction
+            spawnEffect({ kind: "lightningBolt", x: this.x, y: this.y, toX: muzzleX + Math.cos(angle) * 55, toY: muzzleY + Math.sin(angle) * 55, radius: 4, color: "#E040FB", timer: 0.18, maxTimer: 0.18 });
+            spawnEffect({ kind: "shockwave", x: this.x, y: this.y, radius: 20, color: "#7B1FA2", timer: 0.25, maxTimer: 0.25 });
           }
         } else {
-          // Enhanced mode (after super)
-          // Aleph (0): 2× speed, red beam
-          // Gimmel (1): gold-green, poison
-          // Yud   (2): orange, homing
+          // ── Enhanced mode (after Врата Вечности super) ──
           if (cIdx === 0) {
+            // Aleph: blazing red hyper-beam (2× speed, deep pierce)
             projs.push(createProjectile({
               x: this.x, y: this.y,
               vx: Math.cos(angle) * 760, vy: Math.sin(angle) * 760,
-              radius: 9, damage: 350,
+              radius: 10, damage: 380,
               speed: 760, range: this.stats.attackRange * 1.2,
               ownerId: this.id, ownerTeam: this.team,
               color: "#FF1744", type: "beam", piercing: false,
             }));
-            spawnEffect({ kind: "burst", x: this.x, y: this.y, radius: 20, color: "#FF5252", timer: 0.2, maxTimer: 0.2 });
+            spawnEffect({ kind: "burst", x: muzzleX, y: muzzleY, radius: 28, color: "#FF5252", timer: 0.22, maxTimer: 0.22, secondary: "#B71C1C" });
+            spawnEffect({ kind: "lightningBolt", x: this.x, y: this.y, toX: muzzleX + Math.cos(angle) * 60, toY: muzzleY + Math.sin(angle) * 60, radius: 5, color: "#FF6D00", timer: 0.16, maxTimer: 0.16 });
+            spawnEffect({ kind: "shockwave", x: this.x, y: this.y, radius: 22, color: "#D50000", timer: 0.22, maxTimer: 0.22 });
           } else if (cIdx === 1) {
+            // Gimmel: lime-gold poison dagger
             projs.push(createProjectile({
               x: this.x, y: this.y,
               vx: Math.cos(angle) * 380, vy: Math.sin(angle) * 380,
-              radius: 10, damage: 300,
+              radius: 11, damage: 300,
               speed: 380, range: this.stats.attackRange,
               ownerId: this.id, ownerTeam: this.team,
               color: "#AEEA00", type: "dagger", piercing: false,
               poison: true,
             }));
+            spawnEffect({ kind: "burst", x: muzzleX, y: muzzleY, radius: 26, color: "#CCFF90", timer: 0.30, maxTimer: 0.30, secondary: "#33691E" });
+            // Poison cloud wisps
+            spawnEffect({ kind: "spark", x: muzzleX, y: muzzleY, radius: 14, color: "#76FF03", timer: 0.40, maxTimer: 0.40 });
+            spawnEffect({ kind: "shockwave", x: this.x, y: this.y, radius: 16, color: "#AEEA00", timer: 0.20, maxTimer: 0.20 });
           } else {
-            // Yud — homing, extended range
+            // Yud: amber homing orb — locks on and chases
             projs.push(createProjectile({
               x: this.x, y: this.y,
               vx: Math.cos(angle) * 360, vy: Math.sin(angle) * 360,
-              radius: 13, damage: 400,
+              radius: 14, damage: 400,
               speed: 360, range: this.stats.attackRange * 1.5,
               ownerId: this.id, ownerTeam: this.team,
-              color: "#FF8F00", type: "bullet", piercing: false,
+              color: "#FFAB00", type: "bullet", piercing: false,
               homing: true,
             }));
+            spawnEffect({ kind: "burst", x: muzzleX, y: muzzleY, radius: 30, color: "#FFD740", timer: 0.35, maxTimer: 0.35, secondary: "#E65100" });
+            spawnEffect({ kind: "shockwave", x: this.x, y: this.y, radius: 24, color: "#FF8F00", timer: 0.28, maxTimer: 0.28 });
           }
-          // After all 3 enhanced charges, reset to normal
+          // After all 3 enhanced charges, cycle returns to normal
           if (cIdx === 2) {
             this.zafkielMode = "normal";
             this.zafkielChargeIdx = 0;
-            spawnEffect({ kind: "shockwave", x: this.x, y: this.y, radius: 30, color: "#9C27B0", timer: 0.4, maxTimer: 0.4 });
+            // Grand cycle-end visual: double shockwave + burst
+            spawnEffect({ kind: "shockwave", x: this.x, y: this.y, radius: 40, color: "#7C4DFF", timer: 0.5, maxTimer: 0.5 });
+            spawnEffect({ kind: "burst",     x: this.x, y: this.y, radius: 36, color: "#B388FF", timer: 0.4, maxTimer: 0.4 });
             break;
           }
         }
@@ -830,29 +851,37 @@ export class Brawler {
           }
         }
 
-        // Gate zone visual
+        // ── Врата Вечности: layered gate-opening visual ──
+        // 1. Outer golden shockwave — announces the gate
+        spawnEffect({ kind: "shockwave", x: superX, y: superY, radius: superRadius * 1.2, color: "#FFD700", timer: 0.55, maxTimer: 0.55 });
+        // 2. Inner dark-purple shockwave
+        spawnEffect({ kind: "shockwave", x: superX, y: superY, radius: superRadius * 0.7, color: "#7C4DFF", timer: 0.45, maxTimer: 0.45 });
+        // 3. Swirling temporal zone (snowZone = swirling particles)
         spawnEffect({
           kind: "snowZone", x: superX, y: superY,
           radius: superRadius, color: "#9C27B0",
-          timer: 4, maxTimer: 4,
-          particleCount: 20,
+          timer: 4.5, maxTimer: 4.5,
+          particleCount: 28,
         });
-        spawnEffect({
-          kind: "shockwave", x: superX, y: superY,
-          radius: superRadius, color: "#FFD700",
-          timer: 0.6, maxTimer: 0.6,
-        });
+        // 4. Lightning arcs around the gate centre
+        spawnEffect({ kind: "lightningBolt", x: superX, y: superY, toX: superX + superRadius * 0.8, toY: superY, radius: 5, color: "#E040FB", timer: 0.25, maxTimer: 0.25 });
+        spawnEffect({ kind: "lightningBolt", x: superX, y: superY, toX: superX - superRadius * 0.8, toY: superY, radius: 5, color: "#E040FB", timer: 0.25, maxTimer: 0.25 });
+        spawnEffect({ kind: "lightningBolt", x: superX, y: superY, toX: superX, toY: superY - superRadius * 0.8, radius: 5, color: "#CE93D8", timer: 0.25, maxTimer: 0.25 });
+        // 5. Large burst at centre
+        spawnEffect({ kind: "burst", x: superX, y: superY, radius: 55, color: "#B388FF", timer: 0.40, maxTimer: 0.40, secondary: "#4A148C" });
 
         // Switch to enhanced mode with 3 powered charges
         this.zafkielMode = "enhanced";
         this.zafkielChargeIdx = 0;
-        // Glow effect on Zafkiel
+        // 6. Violet berserk aura on Zafkiel herself while enhanced
         spawnEffect({
           kind: "berserkAura", x: this.x, y: this.y,
-          radius: this.radius + 10, color: "#7C4DFF",
-          timer: 3, maxTimer: 3,
+          radius: this.radius + 12, color: "#7C4DFF",
+          timer: 4.5, maxTimer: 4.5,
           followBrawler: this,
         });
+        // 7. Teleport flash at caster to signal power-up
+        spawnEffect({ kind: "teleportFlash", x: this.x, y: this.y, radius: 32, color: "#EDE7F6", timer: 0.45, maxTimer: 0.45 });
         break;
       }
     }
