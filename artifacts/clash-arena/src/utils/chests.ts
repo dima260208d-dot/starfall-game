@@ -1,14 +1,14 @@
 // =========================================================================
-// CHESTS — 6 rarity tiers, each with unique visuals, drop tables, and prices
+// CHESTS — 7 rarity tiers, each with unique visuals, drop tables, and prices
 // =========================================================================
 
-export type ChestRarity = "common" | "rare" | "epic" | "mega" | "legendary" | "mythic";
+export type ChestRarity = "common" | "rare" | "epic" | "mega" | "legendary" | "mythic" | "ultralegendary";
 
 export interface ChestDef {
   rarity: ChestRarity;
   name: string;
   shortName: string;       // single word for tight UI
-  tier: number;            // 1..6
+  tier: number;            // 1..7
   color: string;           // primary glow / accents
   secondaryColor: string;  // gradient secondary
   borderColor: string;
@@ -49,11 +49,11 @@ export const CHESTS: Record<ChestRarity, ChestDef> = {
     emoji: "📦",
     drops: {
       rolls: 2,
-      coinsRange: [40, 100],
-      gemsChance: 0.05,
-      gemsRange: [1, 1],
+      coinsRange: [50, 150],
+      gemsChance: 0.10,
+      gemsRange: [1, 2],
       powerPointsChance: 0.4,
-      powerPointsRange: [1, 3],
+      powerPointsRange: [1, 5],
     },
   },
   rare: {
@@ -70,11 +70,11 @@ export const CHESTS: Record<ChestRarity, ChestDef> = {
     emoji: "🎁",
     drops: {
       rolls: 3,
-      coinsRange: [80, 180],
-      gemsChance: 0.18,
-      gemsRange: [1, 2],
-      powerPointsChance: 0.7,
-      powerPointsRange: [2, 6],
+      coinsRange: [300, 800],
+      gemsChance: 0.15,
+      gemsRange: [1, 3],
+      powerPointsChance: 0.6,
+      powerPointsRange: [2, 8],
       bonusPowerPoints: 2,
     },
   },
@@ -92,11 +92,11 @@ export const CHESTS: Record<ChestRarity, ChestDef> = {
     emoji: "💎",
     drops: {
       rolls: 4,
-      coinsRange: [150, 320],
-      gemsChance: 0.4,
-      gemsRange: [1, 3],
-      powerPointsChance: 0.85,
-      powerPointsRange: [3, 8],
+      coinsRange: [1200, 3000],
+      gemsChance: 0.20,
+      gemsRange: [2, 5],
+      powerPointsChance: 0.7,
+      powerPointsRange: [5, 15],
       bonusGems: 1,
       bonusPowerPoints: 4,
     },
@@ -115,14 +115,38 @@ export const CHESTS: Record<ChestRarity, ChestDef> = {
     emoji: "🏆",
     drops: {
       rolls: 5,
-      coinsRange: [250, 500],
-      gemsChance: 0.7,
-      gemsRange: [2, 5],
-      powerPointsChance: 1,
-      powerPointsRange: [5, 12],
+      coinsRange: [3500, 8000],
+      gemsChance: 0.30,
+      gemsRange: [3, 10],
+      powerPointsChance: 0.8,
+      powerPointsRange: [10, 30],
       bonusGems: 3,
       bonusPowerPoints: 8,
       bonusCoins: 200,
+    },
+  },
+  mythic: {
+    rarity: "mythic",
+    name: "Мифический сундук",
+    shortName: "Мифический",
+    tier: 5,
+    color: "#FF1744",
+    secondaryColor: "#7B2FBE",
+    borderColor: "#FF80AB",
+    description: "Очень редкий. Огромный куш всего!",
+    priceCoins: 4600,
+    priceGems: 127,
+    emoji: "🌌",
+    drops: {
+      rolls: 6,
+      coinsRange: [7000, 15000],
+      gemsChance: 0.40,
+      gemsRange: [5, 20],
+      powerPointsChance: 0.9,
+      powerPointsRange: [20, 60],
+      bonusGems: 8,
+      bonusPowerPoints: 15,
+      bonusCoins: 500,
     },
   },
   legendary: {
@@ -134,49 +158,49 @@ export const CHESTS: Record<ChestRarity, ChestDef> = {
     secondaryColor: "#BF360C",
     borderColor: "#FF9E80",
     description: "Гарантированный мега-куш кристаллов.",
-    priceCoins: 4600,
-    priceGems: 127,
-    emoji: "👑",
-    drops: {
-      rolls: 6,
-      coinsRange: [400, 800],
-      gemsChance: 1,
-      gemsRange: [3, 7],
-      powerPointsChance: 1,
-      powerPointsRange: [8, 18],
-      bonusGems: 8,
-      bonusPowerPoints: 15,
-      bonusCoins: 500,
-    },
-  },
-  mythic: {
-    rarity: "mythic",
-    name: "Мифический сундук",
-    shortName: "Мифический",
-    tier: 5,
-    color: "#FF1744",
-    secondaryColor: "#7B2FBE",
-    borderColor: "#FF80AB",
-    description: "Высшая редкость. Невероятный куш всего!",
     priceCoins: 11500,
     priceGems: 288,
-    emoji: "🌌",
+    emoji: "👑",
     drops: {
-      rolls: 8,
-      coinsRange: [800, 1500],
-      gemsChance: 1,
-      gemsRange: [6, 12],
-      powerPointsChance: 1,
-      powerPointsRange: [12, 25],
+      rolls: 7,
+      coinsRange: [15000, 30000],
+      gemsChance: 0.60,
+      gemsRange: [10, 40],
+      powerPointsChance: 1.0,
+      powerPointsRange: [40, 100],
       bonusGems: 20,
       bonusPowerPoints: 30,
       bonusCoins: 1500,
     },
   },
+  ultralegendary: {
+    rarity: "ultralegendary",
+    name: "Ультралегендарный сундук",
+    shortName: "Ультра",
+    tier: 7,
+    color: "#B388FF",
+    secondaryColor: "#7C4DFF",
+    borderColor: "#FFD700",
+    description: "Высшая редкость. Шанс получить ультралегендарного бойца!",
+    priceCoins: 20000,
+    priceGems: 500,
+    emoji: "✨",
+    drops: {
+      rolls: 8,
+      coinsRange: [30000, 60000],
+      gemsChance: 0.80,
+      gemsRange: [20, 80],
+      powerPointsChance: 1.0,
+      powerPointsRange: [100, 200],
+      bonusGems: 40,
+      bonusPowerPoints: 60,
+      bonusCoins: 5000,
+    },
+  },
 };
 
 export const CHEST_RARITY_ORDER: ChestRarity[] = [
-  "common", "rare", "epic", "mega", "mythic", "legendary",
+  "common", "rare", "epic", "mega", "mythic", "legendary", "ultralegendary",
 ];
 
 export interface ChestRoll {

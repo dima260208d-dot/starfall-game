@@ -126,14 +126,28 @@ export default function ChestVisual({
         </>
       )}
 
-      {/* Mythic crown of light */}
-      {def.tier === 6 && animated && (
+      {/* Legendary / Ultra-legendary crown of light */}
+      {def.tier >= 6 && animated && (
         <div style={{
           position: "absolute", left: "50%", top: -size * 0.18,
           transform: "translateX(-50%)",
-          width: size * 0.7, height: size * 0.18,
+          width: size * (def.tier === 7 ? 0.95 : 0.7),
+          height: size * 0.18,
           background: `radial-gradient(ellipse, ${def.color}AA 0%, transparent 70%)`,
-          animation: `chestPulse 1.5s ease-in-out infinite`,
+          animation: `chestPulse ${def.tier === 7 ? 1.0 : 1.5}s ease-in-out infinite`,
+        }} />
+      )}
+      {/* Ultra-legendary: extra orbiting rune ring */}
+      {def.tier === 7 && animated && (
+        <div style={{
+          position: "absolute", left: "50%", top: "50%",
+          transform: "translate(-50%, -50%)",
+          width: size * 1.15, height: size * 1.15,
+          borderRadius: "50%",
+          border: `${Math.max(1, size * 0.015)}px solid ${def.borderColor}88`,
+          boxShadow: `0 0 ${size * 0.08}px ${def.borderColor}, inset 0 0 ${size * 0.08}px ${def.color}55`,
+          animation: `chestPulse 1.2s ease-in-out infinite`,
+          pointerEvents: "none",
         }} />
       )}
     </div>
@@ -142,7 +156,7 @@ export default function ChestVisual({
 
 function LidOrnament({ tier, size, color }: { tier: number; size: number; color: string }) {
   // Different gem/mark on each tier's lid
-  const ornament = ["•", "◆", "✦", "★", "♛", "✪"][tier - 1];
+  const ornament = ["•", "◆", "✦", "★", "♛", "✪", "⧖"][tier - 1] ?? "⧖";
   return (
     <div style={{
       position: "absolute", top: "55%", left: "50%",

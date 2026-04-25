@@ -88,6 +88,15 @@ export class Brawler {
   displayName: string = "";
   isBot: boolean = false;
 
+  // ── Zafkiel "Time Cycle" mechanic ────────────────────────────────────────
+  // normal mode: charges 0=Dalet, 1=Bet, 2=Zayin
+  // enhanced mode (after super): 0=Aleph, 1=Gimmel, 2=Yud
+  zafkielMode: "normal" | "enhanced" = "normal";
+  zafkielChargeIdx: number = 0;
+  // Position history for temporal-rewind effect (Dalet / super)
+  posHistory: Array<{ x: number; y: number }> = [];
+  private _posHistoryTimer: number = 0;
+
   constructor(stats: BrawlerStats, level: number, x: number, y: number, team: Team, isPlayer = false) {
     this.id = `brawler_${Math.random().toString(36).slice(2)}`;
     this.stats = stats;
@@ -205,6 +214,14 @@ export class Brawler {
       this.hp < this.maxHp
     ) {
       this.hp = Math.min(this.maxHp, this.hp + this.stats.regenRate * dt);
+    }
+
+    // Track position history for temporal-rewind effect (Zafkiel Dalet / super)
+    this._posHistoryTimer -= dt;
+    if (this._posHistoryTimer <= 0) {
+      this._posHistoryTimer = 0.2; // store every 200 ms
+      this.posHistory.push({ x: this.x, y: this.y });
+      if (this.posHistory.length > 10) this.posHistory.shift(); // keep ~2s
     }
 
     this.inBush = isInBush(this.x, this.y, map.bushes);
@@ -420,6 +437,96 @@ export class Brawler {
           ownerId: this.id, ownerTeam: this.team,
           color: "#FF80AB", type: "bullet", piercing: false,
         }));
+        break;
+      }
+      case "zafkiel": {
+        const cIdx = this.zafkielChargeIdx % 3;
+        if (this.zafkielMode === "normal") {
+          // Dalet (0): temporal rewind — grey beam, slow + rewind
+          // Bet   (1): dark-blue, slow -40%
+          // Zayin (2): purple beam, stun 0.6s
+          if (cIdx === 0) {
+            // Dalet — grey ash beam with temporal rewind
+            projs.push(createProjectile({
+              x: this.x, y: this.y,
+              vx: Math.cos(angle) * 380, vy: Math.sin(angle) * 380,
+              radius: 10, damage: 300,
+              speed: 380, range: this.stats.attackRange,
+              ownerId: this.id, ownerTeam: this.team,
+              color: "#B0BEC5", type: "beam", piercing: false,
+              slow: true, temporalRewind: 1.0,
+            }));
+            spawnEffect({ kind: "burst", x: this.x, y: this.y, radius: 22, color: "#CFD8DC", timer: 0.3, maxTimer: 0.3 });
+          } else if (cIdx === 1) {
+            // Bet — dark-blue, heavy slow
+            projs.push(createProjectile({
+              x: this.x, y: this.y,
+              vx: Math.cos(angle) * 360, vy: Math.sin(angle) * 360,
+              radius: 11, damage: 350,
+              speed: 360, range: this.stats.attackRange,
+              ownerId: this.id, ownerTeam: this.team,
+              color: "#1565C0", type: "snowball", piercing: false,
+              slow: true,
+            }));
+          } else {
+            // Zayin — purple beam, stun
+            projs.push(createProjectile({
+              x: this.x, y: this.y,
+              vx: Math.cos(angle) * 340, vy: Math.sin(angle) * 340,
+              radius: 10, damage: 450,
+              speed: 340, range: this.stats.attackRange,
+              ownerId: this.id, ownerTeam: this.team,
+              color: "#7B1FA2", type: "beam", piercing: false,
+              stunDuration: 0.6,
+            }));
+            spawnEffect({ kind: "burst", x: this.x, y: this.y, radius: 20, color: "#9C27B0", timer: 0.28, maxTimer: 0.28 });
+          }
+        } else {
+          // Enhanced mode (after super)
+          // Aleph (0): 2× speed, red beam
+          // Gimmel (1): gold-green, poison
+          // Yud   (2): orange, homing
+          if (cIdx === 0) {
+            projs.push(createProjectile({
+              x: this.x, y: this.y,
+              vx: Math.cos(angle) * 760, vy: Math.sin(angle) * 760,
+              radius: 9, damage: 350,
+              speed: 760, range: this.stats.attackRange * 1.2,
+              ownerId: this.id, ownerTeam: this.team,
+              color: "#FF1744", type: "beam", piercing: false,
+            }));
+            spawnEffect({ kind: "burst", x: this.x, y: this.y, radius: 20, color: "#FF5252", timer: 0.2, maxTimer: 0.2 });
+          } else if (cIdx === 1) {
+            projs.push(createProjectile({
+              x: this.x, y: this.y,
+              vx: Math.cos(angle) * 380, vy: Math.sin(angle) * 380,
+              radius: 10, damage: 300,
+              speed: 380, range: this.stats.attackRange,
+              ownerId: this.id, ownerTeam: this.team,
+              color: "#AEEA00", type: "dagger", piercing: false,
+              poison: true,
+            }));
+          } else {
+            // Yud — homing, extended range
+            projs.push(createProjectile({
+              x: this.x, y: this.y,
+              vx: Math.cos(angle) * 360, vy: Math.sin(angle) * 360,
+              radius: 13, damage: 400,
+              speed: 360, range: this.stats.attackRange * 1.5,
+              ownerId: this.id, ownerTeam: this.team,
+              color: "#FF8F00", type: "bullet", piercing: false,
+              homing: true,
+            }));
+          }
+          // After all 3 enhanced charges, reset to normal
+          if (cIdx === 2) {
+            this.zafkielMode = "normal";
+            this.zafkielChargeIdx = 0;
+            spawnEffect({ kind: "shockwave", x: this.x, y: this.y, radius: 30, color: "#9C27B0", timer: 0.4, maxTimer: 0.4 });
+            break;
+          }
+        }
+        this.zafkielChargeIdx = (this.zafkielChargeIdx + 1) % 3;
         break;
       }
       default: {
@@ -687,6 +794,64 @@ export class Brawler {
           ownerId: this.id, ownerTeam: this.team,
           tickInterval: 0.55, tickTimer: 0.4,
           tickRange: 250, damagePerTick: 150,
+        });
+        break;
+      }
+      case "zafkiel": {
+        // Врата Вечности — area that rewinds enemies to their past position
+        const superRadius = 120;
+        const superX = typeof targetX === "number" ? clamp(targetX, this.radius, map.width - this.radius) : this.x;
+        const superY = typeof targetY === "number" ? clamp(targetY, this.radius, map.height - this.radius) : this.y;
+
+        // Rewind all enemies in range to 2s-ago position
+        for (const t of targets) {
+          if (!t.alive || t.team === this.team) continue;
+          if (distance(superX, superY, t.x, t.y) < superRadius) {
+            // Teleport to 2s-ago position (posHistory[0]) or slow if no history
+            if (t.posHistory.length >= 2) {
+              const pastPos = t.posHistory[0];
+              // Flash at current position
+              spawnEffect({
+                kind: "teleportFlash", x: t.x, y: t.y,
+                radius: 28, color: "#B388FF",
+                timer: 0.5, maxTimer: 0.5,
+              });
+              t.x = clamp(pastPos.x, t.radius, map.width - t.radius);
+              t.y = clamp(pastPos.y, t.radius, map.height - t.radius);
+              spawnEffect({
+                kind: "teleportFlash", x: t.x, y: t.y,
+                radius: 28, color: "#7C4DFF",
+                timer: 0.5, maxTimer: 0.5,
+              });
+            } else {
+              // No position history — apply slow instead
+              t.addStatus("slow", 2, 0.5);
+            }
+          }
+        }
+
+        // Gate zone visual
+        spawnEffect({
+          kind: "snowZone", x: superX, y: superY,
+          radius: superRadius, color: "#9C27B0",
+          timer: 4, maxTimer: 4,
+          particleCount: 20,
+        });
+        spawnEffect({
+          kind: "shockwave", x: superX, y: superY,
+          radius: superRadius, color: "#FFD700",
+          timer: 0.6, maxTimer: 0.6,
+        });
+
+        // Switch to enhanced mode with 3 powered charges
+        this.zafkielMode = "enhanced";
+        this.zafkielChargeIdx = 0;
+        // Glow effect on Zafkiel
+        spawnEffect({
+          kind: "berserkAura", x: this.x, y: this.y,
+          radius: this.radius + 10, color: "#7C4DFF",
+          timer: 3, maxTimer: 3,
+          followBrawler: this,
         });
         break;
       }

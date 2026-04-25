@@ -33,16 +33,17 @@ interface CharAnimNames {
 }
 
 const CHAR_ANIM_NAMES: Record<string, CharAnimNames> = {
-  miya:  { idle: "Walking",         idleIdx: 3, run: "Running", runIdx: 1, attack: "Attack",              attackIdx: 0 },
-  sora:  { idle: "Walking",         idleIdx: 1, run: "Running", runIdx: 0, attack: "mage_soell_cast_2",   attackIdx: 2 },
+  miya:    { idle: "Walking",         idleIdx: 3, run: "Running", runIdx: 1, attack: "Attack",              attackIdx: 0 },
+  sora:    { idle: "Walking",         idleIdx: 1, run: "Running", runIdx: 0, attack: "mage_soell_cast_2",   attackIdx: 2 },
   // goro/rin: name-only — exact GLB clip names found by THREE.js loader (no idx to avoid ordering ambiguity)
-  goro:  { idle: "Running",                     run: "Running",            attack: "Double_Combo_Attack"              },
-  rin:   { idle: "Running",                     run: "Running",            attack: "Left_Slash"                       },
-  ronin: { idle: "Walking",         idleIdx: 2, run: "Running", runIdx: 0, attack: "Step_Step_Turn_Kick", attackIdx: 1 },
-  hana:  { idle: "Walking",         idleIdx: 2, run: "Running", runIdx: 1, attack: "Archery_Shot_3",      attackIdx: 0 },
-  kenji: { idle: "Walking",         idleIdx: 2, run: "Running", runIdx: 1, attack: "Axe_Spin_Attack",     attackIdx: 0 },
-  yuki:  { idle: "Walking",         idleIdx: 2, run: "Running", runIdx: 1, attack: "Axe_Spin_Attack",     attackIdx: 0 },
-  taro:  { idle: "Walking",         idleIdx: 2, run: "Running", runIdx: 1, attack: "Archery_Shot_1",      attackIdx: 0 },
+  goro:    { idle: "Running",                     run: "Running",            attack: "Double_Combo_Attack"              },
+  rin:     { idle: "Running",                     run: "Running",            attack: "Left_Slash"                       },
+  ronin:   { idle: "Walking",         idleIdx: 2, run: "Running", runIdx: 0, attack: "Step_Step_Turn_Kick", attackIdx: 1 },
+  hana:    { idle: "Walking",         idleIdx: 2, run: "Running", runIdx: 1, attack: "Archery_Shot_3",      attackIdx: 0 },
+  kenji:   { idle: "Walking",         idleIdx: 2, run: "Running", runIdx: 1, attack: "Axe_Spin_Attack",     attackIdx: 0 },
+  yuki:    { idle: "Walking",         idleIdx: 2, run: "Running", runIdx: 1, attack: "Axe_Spin_Attack",     attackIdx: 0 },
+  taro:    { idle: "Walking",         idleIdx: 2, run: "Running", runIdx: 1, attack: "Archery_Shot_1",      attackIdx: 0 },
+  zafkiel: { idle: "Walking",         idleIdx: 2, run: "Running", runIdx: 1, attack: "Archery_Shot_3",      attackIdx: 0 },
 };
 
 function findClip(clips: THREE.AnimationClip[], name: string, idx?: number): THREE.AnimationClip | null {
@@ -298,7 +299,7 @@ class CharacterTopDownRenderer {
 // ── Lazy registry ─────────────────────────────────────────────────────────────
 
 /** Character IDs that have a 3D GLB model for in-battle rendering. */
-export const CHAR_3D_IDS = new Set(["miya", "ronin", "yuki", "kenji", "hana", "goro", "sora", "rin", "taro"]);
+export const CHAR_3D_IDS = new Set(["miya", "ronin", "yuki", "kenji", "hana", "goro", "sora", "rin", "taro", "zafkiel"]);
 
 let _base = "/";
 const rendererRegistry = new Map<string, CharacterTopDownRenderer>();

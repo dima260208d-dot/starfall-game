@@ -13,15 +13,16 @@ import { BRAWLERS, BRAWLER_RARITY_LABEL } from "../entities/BrawlerData";
 
 // ── Model registry ────────────────────────────────────────────────────────────
 export const MODEL_URLS: Record<string, { url: string; anim: string; animIdx?: number }> = {
-  miya:  { url: "models/miya.glb",  anim: "Walking", animIdx: 3 },
-  ronin: { url: "models/ronin.glb", anim: "Walking", animIdx: 2 },
-  yuki:  { url: "models/yuki.glb",  anim: "Walking", animIdx: 2 },
-  kenji: { url: "models/kenji.glb", anim: "Walking", animIdx: 2 },
-  hana:  { url: "models/hana.glb",  anim: "Walking", animIdx: 2 },
-  goro:  { url: "models/goro.glb",  anim: "Running" },
-  sora:  { url: "models/sora.glb",  anim: "Walking", animIdx: 1 },
-  rin:   { url: "models/rin.glb",   anim: "Running" },
-  taro:  { url: "models/taro.glb",  anim: "Walking", animIdx: 2 },
+  miya:    { url: "models/miya.glb",    anim: "Walking", animIdx: 3 },
+  ronin:   { url: "models/ronin.glb",   anim: "Walking", animIdx: 2 },
+  yuki:    { url: "models/yuki.glb",    anim: "Walking", animIdx: 2 },
+  kenji:   { url: "models/kenji.glb",   anim: "Walking", animIdx: 2 },
+  hana:    { url: "models/hana.glb",    anim: "Walking", animIdx: 2 },
+  goro:    { url: "models/goro.glb",    anim: "Running" },
+  sora:    { url: "models/sora.glb",    anim: "Walking", animIdx: 1 },
+  rin:     { url: "models/rin.glb",     anim: "Running" },
+  taro:    { url: "models/taro.glb",    anim: "Walking", animIdx: 2 },
+  zafkiel: { url: "models/zafkiel.glb", anim: "Walking", animIdx: 2 },
 };
 
 // ── GLTF cache (module-level, persists across remounts) ───────────────────────

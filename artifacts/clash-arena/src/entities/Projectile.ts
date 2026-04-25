@@ -20,6 +20,9 @@ export interface Projectile {
   hitIds: Set<string>;
   poison?: boolean;
   slow?: boolean;
+  stunDuration?: number;       // stun effect on hit (seconds)
+  homing?: boolean;            // soft-lock on nearest enemy
+  temporalRewind?: number;     // seconds to rewind target position
   explosionRadius?: number;
 }
 
@@ -35,13 +38,48 @@ export function createProjectile(params: Omit<Projectile, "id" | "active" | "hit
   };
 }
 
+export interface HomingTarget {
+  id: string;
+  x: number;
+  y: number;
+  team: string;
+}
+
 export function updateProjectiles(
   projectiles: Projectile[],
   dt: number,
-  map: GameMap
+  map: GameMap,
+  homingTargets?: HomingTarget[]
 ): void {
   for (const proj of projectiles) {
     if (!proj.active) continue;
+
+    // Homing steering (Zafkiel Yud charge)
+    if (proj.homing && homingTargets && homingTargets.length > 0) {
+      let nearest: HomingTarget | null = null;
+      let nearestDist = Infinity;
+      for (const t of homingTargets) {
+        if (t.team === proj.ownerTeam || t.id === proj.ownerId) continue;
+        const dx = t.x - proj.x;
+        const dy = t.y - proj.y;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d < nearestDist) { nearestDist = d; nearest = t; }
+      }
+      if (nearest && nearestDist < proj.range * 0.9) {
+        const targetAngle = Math.atan2(nearest.y - proj.y, nearest.x - proj.x);
+        const currentAngle = Math.atan2(proj.vy, proj.vx);
+        // Max turn: 15° per 0.1 sec
+        const maxTurn = (15 * Math.PI / 180) * (dt / 0.1);
+        let diff = targetAngle - currentAngle;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        const turn = Math.max(-maxTurn, Math.min(maxTurn, diff));
+        const newAngle = currentAngle + turn;
+        const speed = Math.sqrt(proj.vx * proj.vx + proj.vy * proj.vy);
+        proj.vx = Math.cos(newAngle) * speed;
+        proj.vy = Math.sin(newAngle) * speed;
+      }
+    }
 
     const prevX = proj.x;
     const prevY = proj.y;
@@ -183,6 +221,16 @@ export function renderProjectiles(
         ctx.fill();
       }
     }
+
+    // Homing projectile: draw targeting ring
+    if (proj.homing) {
+      ctx.beginPath();
+      ctx.arc(sx, sy, proj.radius * 1.6, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(255, 160, 0, 0.7)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
     ctx.restore();
   }
 }

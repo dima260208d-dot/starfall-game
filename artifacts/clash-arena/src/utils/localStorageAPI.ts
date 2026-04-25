@@ -131,6 +131,7 @@ function buildTrophyRoad(): TrophyRoadReward[] {
       const labelMap: Record<ChestRarity, string> = {
         common: "Обычный сундук", rare: "Редкий сундук", epic: "Эпический сундук",
         mega: "Мега-сундук", legendary: "Легендарный сундук", mythic: "Мифический сундук",
+        ultralegendary: "Ультралегендарный сундук",
       };
       return { trophies, type: "chest", amount: 1, chestRarity: rarity, label: labelMap[rarity] };
     }
@@ -315,6 +316,7 @@ function buildBrawlerRankTable(): BrawlerRankReward[] {
       const labelMap: Record<ChestRarity, string> = {
         common: "Обычный сундук", rare: "Редкий сундук", epic: "Эпический сундук",
         mega: "Мега-сундук", legendary: "Легендарный сундук", mythic: "Мифический сундук",
+        ultralegendary: "Ультралегендарный сундук",
       };
       reward = { type: "chest", amount: 1, chestRarity: rarity, label: labelMap[rarity] };
     } else {

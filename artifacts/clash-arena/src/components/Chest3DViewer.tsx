@@ -9,12 +9,13 @@ import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js
 import { CHESTS, type ChestRarity } from "../utils/chests";
 
 export const CHEST_MODELS: Record<ChestRarity, string> = {
-  common:    "models/chest_common.glb",
-  rare:      "models/chest_rare.glb",
-  epic:      "models/chest_epic.glb",
-  mega:      "models/chest_mega.glb",
-  legendary: "models/chest_legendary.glb",
-  mythic:    "models/chest_mythic.glb",
+  common:         "models/chest_common.glb",
+  rare:           "models/chest_rare.glb",
+  epic:           "models/chest_epic.glb",
+  mega:           "models/chest_mega.glb",
+  legendary:      "models/chest_legendary.glb",
+  mythic:         "models/chest_mythic.glb",
+  ultralegendary: "models/chest_ultralegendary.glb",
 };
 
 interface CachedChest {

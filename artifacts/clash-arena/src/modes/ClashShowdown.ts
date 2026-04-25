@@ -265,7 +265,10 @@ export class ClashShowdown {
       }
     }
     
-    updateProjectiles(this.projectiles, dt, this.map);
+    const homingTargets = allBrawlers
+      .filter(b => b.alive)
+      .map(b => ({ id: b.id, x: b.x, y: b.y, team: b.team }));
+    updateProjectiles(this.projectiles, dt, this.map, homingTargets);
     this.handleTileHits();
     this.handleProjectileHits(allBrawlers);
     this.projectiles = this.projectiles.filter(p => p.active);
@@ -361,8 +364,16 @@ export class ClashShowdown {
           const attacker = allBrawlers.find(bw => bw.id === proj.ownerId) || null;
           b.takeDamage(proj.damage, attacker);
           
-          if (proj.slow) b.addStatus("slow", 1, 0.3);
+          if (proj.slow) b.addStatus("slow", 1.5, 0.4);
           if (proj.poison) b.addStatus("poison", 3, 100);
+          if (proj.stunDuration) b.addStatus("stun", proj.stunDuration, 0);
+          if (proj.temporalRewind && b.posHistory.length >= 2) {
+            // Rewind target to ~1s ago
+            const pastIdx = Math.max(0, b.posHistory.length - 6); // ~1.2s ago at 200ms interval
+            const pastPos = b.posHistory[pastIdx];
+            b.x = Math.max(b.radius, Math.min(this.map.width - b.radius, pastPos.x));
+            b.y = Math.max(b.radius, Math.min(this.map.height - b.radius, pastPos.y));
+          }
           
           proj.hitIds.add(b.id);
           
@@ -474,26 +485,50 @@ export class ClashShowdown {
     for (const drop of this.drops) {
       const sx = drop.x - this.camera.x;
       const sy = drop.y - this.camera.y;
-      ctx.save();
-      let label = "$";
+
+      let color: string;
+      let glowColor: string;
+      let label: string;
       if (drop.type === "health") {
-        ctx.fillStyle = "#4CAF50";
-        ctx.shadowColor = "#4CAF50";
-        label = "+";
+        color = "#4CAF50"; glowColor = "#4CAF50"; label = "+";
       } else if (drop.type === "powerup") {
-        ctx.fillStyle = "#9C27B0";
-        ctx.shadowColor = "#E040FB";
-        label = "◆";
+        color = "#9C27B0"; glowColor = "#E040FB"; label = "◆";
       } else {
-        ctx.fillStyle = "#FFD700";
-        ctx.shadowColor = "#FFD700";
+        color = "#FFD700"; glowColor = "#FFD700"; label = "$";
       }
-      ctx.shadowBlur = drop.type === "powerup" ? 18 : 10;
-      ctx.beginPath();
-      ctx.arc(sx, sy, drop.radius, 0, Math.PI * 2);
-      ctx.fill();
+
+      // Deterministic pseudo-random pile offsets based on drop position
+      const seed = ((drop.x * 31 + drop.y * 17) | 0) & 0xffff;
+      const r0 = drop.radius * 0.72;
+
+      // Pile: 4 small circles staggered (back-to-front painter order)
+      const pile = [
+        { dx: (((seed * 23) % 9) - 4) * 0.36, dy: (((seed * 13) % 9) - 4) * 0.36, r: r0 * 0.78 },
+        { dx: -(((seed * 7)  % 8) - 3) * 0.36, dy: (((seed * 19) % 8) - 3) * 0.36, r: r0 * 0.83 },
+        { dx: (((seed * 17) % 7) - 3) * 0.36, dy: -(((seed * 11) % 7) - 2) * 0.36, r: r0 * 0.87 },
+        { dx: 0, dy: 0, r: r0 },   // center / top piece
+      ];
+
+      ctx.save();
+      ctx.shadowColor = glowColor;
+      ctx.shadowBlur = drop.type === "powerup" ? 20 : 12;
+
+      for (const piece of pile) {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(sx + piece.dx, sy + piece.dy, piece.r, 0, Math.PI * 2);
+        ctx.fill();
+        // Specular highlight on each piece
+        ctx.fillStyle = "rgba(255,255,255,0.25)";
+        ctx.beginPath();
+        ctx.arc(sx + piece.dx - piece.r * 0.28, sy + piece.dy - piece.r * 0.28, piece.r * 0.32, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Label on the topmost (center) piece
+      ctx.shadowBlur = 0;
       ctx.fillStyle = "white";
-      ctx.font = `bold ${drop.radius}px Arial`;
+      ctx.font = `bold ${Math.round(r0 * 0.9)}px Arial`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(label, sx, sy);
