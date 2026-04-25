@@ -7,6 +7,8 @@ import {
   EDITOR_MODES, OV,
   type MapSave, type EditorMode, type OVType,
 } from "../utils/mapEditorAPI";
+import { getTileCanvas, loadAllTileModels, TALL_TILE_TYPES, PYRAMID_TILE } from "../utils/tileModelCache";
+import { getPlatformTileCanvas, loadPlatformTile } from "../utils/platformTile";
 
 const GS = 60;
 const IDX = (x: number, y: number) => y * GS + x;
@@ -40,7 +42,7 @@ const OVERLAY_DEFS: { ov: OVType; label: string; color: string; icon: string }[]
   { ov: OV.GOAL_RED,   label: "Ворота красных", color: "#C62828", icon: "⚽" },
 ];
 
-type Tool = "place" | "erase" | "brush" | "fill_rect" | "bucket";
+type Tool = "pan" | "place" | "erase" | "brush" | "fill_rect";
 type Mirror = "none" | "h" | "v" | "both";
 
 interface Selection { x0: number; y0: number; x1: number; y1: number }
@@ -229,10 +231,20 @@ function EditorCore({ onBack }: { onBack: () => void }) {
   const zoom = useRef(14);  // px per cell (6–36)
 
   // Tools
-  const [tool, setTool] = useState<Tool>("place");
+  const [tool, setTool] = useState<Tool>("pan");
   const [mirror, setMirror] = useState<Mirror>("none");
-  const [selectedTile, setSelectedTile] = useState<number>(1);   // tile type
+  const [selectedTile, setSelectedTile] = useState<number>(0);   // 0 = none selected
   const [selectedOv, setSelectedOv]   = useState<OVType | 0>(0); // 0 = not using overlay
+
+  // 3D model assets
+  const [modelsReady, setModelsReady] = useState(false);
+  useEffect(() => {
+    Promise.all([loadAllTileModels(), loadPlatformTile()]).then(() => {
+      setModelsReady(true);
+    });
+  }, []);
+  // Re-render whenever models finish loading
+  useEffect(() => { if (modelsReady) redraw(); }, [modelsReady]);
 
   // Interaction state
   const isPanning = useRef(false);
@@ -338,7 +350,9 @@ function EditorCore({ onBack }: { onBack: () => void }) {
     const W = canvas.width, H = canvas.height;
 
     ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = "#1a1a2e";
+
+    // Dark background outside map bounds
+    ctx.fillStyle = "#0d0d1a";
     ctx.fillRect(0, 0, W, H);
 
     const x0 = Math.max(0, Math.floor(ox / cs));
@@ -346,34 +360,89 @@ function EditorCore({ onBack }: { onBack: () => void }) {
     const y0 = Math.max(0, Math.floor(oy / cs));
     const y1 = Math.min(GS - 1, Math.ceil((oy + H) / cs));
 
-    // Draw tiles
+    const platformCanvas = getPlatformTileCanvas();
+
+    // ── Pass 1: Ground layer (all cells, back to front) ─────────────────────
     for (let gy = y0; gy <= y1; gy++) {
+      for (let gx = x0; gx <= x1; gx++) {
+        const sx = gx * cs - ox, sy = gy * cs - oy;
+        // Always draw the ground/grass tile as base
+        if (platformCanvas) {
+          ctx.drawImage(platformCanvas, sx, sy, cs, cs);
+        } else {
+          ctx.fillStyle = "#4a7c3f";
+          ctx.fillRect(sx, sy, cs, cs);
+        }
+      }
+    }
+
+    // ── Pass 2: Tile models (rendered back-to-front so tall front rows cover) ─
+    // Extra rows above viewport for tall tiles that overflow upward
+    const EXTRA_ROWS = 3;
+    const y0ext = Math.max(0, y0 - EXTRA_ROWS);
+
+    for (let gy = y0ext; gy <= y1; gy++) {
       for (let gx = x0; gx <= x1; gx++) {
         const sx = gx * cs - ox, sy = gy * cs - oy;
         const t = cells.current[IDX(gx, gy)];
         const ov = overlays.current[IDX(gx, gy)];
 
-        // Tile fill
-        const tileDef = TILE_DEFS.find(d => d.type === t);
-        ctx.fillStyle = tileDef?.color ?? "#5BAD4E";
-        ctx.fillRect(sx, sy, cs, cs);
+        if (t === 0 && ov === 0) continue; // pure grass — already drawn
 
-        // Overlay
+        if (t !== 0) {
+          const modelCanvas = getTileCanvas(t);
+          const tileDef = TILE_DEFS.find(d => d.type === t);
+
+          if (modelCanvas) {
+            const isBush = t === 3; // BUSH has a 256×512 tall canvas
+            const isTall = TALL_TILE_TYPES.has(t) || t === PYRAMID_TILE;
+
+            if (isBush) {
+              // Bush canvas is 256×512 (1:2 aspect), rendered from a low angle.
+              // Draw it anchored at the cell bottom, extending upward 1 full cell.
+              const bw = cs * 1.2;
+              const bh = bw * 2;
+              ctx.drawImage(modelCanvas, sx + (cs - bw) / 2, sy + cs - bh, bw, bh);
+            } else if (isTall) {
+              // Tall solid block: draw with 45% upward overflow so it looks 3-D
+              const overflow = cs * 0.45;
+              ctx.drawImage(modelCanvas, sx, sy - overflow, cs, cs + overflow);
+            } else {
+              // Flat tile (heal barrel, water, etc.): fill the cell exactly
+              ctx.drawImage(modelCanvas, sx, sy, cs, cs);
+            }
+          } else {
+            // Model not yet loaded — flat colour fallback
+            ctx.fillStyle = tileDef?.color ?? "#888";
+            ctx.fillRect(sx, sy, cs, cs);
+            if (cs >= 18) {
+              ctx.font = `${Math.min(cs * 0.5, 16)}px serif`;
+              ctx.textAlign = "center"; ctx.textBaseline = "middle";
+              ctx.fillText(tileDef?.icon ?? "?", sx + cs / 2, sy + cs / 2);
+            }
+          }
+        }
+
+        // Overlay markers (spawn points, safes, bases, etc.)
         if (ov !== 0) {
           const ovDef = OVERLAY_DEFS.find(d => d.ov === ov);
           if (ovDef) {
-            ctx.fillStyle = ovDef.color + "AA";
-            ctx.fillRect(sx + 1, sy + 1, cs - 2, cs - 2);
-            if (cs >= 18) {
-              ctx.font = `${Math.min(cs * 0.55, 18)}px serif`;
+            // Semi-transparent coloured badge centred in cell
+            const r = cs * 0.38;
+            ctx.save();
+            ctx.globalAlpha = 0.88;
+            ctx.fillStyle = ovDef.color;
+            ctx.beginPath();
+            ctx.arc(sx + cs / 2, sy + cs / 2, r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+            if (cs >= 16) {
+              ctx.font = `${Math.min(r * 1.2, 18)}px serif`;
               ctx.textAlign = "center"; ctx.textBaseline = "middle";
               ctx.fillText(ovDef.icon, sx + cs / 2, sy + cs / 2);
             }
+            ctx.restore();
           }
-        } else if (cs >= 18 && tileDef && t !== 0) {
-          ctx.font = `${Math.min(cs * 0.5, 16)}px serif`;
-          ctx.textAlign = "center"; ctx.textBaseline = "middle";
-          ctx.fillText(tileDef.icon, sx + cs / 2, sy + cs / 2);
         }
       }
     }
@@ -452,12 +521,20 @@ function EditorCore({ onBack }: { onBack: () => void }) {
   // ── Mouse handlers ──────────────────────────────────────────────────────────
   const onMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     e.preventDefault();
+    // Right-click or middle-click always pans
     if (e.button === 1 || e.button === 2) {
       isPanning.current = true;
       lastMouse.current = { x: e.clientX, y: e.clientY };
       return;
     }
     if (e.button !== 0) return;
+
+    // Pan tool or no tile selected — left-click pans too
+    if (tool === "pan" || (tool === "place" && selectedTile === 0 && selectedOv === 0)) {
+      isPanning.current = true;
+      lastMouse.current = { x: e.clientX, y: e.clientY };
+      return;
+    }
 
     const rect = canvasRef.current!.getBoundingClientRect();
     const { gx, gy } = screenToGrid(e.clientX - rect.left, e.clientY - rect.top);
@@ -529,11 +606,17 @@ function EditorCore({ onBack }: { onBack: () => void }) {
   const onTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
     lastTouches.current = Array.from(e.touches) as React.Touch[];
     if (e.touches.length === 1) {
-      const rect = canvasRef.current!.getBoundingClientRect();
-      const t = e.touches[0];
-      const { gx, gy } = screenToGrid(t.clientX - rect.left, t.clientY - rect.top);
-      isDrawing.current = true;
-      applyToCell(gx, gy, tool === "erase" ? "erase" : "place");
+      const isPanMode = tool === "pan" || (tool === "place" && selectedTile === 0 && selectedOv === 0);
+      if (isPanMode) {
+        isPanning.current = true;
+        lastMouse.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      } else {
+        const rect = canvasRef.current!.getBoundingClientRect();
+        const t = e.touches[0];
+        const { gx, gy } = screenToGrid(t.clientX - rect.left, t.clientY - rect.top);
+        isDrawing.current = true;
+        applyToCell(gx, gy, tool === "erase" ? "erase" : "place");
+      }
     }
   };
   const onTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
@@ -565,18 +648,28 @@ function EditorCore({ onBack }: { onBack: () => void }) {
         clampCam();
       }
       redraw();
-    } else if (e.touches.length === 1 && isDrawing.current) {
-      const rect = canvasRef.current!.getBoundingClientRect();
+    } else if (e.touches.length === 1) {
       const t = e.touches[0];
-      const { gx, gy } = screenToGrid(t.clientX - rect.left, t.clientY - rect.top);
-      if (!brushLastCell.current || brushLastCell.current.x !== gx || brushLastCell.current.y !== gy) {
-        applyToCell(gx, gy, tool === "erase" ? "erase" : "place");
-        brushLastCell.current = { x: gx, y: gy };
+      if (isPanning.current) {
+        const dx = t.clientX - lastMouse.current.x;
+        const dy = t.clientY - lastMouse.current.y;
+        camX.current -= dx;
+        camY.current -= dy;
+        lastMouse.current = { x: t.clientX, y: t.clientY };
+        clampCam();
+        redraw();
+      } else if (isDrawing.current) {
+        const rect = canvasRef.current!.getBoundingClientRect();
+        const { gx, gy } = screenToGrid(t.clientX - rect.left, t.clientY - rect.top);
+        if (!brushLastCell.current || brushLastCell.current.x !== gx || brushLastCell.current.y !== gy) {
+          applyToCell(gx, gy, tool === "erase" ? "erase" : "place");
+          brushLastCell.current = { x: gx, y: gy };
+        }
       }
     }
     lastTouches.current = Array.from(e.touches) as React.Touch[];
   };
-  const onTouchEnd = () => { isDrawing.current = false; };
+  const onTouchEnd = () => { isDrawing.current = false; isPanning.current = false; };
 
   // ── Map actions ─────────────────────────────────────────────────────────────
   const handleClear = () => {
@@ -743,6 +836,7 @@ function EditorCore({ onBack }: { onBack: () => void }) {
         <div style={{ width: 1, height: 28, background: "rgba(255,255,255,0.15)", flexShrink: 0 }} />
 
         {/* Tools */}
+        <ToolBtn active={tool === "pan"}       onClick={() => setTool("pan")}      label="✋ Пан" />
         <ToolBtn active={tool === "place"}     onClick={() => setTool("place")}    label="✏️ Ставить" />
         <ToolBtn active={tool === "erase"}     onClick={() => setTool("erase")}    label="🧹 Ластик" />
         <ToolBtn active={tool === "brush"}     onClick={() => setTool("brush")}    label="🖌️ Кисть" />
@@ -789,7 +883,7 @@ function EditorCore({ onBack }: { onBack: () => void }) {
       <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
         <canvas
           ref={canvasRef}
-          style={{ display: "block", cursor: tool === "erase" ? "cell" : "crosshair" }}
+          style={{ display: "block", cursor: tool === "pan" ? (isPanning.current ? "grabbing" : "grab") : tool === "erase" ? "cell" : "crosshair" }}
           onMouseDown={onMouseDown}
           onMouseMove={onMouseMove}
           onMouseUp={onMouseUp}
@@ -829,13 +923,18 @@ function EditorCore({ onBack }: { onBack: () => void }) {
         display: "flex", alignItems: "center", gap: 6, padding: "0 12px",
         overflowX: "auto", flexShrink: 0,
       }}>
-        {/* Tile palette */}
+        {/* Tile palette — uses pre-rendered 3D model thumbnails */}
         {TILE_DEFS.map(td => (
-          <PaletteItem
+          <TileModelPaletteItem
             key={td.type}
-            icon={td.icon} label={td.label} color={td.color}
+            tileType={td.type} label={td.label} color={td.color} icon={td.icon}
             active={selectedOv === 0 && selectedTile === td.type}
-            onClick={() => { setSelectedTile(td.type); setSelectedOv(0); }}
+            modelsReady={modelsReady}
+            onClick={() => {
+              setSelectedTile(td.type);
+              setSelectedOv(0);
+              if (tool !== "erase" && tool !== "brush" && tool !== "fill_rect") setTool("place");
+            }}
           />
         ))}
 
@@ -847,7 +946,10 @@ function EditorCore({ onBack }: { onBack: () => void }) {
             key={od.ov}
             icon={od.icon} label={od.label} color={od.color}
             active={selectedOv === od.ov}
-            onClick={() => { setSelectedOv(od.ov); }}
+            onClick={() => {
+              setSelectedOv(od.ov);
+              if (tool !== "erase" && tool !== "brush" && tool !== "fill_rect") setTool("place");
+            }}
           />
         ))}
       </div>
@@ -970,6 +1072,56 @@ function PaletteItem({ icon, label, color, active, onClick }: {
       minWidth: 52,
     }}>
       <span style={{ fontSize: 22 }}>{icon}</span>
+      <span style={{ fontSize: 9, color: active ? color : "rgba(255,255,255,0.5)", fontWeight: 700, lineHeight: 1.2, textAlign: "center" }}>
+        {label}
+      </span>
+    </button>
+  );
+}
+
+function TileModelPaletteItem({ tileType, label, color, icon, active, modelsReady, onClick }: {
+  tileType: number; label: string; color: string; icon: string; active: boolean; modelsReady: boolean; onClick: () => void;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const cv = canvasRef.current;
+    if (!cv) return;
+    const ctx = cv.getContext("2d");
+    if (!ctx) return;
+    const modelCanvas = getTileCanvas(tileType);
+    ctx.clearRect(0, 0, 48, 48);
+    if (modelCanvas) {
+      if (tileType === 3) {
+        // BUSH — tall canvas (256×512), show full model squished to fit
+        ctx.drawImage(modelCanvas, 0, 0, 48, 48);
+      } else {
+        ctx.drawImage(modelCanvas, 0, 0, 48, 48);
+      }
+    } else {
+      ctx.fillStyle = color;
+      ctx.fillRect(0, 0, 48, 48);
+      ctx.font = "24px serif";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(icon, 24, 24);
+    }
+  }, [modelsReady, tileType, color, icon]);
+
+  return (
+    <button onClick={onClick} style={{
+      display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
+      padding: "4px 6px", borderRadius: 10, cursor: "pointer", flexShrink: 0,
+      background: active ? color + "33" : "rgba(255,255,255,0.04)",
+      border: `2px solid ${active ? color : "rgba(255,255,255,0.08)"}`,
+      color: "white", fontFamily: "inherit",
+      boxShadow: active ? `0 0 12px ${color}66` : "none",
+      minWidth: 52,
+    }}>
+      <canvas
+        ref={canvasRef}
+        width={48} height={48}
+        style={{ width: 48, height: 48, borderRadius: 6, imageRendering: "pixelated" }}
+      />
       <span style={{ fontSize: 9, color: active ? color : "rgba(255,255,255,0.5)", fontWeight: 700, lineHeight: 1.2, textAlign: "center" }}>
         {label}
       </span>
