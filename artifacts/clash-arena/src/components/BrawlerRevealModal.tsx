@@ -91,12 +91,13 @@ function resolveClip(clips: THREE.AnimationClip[], name: string, idx?: number) {
 
 // ── Rarity particle colors ────────────────────────────────────────────────────
 const RARITY_PARTICLES: Record<string, string[]> = {
-  common:    ["#BDBDBD", "#E0E0E0", "#FFFFFF"],
-  rare:      ["#40C4FF", "#0288D1", "#80D8FF"],
-  epic:      ["#CE93D8", "#AB47BC", "#E040FB"],
-  mega:      ["#FF80AB", "#FFD700", "#FF4081"],
-  legendary: ["#FFD700", "#FF8F00", "#FF3D00"],
-  mythic:    ["#E040FB", "#FFD700", "#FF4081"],
+  common:         ["#BDBDBD", "#E0E0E0", "#FFFFFF"],
+  rare:           ["#40C4FF", "#0288D1", "#80D8FF"],
+  epic:           ["#CE93D8", "#AB47BC", "#E040FB"],
+  mega:           ["#FF80AB", "#FFD700", "#FF4081"],
+  legendary:      ["#FFD700", "#FF8F00", "#FF3D00"],
+  mythic:         ["#E040FB", "#FFD700", "#FF4081"],
+  ultralegendary: ["#B388FF", "#7C4DFF", "#FFD700"],
 };
 
 // ── Keyframe CSS ──────────────────────────────────────────────────────────────

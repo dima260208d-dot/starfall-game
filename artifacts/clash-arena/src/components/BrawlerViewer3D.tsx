@@ -13,15 +13,16 @@ interface BrawlerViewer3DProps {
 // idleIdx = direct clip index inside the GLB (most reliable selector)
 // Extracted from the binary GLB files; animation order confirmed from raw GLTF JSON.
 const MODEL_URLS: Record<string, { url: string; idleAnim: string; idleIdx?: number }> = {
-  miya:  { url: "models/miya.glb",  idleAnim: "Walking",  idleIdx: 3 },
-  ronin: { url: "models/ronin.glb", idleAnim: "Walking",  idleIdx: 2 },
-  yuki:  { url: "models/yuki.glb",  idleAnim: "Walking",  idleIdx: 2 },
-  kenji: { url: "models/kenji.glb", idleAnim: "Walking",  idleIdx: 2 },
-  hana:  { url: "models/hana.glb",  idleAnim: "Walking",  idleIdx: 2 },
-  goro:  { url: "models/goro.glb",  idleAnim: "Running"            },
-  sora:  { url: "models/sora.glb",  idleAnim: "Walking",  idleIdx: 1 },
-  rin:   { url: "models/rin.glb",   idleAnim: "Running"            },
-  taro:  { url: "models/taro.glb",  idleAnim: "Walking",  idleIdx: 2 },
+  miya:    { url: "models/miya.glb",    idleAnim: "Walking",  idleIdx: 3 },
+  ronin:   { url: "models/ronin.glb",   idleAnim: "Walking",  idleIdx: 2 },
+  yuki:    { url: "models/yuki.glb",    idleAnim: "Walking",  idleIdx: 2 },
+  kenji:   { url: "models/kenji.glb",   idleAnim: "Walking",  idleIdx: 2 },
+  hana:    { url: "models/hana.glb",    idleAnim: "Walking",  idleIdx: 2 },
+  goro:    { url: "models/goro.glb",    idleAnim: "Running"             },
+  sora:    { url: "models/sora.glb",    idleAnim: "Walking",  idleIdx: 1 },
+  rin:     { url: "models/rin.glb",     idleAnim: "Running"             },
+  taro:    { url: "models/taro.glb",    idleAnim: "Walking",  idleIdx: 2 },
+  zafkiel: { url: "models/zafkiel.glb", idleAnim: "Walking",  idleIdx: 2 },
 };
 
 // Cached one-shot WebGL availability check. We try to create a tiny WebGL
