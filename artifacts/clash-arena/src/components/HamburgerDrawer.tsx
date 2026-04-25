@@ -6,6 +6,7 @@ interface Props {
   onClose: () => void;
   onSettings: () => void;
   onLogout: () => void;
+  onMapEditor?: () => void;
 }
 
 type Panel = "menu" | "battle" | "leaderboard";
@@ -26,7 +27,7 @@ function formatTs(ts: number) {
   return d.toLocaleDateString("ru-RU") + " " + d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
 }
 
-export default function HamburgerDrawer({ onClose, onSettings, onLogout }: Props) {
+export default function HamburgerDrawer({ onClose, onSettings, onLogout, onMapEditor }: Props) {
   const [panel, setPanel] = useState<Panel>("menu");
   const [history, setHistory] = useState<BattleRecord[]>([]);
   const [profiles, setProfiles] = useState<ReturnType<typeof getAllProfiles>>({});
@@ -81,7 +82,7 @@ export default function HamburgerDrawer({ onClose, onSettings, onLogout }: Props
 
         {/* Content */}
         <div style={{ flex: 1, overflowY: "auto", padding: "12px 0" }}>
-          {panel === "menu" && <MenuPanel onSettings={onSettings} onLogout={onLogout} setPanel={setPanel} />}
+          {panel === "menu" && <MenuPanel onSettings={onSettings} onLogout={onLogout} setPanel={setPanel} onMapEditor={onMapEditor} />}
           {panel === "battle" && <BattlePanel history={history} />}
           {panel === "leaderboard" && <LeaderboardPanel profiles={profiles} />}
         </div>
@@ -90,12 +91,16 @@ export default function HamburgerDrawer({ onClose, onSettings, onLogout }: Props
   );
 }
 
-function MenuPanel({ onSettings, onLogout, setPanel }: { onSettings: () => void; onLogout: () => void; setPanel: (p: Panel) => void }) {
+function MenuPanel({ onSettings, onLogout, setPanel, onMapEditor }: {
+  onSettings: () => void; onLogout: () => void;
+  setPanel: (p: Panel) => void; onMapEditor?: () => void;
+}) {
   const items = [
     { icon: "💬", label: "Сообщения", sub: "Скоро", onClick: () => {}, disabled: true },
     { icon: "⚙️", label: "Настройки", sub: "Управление, звук, аккаунт", onClick: onSettings, disabled: false },
     { icon: "⚔️", label: "Данные боёв", sub: "Последние 20 игр", onClick: () => setPanel("battle"), disabled: false },
     { icon: "🏆", label: "Таблица лидеров", sub: "Лучшие игроки", onClick: () => setPanel("leaderboard"), disabled: false },
+    ...(onMapEditor ? [{ icon: "🗺️", label: "Конструктор карт", sub: "Режим администратора", onClick: onMapEditor, disabled: false, admin: true }] : []),
     { icon: "🚪", label: "Выйти", sub: "Выход из аккаунта", onClick: onLogout, disabled: false, danger: true },
   ];
   return (
@@ -103,10 +108,10 @@ function MenuPanel({ onSettings, onLogout, setPanel }: { onSettings: () => void;
       {items.map((item, i) => (
         <button key={i} onClick={item.disabled ? undefined : item.onClick} disabled={item.disabled} style={{
           display: "flex", alignItems: "center", gap: 14,
-          background: item.danger ? "rgba(255,82,82,0.06)" : "rgba(255,255,255,0.03)",
-          border: `1px solid ${item.danger ? "rgba(255,82,82,0.2)" : "rgba(255,255,255,0.07)"}`,
+          background: (item as any).admin ? "rgba(255,215,0,0.06)" : item.danger ? "rgba(255,82,82,0.06)" : "rgba(255,255,255,0.03)",
+          border: `1px solid ${(item as any).admin ? "rgba(255,215,0,0.25)" : item.danger ? "rgba(255,82,82,0.2)" : "rgba(255,255,255,0.07)"}`,
           borderRadius: 12, padding: "14px 16px",
-          color: item.disabled ? "rgba(255,255,255,0.3)" : item.danger ? "#FF7070" : "white",
+          color: item.disabled ? "rgba(255,255,255,0.3)" : item.danger ? "#FF7070" : (item as any).admin ? "#FFD54F" : "white",
           cursor: item.disabled ? "not-allowed" : "pointer",
           textAlign: "left", width: "100%", fontFamily: "inherit",
           opacity: item.disabled ? 0.6 : 1,

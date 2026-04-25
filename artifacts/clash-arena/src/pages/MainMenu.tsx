@@ -13,6 +13,7 @@ import QuestsModal from "../components/QuestsModal";
 import BrawlerRankRewardsModal from "../components/BrawlerRankRewardsModal";
 import BrawlerViewer3D from "../components/BrawlerViewer3D";
 import HamburgerDrawer from "../components/HamburgerDrawer";
+import { isAdminUnlocked } from "../utils/mapEditorAPI";
 
 interface MainMenuProps {
   onPlay: () => void;
@@ -26,13 +27,14 @@ interface MainMenuProps {
   onModeSelect: () => void;
   onBrawlerSelect: () => void;
   onLogout: () => void;
+  onMapEditor: () => void;
 }
 
 export default function MainMenu(props: MainMenuProps) {
   const {
     onPlay, onCollection, onShop, onSettings,
     onProfile, onClashPass, onTrophyRoad, onChests,
-    onModeSelect, onBrawlerSelect, onLogout,
+    onModeSelect, onBrawlerSelect, onLogout, onMapEditor,
   } = props;
 
   const [profile, setProfile] = useState(getCurrentProfile());
@@ -565,6 +567,7 @@ export default function MainMenu(props: MainMenuProps) {
           onClose={() => setShowHamburger(false)}
           onSettings={() => { setShowHamburger(false); onSettings(); }}
           onLogout={() => { setShowHamburger(false); onLogout(); }}
+          onMapEditor={isAdminUnlocked() ? () => { setShowHamburger(false); onMapEditor(); } : undefined}
         />
       )}
 

@@ -3,6 +3,7 @@ import {
   getCurrentProfile, getAllProfiles, setCurrentUsername, addGems,
   getControlMode, setControlMode, type ControlMode,
 } from "../utils/localStorageAPI";
+import { isAdminUnlocked, tryAdminLogin, lockAdmin } from "../utils/mapEditorAPI";
 
 interface SettingsPageProps {
   onBack: () => void;
@@ -13,6 +14,10 @@ export default function SettingsPage({ onBack, onSwitchProfile }: SettingsPagePr
   const [profile] = useState(getCurrentProfile());
   const [msg, setMsg] = useState("");
   const [ctrl, setCtrl] = useState<ControlMode>(getControlMode());
+  const [adminLogin, setAdminLogin] = useState("");
+  const [adminPass, setAdminPass] = useState("");
+  const [adminUnlocked, setAdminUnlocked] = useState(isAdminUnlocked());
+  const [showDevForm, setShowDevForm] = useState(false);
 
   const pickControlMode = (m: ControlMode) => {
     setControlMode(m);
@@ -113,6 +118,49 @@ setMsg("+100 кристаллов добавлено для теста!");
               </div>
             ))}
           </div>
+        </Section>
+
+        <Section title="Режим разработчика">
+          {adminUnlocked ? (
+            <div style={{ background: "rgba(255,215,0,0.06)", border: "1px solid rgba(255,215,0,0.25)", borderRadius: 14, padding: 16, marginBottom: 12 }}>
+              <div style={{ color: "#FFD54F", fontWeight: 800, fontSize: 14, marginBottom: 8 }}>🔓 Режим разработчика активен</div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 12 }}>
+                Конструктор карт доступен в главном меню → три полосы
+              </div>
+              <Button onClick={() => { lockAdmin(); setAdminUnlocked(false); setMsg("Режим разработчика отключён"); setTimeout(() => setMsg(""), 2500); }} color="#FF5252" label="🔒 Выключить режим разработчика" />
+            </div>
+          ) : (
+            <>
+              {!showDevForm ? (
+                <Button onClick={() => setShowDevForm(true)} color="#FFD54F" label="🔑 Войти как разработчик" />
+              ) : (
+                <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: 16 }}>
+                  <input
+                    placeholder="Логин" value={adminLogin} onChange={e => setAdminLogin(e.target.value)}
+                    style={{ width: "100%", boxSizing: "border-box", padding: "10px 14px", borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", color: "white", fontSize: 14, fontFamily: "inherit", outline: "none", marginBottom: 8 }}
+                  />
+                  <input
+                    placeholder="Пароль" type="password" value={adminPass}
+                    onChange={e => setAdminPass(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === "Enter") {
+                        if (tryAdminLogin(adminLogin, adminPass)) { setAdminUnlocked(true); setShowDevForm(false); setMsg("Режим разработчика активирован!"); setTimeout(() => setMsg(""), 3000); }
+                        else { setMsg("Неверный логин или пароль"); setTimeout(() => setMsg(""), 2500); }
+                      }
+                    }}
+                    style={{ width: "100%", boxSizing: "border-box", padding: "10px 14px", borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", color: "white", fontSize: 14, fontFamily: "inherit", outline: "none", marginBottom: 12 }}
+                  />
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={() => setShowDevForm(false)} style={{ flex: 1, padding: "10px 0", borderRadius: 10, background: "rgba(255,82,82,0.12)", border: "1px solid rgba(255,82,82,0.3)", color: "#FF5252", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Отмена</button>
+                    <button onClick={() => {
+                      if (tryAdminLogin(adminLogin, adminPass)) { setAdminUnlocked(true); setShowDevForm(false); setMsg("Режим разработчика активирован!"); setTimeout(() => setMsg(""), 3000); }
+                      else { setMsg("Неверный логин или пароль"); setTimeout(() => setMsg(""), 2500); }
+                    }} style={{ flex: 1, padding: "10px 0", borderRadius: 10, background: "rgba(255,215,0,0.12)", border: "1px solid rgba(255,215,0,0.3)", color: "#FFD54F", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Войти</button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </Section>
 
         <Section title="Тестовые инструменты">

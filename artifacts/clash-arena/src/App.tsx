@@ -13,6 +13,7 @@ import ClashPassPage from "./pages/ClashPassPage";
 import TrophyRoadPage from "./pages/TrophyRoadPage";
 import ChestsPage from "./pages/ChestsPage";
 import LoadingScreen from "./pages/LoadingScreen";
+import MapEditorPage from "./pages/MapEditorPage";
 import RotateDeviceOverlay from "./components/RotateDeviceOverlay";
 import { preloadCharRenderers } from "./game/miyaTopDownRenderer";
 import { preloadAllModels } from "./utils/modelPreloader";
@@ -30,7 +31,8 @@ type Screen =
   | "profile"
   | "clashpass"
   | "trophyroad"
-  | "chests";
+  | "chests"
+  | "mapeditor";
 
 export type GameMode = "showdown" | "crystals" | "siege" | "heist" | "gemgrab" | "training";
 
@@ -158,8 +160,13 @@ export default function App() {
         onModeSelect={() => go("modeSelect")}
         onBrawlerSelect={() => go("characterSelect")}
         onLogout={() => { logout(); go("auth"); }}
+        onMapEditor={() => go("mapeditor")}
       />
     );
+  }
+
+  if (screen === "mapeditor") {
+    return <MapEditorPage onBack={() => go("menu")} />;
   }
 
   if (screen === "modeSelect") {
