@@ -222,6 +222,12 @@ uri = "file://artifacts/clash-arena/public/ui/nav-chests.png"
 type = "image"
 title = "nav chests icon"
 
+[[generated]]
+id = "zVKqsBO3YBJIakkw7XaLz"
+uri = "file://artifacts/clash-arena/public/loading-battle.png"
+type = "image"
+title = "starfall battle scene loading"
+
 [[outputs]]
 id = "X9Tws63Uu-uL8M0CvEeAQ"
 uri = "file://artifacts/clash-arena/public/brawlers/miya_front.png"
