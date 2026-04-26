@@ -1,5 +1,5 @@
 import { getPlatformTileCanvas } from "../utils/platformTile";
-import { TileGrid, TileType, getTile, TILE_PROPS } from "./TileMap";
+import { TileGrid, TileType, getTile, TILE_PROPS, TILE_CELL_SIZE } from "./TileMap";
 import { getTileCanvas, TALL_TILE_TYPES, PYRAMID_TILE } from "../utils/tileModelCache";
 
 export interface Wall {
@@ -49,7 +49,7 @@ function makeCrate(x: number, y: number): Crate {
   return { x, y, w: 50, h: 50, hp: 2500, maxHp: 2500, destroyed: false };
 }
 
-export function createShowdownMap(): GameMap {
+export function createShowdownMap(tileGrid?: TileGrid): GameMap {
   const W = 3000, H = 3000;
   const walls: Wall[] = [
     { x: 0, y: 0, w: W, h: 4, solid: true },
@@ -58,7 +58,30 @@ export function createShowdownMap(): GameMap {
     { x: W - 4, y: 0, w: 4, h: H, solid: true },
   ];
 
-  return { width: W, height: H, walls, bushes: [], crates: [], rivers: [], tileSize: 60, name: "Заброшенный храм" };
+  const crates: Crate[] = [];
+
+  // Place 18 power boxes on grass tiles
+  if (tileGrid) {
+    const C = TILE_CELL_SIZE;
+    const placed: Array<{ tx: number; ty: number }> = [];
+    const target = 18;
+    let tries = 0;
+    const rng = () => Math.random();
+    while (placed.length < target && tries < 3000) {
+      tries++;
+      const tx = Math.floor(rng() * 52) + 4;
+      const ty = Math.floor(rng() * 52) + 4;
+      const t = tileGrid.cells[ty * tileGrid.width + tx];
+      if (t !== 0) continue; // only on grass
+      if (placed.some(p => Math.abs(p.tx - tx) <= 2 && Math.abs(p.ty - ty) <= 2)) continue;
+      const wx = tx * C + C * 0.25;
+      const wy = ty * C + C * 0.25;
+      crates.push({ x: wx, y: wy, w: 50, h: 50, hp: 2500, maxHp: 2500, destroyed: false });
+      placed.push({ tx, ty });
+    }
+  }
+
+  return { width: W, height: H, walls, bushes: [], crates, rivers: [], tileSize: 60, name: "Заброшенный храм" };
 }
 
 export function createCrystalsMap(): GameMap {

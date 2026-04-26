@@ -67,7 +67,7 @@ export class ClashShowdown {
     spriteLoaded: boolean
   ) {
     this.tileGrid = generateShowdownTileGrid();
-    this.map = createShowdownMap();
+    this.map = createShowdownMap(this.tileGrid);
     this.map.tileGrid = this.tileGrid;
     this.spriteLoaded = spriteLoaded;
 
@@ -155,28 +155,6 @@ export class ClashShowdown {
       timer: 0,
       damageMultiplier: 1,
     };
-    
-    // ── Place power boxes on random grass tiles ─────────────────────────────
-    {
-      const C = TILE_CELL_SIZE;
-      const placed: Array<{ tx: number; ty: number }> = [];
-      const target = 18;
-      let tries = 0;
-      while (placed.length < target && tries < 3000) {
-        tries++;
-        const tx = randomInt(4, 55);
-        const ty = randomInt(4, 55);
-        const t = this.tileGrid.cells[ty * this.tileGrid.width + tx];
-        // Only place on grass (0), not on wall/water/bush etc.
-        if (t !== 0) continue;
-        // Not too close to another box
-        if (placed.some(p => Math.abs(p.tx - tx) <= 2 && Math.abs(p.ty - ty) <= 2)) continue;
-        const wx = tx * C + C * 0.25;
-        const wy = ty * C + C * 0.25;
-        this.map.crates.push({ x: wx, y: wy, w: 50, h: 50, hp: 2500, maxHp: 2500, destroyed: false });
-        placed.push({ tx, ty });
-      }
-    }
 
     this.camera = new Camera(CAM_W, CAM_H, this.map.width, this.map.height);
     this.input = new InputHandler(canvas, onAttack, onSuper);
@@ -192,6 +170,19 @@ export class ClashShowdown {
     if (isMelee) {
       const allBrawlers = [this.player, ...this.bots];
       this.player.meleeAttack(allBrawlers);
+      // Melee brawlers also smash nearby power boxes
+      for (const crate of this.map.crates) {
+        if (crate.destroyed) continue;
+        const cx = crate.x + crate.w / 2;
+        const cy = crate.y + crate.h / 2;
+        if (distance(this.player.x, this.player.y, cx, cy) < this.player.radius + 35) {
+          crate.hp -= this.player.stats.attackDamage;
+          if (crate.hp <= 0) {
+            crate.destroyed = true;
+            this.drops.push({ x: cx, y: cy, type: "powerup", radius: 16 });
+          }
+        }
+      }
     } else {
       const projs = this.player.shoot(angle);
       this.projectiles.push(...projs);
@@ -683,7 +674,21 @@ export class ClashShowdown {
     ctx.fillStyle = "#FFD700";
     ctx.font = "bold 11px Arial";
     ctx.fillText(this.player.superReady ? "СУПЕР ГОТОВ! [E]" : "Заряжаем супер...", 20, 73);
-    
+
+    // Jar count panel
+    if (this.player.powerCubes > 0) {
+      ctx.fillStyle = "rgba(100,0,150,0.75)";
+      ctx.beginPath();
+      ctx.roundRect(10, 85, 110, 28, 6);
+      ctx.fill();
+      ctx.fillStyle = "#E040FB";
+      ctx.font = "bold 13px Arial";
+      ctx.textAlign = "left";
+      ctx.fillText("🫙", 18, 104);
+      ctx.fillStyle = "#FFD700";
+      ctx.fillText(`×${this.player.powerCubes}  +${this.player.powerCubes * 10}% урон/HP`, 38, 104);
+    }
+
     // Enemy count shown in minimap panel — no separate top-right overlay needed
     
     // Ammo dots are now drawn above the brawler (under the HP bar) by Brawler.render().
