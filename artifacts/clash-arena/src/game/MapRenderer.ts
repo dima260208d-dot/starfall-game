@@ -1,6 +1,6 @@
 import { getPlatformTileCanvas } from "../utils/platformTile";
 import { TileGrid, TileType, getTile, TILE_CELL_SIZE } from "./TileMap";
-import { getTileCanvas, PYRAMID_TILE } from "../utils/tileModelCache";
+import { getTileCanvas, TALL_TILE_TYPES, PYRAMID_TILE } from "../utils/tileModelCache";
 import { getPowerBoxCanvas } from "../utils/powerModelCache";
 import { getNeighbourMask, drawSolidTile, SOLID_STYLES } from "../utils/autoTile";
 
@@ -643,20 +643,35 @@ export function renderTileGrid(
           continue;
         }
 
-        // ── Solid auto-tiling tiles ───────────────────────────────────────
+        // ── Solid connecting tiles (wall / mountain / wood / sand / fence) ──
+        // Layer 1: seamless auto-tiling base fill (closes all GLB-edge gaps,
+        //          shows bevel corners when the model isn't loaded yet).
+        // Layer 2: 3-D GLB sprite drawn on top (if the model is ready).
         const solidStyle = SOLID_STYLES[type];
         if (solidStyle) {
           const mask = getNeighbourMask(
             grid.cells, grid.destroyed, grid.width, grid.height, tx, ty, type
           );
+          // Base fill + bevel (also serves as Canvas-2D fallback)
           drawSolidTile(ctx, solidStyle, sx, sy, C, mask);
+
+          // 3-D GLB sprite on top
+          const glbCanvas = getTileCanvas(type);
+          if (glbCanvas) {
+            const TALL_OVERFLOW = C * 0.9;
+            if (TALL_TILE_TYPES.has(type)) {
+              ctx.drawImage(glbCanvas, sx - 1, sy - TALL_OVERFLOW - 1, C + 2, C + TALL_OVERFLOW + 2);
+            } else {
+              ctx.drawImage(glbCanvas, sx - 1, sy - 1, C + 2, C + 2);
+            }
+          }
           continue;
         }
 
-        // ── Object tiles (grid-aligned, centred, no neighbour logic) ─────
+        // ── Object tiles (isolated, grid-aligned, centred) ────────────────
         const tileCanvas = getTileCanvas(type);
         if (tileCanvas) {
-          ctx.drawImage(tileCanvas, sx, sy, C, C);
+          ctx.drawImage(tileCanvas, sx - 1, sy - 1, C + 2, C + 2);
         } else {
           ctx.fillStyle = TILE_BASE[type] ?? "#888888";
           ctx.fillRect(sx, sy, C, C);
