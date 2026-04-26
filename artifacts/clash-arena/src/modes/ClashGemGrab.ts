@@ -13,6 +13,10 @@ import { renderPlayerHUD } from "./sharedHUD";
 
 interface Gem { x: number; y: number; carrier: Brawler | null; }
 
+const GAME_ZOOM = 1.4;
+const CAM_W = Math.round(1200 / GAME_ZOOM);
+const CAM_H = Math.round(800 / GAME_ZOOM);
+
 export class ClashGemGrab {
   map: GameMap;
   player: Brawler;
@@ -50,7 +54,7 @@ export class ClashGemGrab {
     this.enemies.push(new Bot(allStats[3], randomInt(1, 5), 2900, 1750, "red"));
     this.enemies.push(new Bot(allStats[4], randomInt(1, 5), 2900, 2200, "red"));
 
-    this.camera = new Camera(1200, 800, this.map.width, this.map.height);
+    this.camera = new Camera(CAM_W, CAM_H, this.map.width, this.map.height);
     this.input = new InputHandler(canvas, onAttack, onSuper);
   }
 
@@ -83,7 +87,7 @@ export class ClashGemGrab {
     if (dx !== 0 || dy !== 0) this.player.move(dx, dy, dt);
 
     this.camera.follow(this.player.x, this.player.y);
-    this.input.updateWorldMouse(this.camera.x, this.camera.y, this.player.x, this.player.y);
+    this.input.updateWorldMouse(this.camera.x, this.camera.y, this.player.x, this.player.y, GAME_ZOOM);
     this.player.angle = angleTo(this.player.x, this.player.y, this.input.state.mouseWorldX, this.input.state.mouseWorldY);
 
     const all = [this.player, ...this.allies, ...this.enemies];
@@ -224,7 +228,9 @@ export class ClashGemGrab {
 
   render(ctx: CanvasRenderingContext2D): void {
     ctx.clearRect(0, 0, 1200, 800);
-    renderMap(ctx, this.map, this.camera.x, this.camera.y, 1200, 800, this.frame);
+    ctx.save();
+    ctx.scale(GAME_ZOOM, GAME_ZOOM);
+    renderMap(ctx, this.map, this.camera.x, this.camera.y, CAM_W, CAM_H, this.frame);
     // Center vein indicator
     const csx = 1750 - this.camera.x;
     const csy = 1750 - this.camera.y;
@@ -286,8 +292,9 @@ export class ClashGemGrab {
     renderProjectiles(ctx, this.projectiles, this.camera.x, this.camera.y, this.frame);
     renderEffects(ctx, this.camera.x, this.camera.y, this.frame);
     renderDamageNumbers(ctx, this.camera.x, this.camera.y);
+    ctx.restore(); // remove GAME_ZOOM
 
-    // Giant translucent countdown visible to everyone in the middle of the screen
+    // Giant translucent countdown — screen-space overlay, outside zoom
     const cd = this.blueCountdown > 0 ? this.blueCountdown : (this.redCountdown > 0 ? this.redCountdown : 0);
     if (cd > 0) {
       const isBlue = this.blueCountdown > 0;

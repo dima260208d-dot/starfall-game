@@ -11,6 +11,10 @@ import { angleTo, autoAimAngle, distance, randomInt } from "../utils/helpers";
 import { recordGameResult, getCurrentUsername } from "../utils/localStorageAPI";
 import { renderPlayerHUD } from "./sharedHUD";
 
+const GAME_ZOOM = 1.4;
+const CAM_W = Math.round(1200 / GAME_ZOOM);
+const CAM_H = Math.round(800 / GAME_ZOOM);
+
 export class ClashSiege {
   map: GameMap;
   player: Brawler;
@@ -56,7 +60,7 @@ export class ClashSiege {
       const stats = allyStats[i % allyStats.length];
       this.allies.push(new Bot(stats, Math.max(1, playerLevel - 1), allyPos[i].x, allyPos[i].y, "blue"));
     }
-    this.camera = new Camera(1200, 800, this.map.width, this.map.height);
+    this.camera = new Camera(CAM_W, CAM_H, this.map.width, this.map.height);
     this.input = new InputHandler(canvas, onAttack, onSuper);
   }
 
@@ -107,7 +111,7 @@ export class ClashSiege {
     if (dx !== 0 || dy !== 0) this.player.move(dx, dy, dt);
 
     this.camera.follow(this.player.x, this.player.y);
-    this.input.updateWorldMouse(this.camera.x, this.camera.y, this.player.x, this.player.y);
+    this.input.updateWorldMouse(this.camera.x, this.camera.y, this.player.x, this.player.y, GAME_ZOOM);
     this.player.angle = angleTo(this.player.x, this.player.y, this.input.state.mouseWorldX, this.input.state.mouseWorldY);
 
     const all = [this.player, ...this.allies, ...this.enemies];
@@ -257,7 +261,9 @@ export class ClashSiege {
 
   render(ctx: CanvasRenderingContext2D): void {
     ctx.clearRect(0, 0, 1200, 800);
-    renderMap(ctx, this.map, this.camera.x, this.camera.y, 1200, 800, this.frame);
+    ctx.save();
+    ctx.scale(GAME_ZOOM, GAME_ZOOM);
+    renderMap(ctx, this.map, this.camera.x, this.camera.y, CAM_W, CAM_H, this.frame);
 
     // Render base
     const sx = this.baseX - this.camera.x;
@@ -298,6 +304,7 @@ export class ClashSiege {
     renderProjectiles(ctx, this.projectiles, this.camera.x, this.camera.y, this.frame);
     renderEffects(ctx, this.camera.x, this.camera.y, this.frame);
     renderDamageNumbers(ctx, this.camera.x, this.camera.y);
+    ctx.restore();
     this.renderHUD(ctx);
   }
 

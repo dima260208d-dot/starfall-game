@@ -119,7 +119,7 @@ export class InputHandler {
    * before. The optional `playerX/Y` arguments allow modes to opt into
    * joystick aiming without restructuring their update loop.
    */
-  updateWorldMouse(camX: number, camY: number, playerX?: number, playerY?: number): void {
+  updateWorldMouse(camX: number, camY: number, playerX?: number, playerY?: number, zoom = 1.0): void {
     if (
       typeof playerX === "number" && typeof playerY === "number" &&
       (this.attackJoystick.active || this.superJoystick.active)
@@ -131,8 +131,9 @@ export class InputHandler {
       this.state.mouseWorldY = playerY + Math.sin(angle) * 1000;
       return;
     }
-    this.state.mouseWorldX = this.state.mouseX + camX;
-    this.state.mouseWorldY = this.state.mouseY + camY;
+    // Screen pixel → world unit: divide by zoom factor then offset by camera.
+    this.state.mouseWorldX = this.state.mouseX / zoom + camX;
+    this.state.mouseWorldY = this.state.mouseY / zoom + camY;
   }
 
   // ------------------ Mobile joystick API ------------------

@@ -33,6 +33,10 @@ export interface GasZone {
   damageMultiplier: number;
 }
 
+const GAME_ZOOM = 1.4;
+const CAM_W = Math.round(1200 / GAME_ZOOM);
+const CAM_H = Math.round(800 / GAME_ZOOM);
+
 export class ClashShowdown {
   map: GameMap;
   tileGrid: TileGrid;
@@ -152,7 +156,7 @@ export class ClashShowdown {
       damageMultiplier: 1,
     };
     
-    this.camera = new Camera(1200, 800, this.map.width, this.map.height);
+    this.camera = new Camera(CAM_W, CAM_H, this.map.width, this.map.height);
     this.input = new InputHandler(canvas, onAttack, onSuper);
   }
 
@@ -202,7 +206,7 @@ export class ClashShowdown {
     }
     
     this.camera.follow(this.player.x, this.player.y);
-    this.input.updateWorldMouse(this.camera.x, this.camera.y, this.player.x, this.player.y);
+    this.input.updateWorldMouse(this.camera.x, this.camera.y, this.player.x, this.player.y, GAME_ZOOM);
     
     const mouseAngle = angleTo(this.player.x, this.player.y, this.input.state.mouseWorldX, this.input.state.mouseWorldY);
     this.player.angle = mouseAngle;
@@ -474,17 +478,21 @@ export class ClashShowdown {
   render(ctx: CanvasRenderingContext2D): void {
     ctx.clearRect(0, 0, 1200, 800);
 
+    // ── Scale everything up by GAME_ZOOM so tiles fill ~17 cells across the screen ──
+    ctx.save();
+    ctx.scale(GAME_ZOOM, GAME_ZOOM);
+
     // ── 45° isometric view: compress Y axis by 0.65 for all world elements ──
     const ISO = 0.65;
-    const ISO_SHIFT = 800 * (1 - ISO) * 0.28; // shift world up so bottom stays visible
+    const ISO_SHIFT = CAM_H * (1 - ISO) * 0.28; // shift world up so bottom stays visible
 
     // ─── ISO layer: map tiles + drops + gas + projectiles + effects ───
     ctx.save();
     ctx.transform(1, 0, 0, ISO, 0, ISO_SHIFT);
 
-    renderMap(ctx, this.map, this.camera.x, this.camera.y, 1200, 800 / ISO, this.frame);
+    renderMap(ctx, this.map, this.camera.x, this.camera.y, CAM_W, CAM_H / ISO, this.frame);
 
-    renderTileGrid(ctx, this.tileGrid, this.camera.x, this.camera.y, 1200, Math.ceil(800 / ISO),
+    renderTileGrid(ctx, this.tileGrid, this.camera.x, this.camera.y, CAM_W, Math.ceil(CAM_H / ISO),
       this.player.x, this.player.y, false);
     
     this.renderDrops(ctx);
@@ -493,24 +501,25 @@ export class ClashShowdown {
     renderProjectiles(ctx, this.projectiles, this.camera.x, this.camera.y, this.frame);
     renderEffects(ctx, this.camera.x, this.camera.y, this.frame);
 
-    renderTileGrid(ctx, this.tileGrid, this.camera.x, this.camera.y, 1200, Math.ceil(800 / ISO),
+    renderTileGrid(ctx, this.tileGrid, this.camera.x, this.camera.y, CAM_W, Math.ceil(CAM_H / ISO),
       this.player.x, this.player.y, true);
 
     renderDamageNumbers(ctx, this.camera.x, this.camera.y);
 
-    ctx.restore();
+    ctx.restore(); // remove ISO, keep GAME_ZOOM
 
-    // ─── Screen layer: brawlers rendered upright at iso-projected positions ───
+    // ─── Brawlers: upright in world-space (no ISO), auto-scaled by GAME_ZOOM ───
     const allBrawlers = [this.player, ...this.bots];
     const friendlies = [{ x: this.player.x, y: this.player.y }];
-    // Sort back-to-front so characters further north are drawn first (painter's algo)
     allBrawlers.sort((a, b) => a.y - b.y);
     for (const b of allBrawlers) {
       const projSY = (b.y - this.camera.y) * ISO + ISO_SHIFT;
       b.render(ctx, this.camera.x, this.camera.y, this.spriteLoaded, this.player.team, friendlies, projSY);
     }
 
-    // ── HUD rendered flat (no iso transform) ──
+    ctx.restore(); // remove GAME_ZOOM
+
+    // ── HUD rendered flat at full screen resolution (no zoom) ──
     this.renderHUD(ctx);
   }
 
@@ -574,10 +583,10 @@ export class ClashShowdown {
     const gsx = this.gas.centerX - this.camera.x;
     const gsy = this.gas.centerY - this.camera.y;
     // Cover the full world-space canvas visible through the ISO transform
-    const worldH = Math.ceil(800 / iso) + 400;
+    const worldH = Math.ceil(CAM_H / iso) + 400;
 
     ctx.beginPath();
-    ctx.rect(-200, -200, 1600, worldH);
+    ctx.rect(-200, -200, CAM_W + 400, worldH);
     ctx.arc(gsx, gsy, this.gas.safeRadius, 0, Math.PI * 2, true);
     ctx.fillStyle = "rgba(0, 200, 0, 0.13)";
     ctx.fill("evenodd");

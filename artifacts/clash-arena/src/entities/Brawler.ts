@@ -1005,7 +1005,7 @@ export class Brawler {
         : anim === "attack" ? this.angle : this._smoothMoveAngle;
       const off = charRenderer.render(this.id, anim, renderAngle);
       if (off) {
-        const drawSize = this.radius * 4.6;
+        const drawSize = this.radius * 3.2;
         ctx.save();
         ctx.globalAlpha = alpha;
         if (glowColor) {
@@ -1024,7 +1024,7 @@ export class Brawler {
         this.stats.id,
         sx,
         sy + 10,
-        this.radius * 2.2,
+        this.radius * 1.8,
         this.angle,
         alpha,
         glowColor,

@@ -515,8 +515,9 @@ export function renderTileGrid(
       const isBush = type === TileType.BUSH;
       if (isBush !== bushLayer) continue;
 
-      const sx = tx * C - camX;
-      const sy = ty * C - camY;
+      // Round to integer pixels to prevent subpixel hairline gaps between tiles.
+      const sx = Math.round(tx * C - camX);
+      const sy = Math.round(ty * C - camY);
 
       if (isBush) {
         const worldX = tx * C + C / 2;
@@ -537,24 +538,23 @@ export function renderTileGrid(
           // it is proportional to brawler characters.
           ctx.drawImage(
             tileCanvas,
-            sx + BUSH_X_OFF,
-            sy - BUSH_Y_TOP_OFF,
-            BUSH_W,
-            BUSH_H,
+            sx + BUSH_X_OFF - 1,
+            sy - BUSH_Y_TOP_OFF - 1,
+            BUSH_W + 2,
+            BUSH_H + 2,
           );
         } else if (TALL_TILE_TYPES.has(type)) {
-          // Tall blocks overflow upward — occupy cell footprint but reach up
-          ctx.drawImage(tileCanvas, sx, sy - TALL_OVERFLOW, C, C + TALL_OVERFLOW);
+          // Tall blocks: +1px bleed on all sides to eliminate subpixel seams
+          ctx.drawImage(tileCanvas, sx - 1, sy - TALL_OVERFLOW - 1, C + 2, C + TALL_OVERFLOW + 2);
         } else if (type === TileType.WATER) {
-          // Water: tiny overflow on sides to close gaps in the river
-          const ov = C * 0.06;
+          // Water: overflow on sides to close gaps in the river (+1 extra for seams)
+          const ov = C * 0.06 + 1;
           ctx.drawImage(tileCanvas, sx - ov, sy - ov, C + ov * 2, C + ov * 2);
         } else {
-          // Flat tiles (heal barrel, etc.) fill their cell exactly
-          ctx.drawImage(tileCanvas, sx, sy, C, C);
+          // Flat tiles: +1px bleed on all sides
+          ctx.drawImage(tileCanvas, sx - 1, sy - 1, C + 2, C + 2);
         }
       } else {
-        const props = TILE_PROPS[type];
         const colors: Record<number, string> = {
           [TileType.WALL]:       "#8B6060",
           [TileType.MOUNTAIN]:   "#607060",
@@ -569,12 +569,16 @@ export function renderTileGrid(
           [TileType.SAND_WALL]:  "#78909C",
           [PYRAMID_TILE]:        "#FDD835",
         };
-        void props;
-        ctx.fillStyle = colors[type] ?? "#888";
-        ctx.fillRect(sx, sy, C, C);
-        ctx.strokeStyle = "rgba(0,0,0,0.3)";
-        ctx.lineWidth = 1;
-        ctx.strokeRect(sx + 0.5, sy + 0.5, C - 1, C - 1);
+        const baseColor = colors[type] ?? "#888";
+        // Fill with 1px bleed to prevent seams — no stroke border that creates gaps
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(sx - 1, sy - 1, C + 2, C + 2);
+        // Subtle top-face highlight and bottom-face shadow for a chunky 3-D look
+        const hl = Math.round(C * 0.28);
+        ctx.fillStyle = "rgba(255,255,255,0.20)";
+        ctx.fillRect(sx - 1, sy - 1, C + 2, hl);
+        ctx.fillStyle = "rgba(0,0,0,0.22)";
+        ctx.fillRect(sx - 1, sy + C - hl + 1, C + 2, hl + 1);
       }
 
       if (isBush) ctx.restore();
