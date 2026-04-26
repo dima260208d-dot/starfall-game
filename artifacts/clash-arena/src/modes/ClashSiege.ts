@@ -11,6 +11,14 @@ import { angleTo, autoAimAngle, distance, randomInt } from "../utils/helpers";
 import { recordGameResult, getCurrentUsername } from "../utils/localStorageAPI";
 import { renderPlayerHUD } from "./sharedHUD";
 
+interface CrystalParticle {
+  x: number; y: number;
+  vx: number; vy: number;
+  life: number; maxLife: number;
+  size: number; angle: number; spin: number;
+  color: string;
+}
+
 const GAME_ZOOM = 1.4;
 const CAM_W = Math.round(1200 / GAME_ZOOM);
 const CAM_H = Math.round(800 / GAME_ZOOM);
@@ -21,6 +29,8 @@ export class ClashSiege {
   allies: Bot[] = [];
   enemies: Bot[] = [];
   projectiles: Projectile[] = [];
+  crystalParticles: CrystalParticle[] = [];
+  baseExploded = false;
   respawnTimers: Map<string, number> = new Map();
   playerRespawnTimer = 0;
   camera: Camera;
@@ -230,12 +240,45 @@ export class ClashSiege {
       }
     }
     // Loss only if the base falls
+    if (this.baseHp <= 0 && !this.baseExploded) {
+      this.baseExploded = true;
+      this.spawnCrystalExplosion(this.baseX, this.baseY);
+    }
     if (this.baseHp <= 0) {
       this.over = true; this.won = false;
       if (!this.resultRecorded) { recordGameResult({ won: false, mode: "siege", place: 2 }); this.resultRecorded = true; }
     }
+    // Update crystal particles
+    for (let i = this.crystalParticles.length - 1; i >= 0; i--) {
+      const p = this.crystalParticles[i];
+      p.x += p.vx * dt * 60;
+      p.y += p.vy * dt * 60;
+      p.vy += 0.18 * dt * 60;
+      p.angle += p.spin * dt * 60;
+      p.life -= dt;
+      if (p.life <= 0) this.crystalParticles.splice(i, 1);
+    }
     updateDamageNumbers(dt);
     updateEffects(dt, [this.player, ...this.allies, ...this.enemies]);
+  }
+
+  private spawnCrystalExplosion(x: number, y: number): void {
+    const colors = ["#00BCD4", "#26C6DA", "#4DD0E1", "#80DEEA", "#B2EBF2", "#00ACC1", "#006064"];
+    for (let i = 0; i < 60; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 2 + Math.random() * 5;
+      this.crystalParticles.push({
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 2.5,
+        life: 1.5 + Math.random() * 2,
+        maxLife: 3.5,
+        size: 5 + Math.random() * 10,
+        angle: Math.random() * Math.PI * 2,
+        spin: (Math.random() - 0.5) * 0.18,
+        color: colors[Math.floor(Math.random() * colors.length)],
+      });
+    }
   }
 
   private handleProjectileHits(all: Brawler[]): void {
@@ -265,38 +308,11 @@ export class ClashSiege {
     ctx.scale(GAME_ZOOM, GAME_ZOOM);
     renderMap(ctx, this.map, this.camera.x, this.camera.y, CAM_W, CAM_H, this.frame);
 
-    // Render base
-    const sx = this.baseX - this.camera.x;
-    const sy = this.baseY - this.camera.y;
-    ctx.save();
-    ctx.shadowColor = "#FFD700";
-    ctx.shadowBlur = 25;
-    const grad = ctx.createRadialGradient(sx, sy, 10, sx, sy, 80);
-    grad.addColorStop(0, "#FFD700");
-    grad.addColorStop(0.5, "#FFB300");
-    grad.addColorStop(1, "#F57F17");
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(sx, sy, 70, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = "#FFFFFF";
-    ctx.lineWidth = 4;
-    ctx.stroke();
-    ctx.fillStyle = "white";
-    ctx.font = "bold 36px Arial";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("⚙", sx, sy);
-    // HP bar
-    const hpRatio = Math.max(0, this.baseHp / this.baseMaxHp);
-    ctx.fillStyle = "rgba(0,0,0,0.7)";
-    ctx.fillRect(sx - 70, sy - 95, 140, 14);
-    ctx.fillStyle = hpRatio > 0.5 ? "#4CAF50" : hpRatio > 0.25 ? "#FFB300" : "#F44336";
-    ctx.fillRect(sx - 70, sy - 95, 140 * hpRatio, 14);
-    ctx.strokeStyle = "white";
-    ctx.lineWidth = 1;
-    ctx.strokeRect(sx - 70, sy - 95, 140, 14);
-    ctx.restore();
+    // Render base as a vault safe
+    if (this.baseHp > 0) {
+      this.renderBase(ctx);
+    }
+    this.renderCrystalParticles(ctx);
 
     const all = [this.player, ...this.allies, ...this.enemies];
     const _friendlies = [this.player, ...this.allies].filter(b => b.alive).map(b => ({ x: b.x, y: b.y }));
@@ -306,6 +322,164 @@ export class ClashSiege {
     renderDamageNumbers(ctx, this.camera.x, this.camera.y);
     ctx.restore();
     this.renderHUD(ctx);
+  }
+
+  private renderCrystalParticles(ctx: CanvasRenderingContext2D): void {
+    for (const p of this.crystalParticles) {
+      const sx = p.x - this.camera.x;
+      const sy = p.y - this.camera.y;
+      const alpha = Math.max(0, p.life / p.maxLife);
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.rotate(p.angle);
+      ctx.globalAlpha = alpha;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = p.color;
+      const s = p.size;
+      ctx.beginPath();
+      ctx.moveTo(0, -s);
+      ctx.lineTo(s * 0.5, 0);
+      ctx.lineTo(0, s);
+      ctx.lineTo(-s * 0.5, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,0.4)";
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 0.5);
+      ctx.lineTo(s * 0.2, 0);
+      ctx.lineTo(0, s * 0.25);
+      ctx.lineTo(-s * 0.2, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  private renderBase(ctx: CanvasRenderingContext2D): void {
+    const sx = this.baseX - this.camera.x;
+    const sy = this.baseY - this.camera.y;
+    const hpRatio = Math.max(0, this.baseHp / this.baseMaxHp);
+    const W = 120, H = 120, depth = 14;
+
+    ctx.save();
+    // Drop shadow
+    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.beginPath();
+    ctx.ellipse(sx + 7, sy + H/2 + 12, 66, 12, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Team glow (blue = allied base)
+    ctx.shadowColor = "#4CAF50";
+    ctx.shadowBlur = 28;
+
+    // Right extrusion
+    ctx.fillStyle = "#1A2E1A";
+    ctx.beginPath();
+    ctx.moveTo(sx + W/2, sy - H/2);
+    ctx.lineTo(sx + W/2 + depth, sy - H/2 - depth * 0.5);
+    ctx.lineTo(sx + W/2 + depth, sy + H/2 - depth * 0.5);
+    ctx.lineTo(sx + W/2, sy + H/2);
+    ctx.closePath();
+    ctx.fill();
+    // Top extrusion
+    ctx.fillStyle = "#2E4E2E";
+    ctx.beginPath();
+    ctx.moveTo(sx - W/2, sy - H/2);
+    ctx.lineTo(sx + W/2, sy - H/2);
+    ctx.lineTo(sx + W/2 + depth, sy - H/2 - depth * 0.5);
+    ctx.lineTo(sx - W/2 + depth, sy - H/2 - depth * 0.5);
+    ctx.closePath();
+    ctx.fill();
+
+    // Main face
+    ctx.shadowBlur = 0;
+    const bodyGrad = ctx.createLinearGradient(sx - W/2, sy - H/2, sx + W/2, sy + H/2);
+    bodyGrad.addColorStop(0, "#546E7A");
+    bodyGrad.addColorStop(0.5, "#37474F");
+    bodyGrad.addColorStop(1, "#263238");
+    ctx.fillStyle = bodyGrad;
+    ctx.fillRect(sx - W/2, sy - H/2, W, H);
+
+    // Green team accent
+    ctx.fillStyle = "#4CAF50";
+    ctx.fillRect(sx - W/2, sy - H/2, W, 9);
+    ctx.fillStyle = "rgba(76,175,80,0.22)";
+    ctx.fillRect(sx - W/2, sy - H/2, W, H);
+
+    // Vault wheel
+    ctx.shadowColor = "#FFD700";
+    ctx.shadowBlur = 10;
+    ctx.strokeStyle = "#FFD700";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(sx, sy, 38, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = "#B0BEC5";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(sx, sy, 26, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = "#FFD700";
+    ctx.lineWidth = 3.5;
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(sx + Math.cos(a) * 12, sy + Math.sin(a) * 12);
+      ctx.lineTo(sx + Math.cos(a) * 36, sy + Math.sin(a) * 36);
+      ctx.stroke();
+    }
+    ctx.fillStyle = "#FFD700";
+    ctx.shadowColor = "#FFD700";
+    ctx.shadowBlur = 7;
+    ctx.beginPath();
+    ctx.arc(sx, sy, 7, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Corner rivets
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#78909C";
+    for (const [rx, ry] of [[-W/2+8, -H/2+8], [W/2-8, -H/2+8], [-W/2+8, H/2-8], [W/2-8, H/2-8]]) {
+      ctx.beginPath();
+      ctx.arc(sx + rx, sy + ry, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Outline
+    ctx.strokeStyle = "#4CAF50";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(sx - W/2 + 0.5, sy - H/2 + 0.5, W - 1, H - 1);
+
+    // Damage cracks
+    if (hpRatio < 0.6) {
+      ctx.strokeStyle = "rgba(255,100,0,0.7)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(sx - W/2 + W*0.1, sy - H/2 + H*0.2);
+      ctx.lineTo(sx - W/2 + W*0.4, sy - H/2 + H*0.5);
+      ctx.lineTo(sx - W/2 + W*0.3, sy - H/2 + H*0.75);
+      ctx.stroke();
+      if (hpRatio < 0.3) {
+        ctx.beginPath();
+        ctx.moveTo(sx - W/2 + W*0.65, sy - H/2 + H*0.15);
+        ctx.lineTo(sx - W/2 + W*0.55, sy - H/2 + H*0.55);
+        ctx.lineTo(sx - W/2 + W*0.8, sy - H/2 + H*0.85);
+        ctx.stroke();
+      }
+    }
+
+    // HP bar
+    const barW = 140;
+    ctx.fillStyle = "rgba(0,0,0,0.7)";
+    ctx.fillRect(sx - barW/2 - 1, sy - H/2 - 20, barW + 2, 13);
+    ctx.fillStyle = hpRatio > 0.5 ? "#4CAF50" : hpRatio > 0.25 ? "#FFB300" : "#F44336";
+    ctx.fillRect(sx - barW/2, sy - H/2 - 19, barW * hpRatio, 11);
+    ctx.strokeStyle = "rgba(255,255,255,0.4)";
+    ctx.lineWidth = 0.5;
+    ctx.strokeRect(sx - barW/2, sy - H/2 - 19, barW, 11);
+
+    ctx.restore();
   }
 
   private renderHUD(ctx: CanvasRenderingContext2D): void {

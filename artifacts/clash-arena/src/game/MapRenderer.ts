@@ -46,7 +46,7 @@ export interface GameMap {
 }
 
 function makeCrate(x: number, y: number): Crate {
-  return { x, y, w: 40, h: 40, hp: 3, maxHp: 3, destroyed: false };
+  return { x, y, w: 50, h: 50, hp: 2500, maxHp: 2500, destroyed: false };
 }
 
 export function createShowdownMap(): GameMap {
@@ -264,90 +264,134 @@ export function renderMap(
     ctx.restore();
   }
 
-  // ---------- CRATES — pseudo-3D wooden boxes ----------
+  // ---------- POWER BOXES — 3D upgrade crates ----------
   for (const crate of map.crates) {
     if (crate.destroyed) continue;
     const sx = crate.x - camX;
     const sy = crate.y - camY;
     if (sx + crate.w < 0 || sy + crate.h < 0 || sx > canvasW || sy > canvasH) continue;
 
+    const hpRatio = crate.hp / crate.maxHp;
+    const W = crate.w, H = crate.h;
     const depth = 10;
-    // Shadow
+
+    // Drop shadow
+    ctx.save();
     ctx.fillStyle = "rgba(0,0,0,0.45)";
     ctx.beginPath();
-    ctx.ellipse(sx + crate.w / 2 + 4, sy + crate.h + 6, crate.w * 0.55, 6, 0, 0, Math.PI * 2);
+    ctx.ellipse(sx + W / 2 + 4, sy + H + 6, W * 0.55, 6, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    const hpRatio = crate.hp / crate.maxHp;
-    const baseR = hpRatio > 0.66 ? 141 : hpRatio > 0.33 ? 121 : 109;
-    const baseG = hpRatio > 0.66 ? 110 : hpRatio > 0.33 ? 85 : 76;
-    const baseB = hpRatio > 0.66 ? 99 : hpRatio > 0.33 ? 72 : 65;
+    // Glow based on HP
+    const glowAlpha = hpRatio > 0.5 ? 0.7 : hpRatio > 0.25 ? 0.5 : 0.3;
+    ctx.shadowColor = `rgba(180,100,255,${glowAlpha})`;
+    ctx.shadowBlur = 16;
 
-    // Right side face (extrusion)
-    ctx.fillStyle = `rgb(${baseR - 35},${baseG - 30},${baseB - 25})`;
+    // Side face (right extrusion — darker)
+    ctx.fillStyle = "#2D0055";
     ctx.beginPath();
-    ctx.moveTo(sx + crate.w, sy);
-    ctx.lineTo(sx + crate.w + depth, sy - depth * 0.5);
-    ctx.lineTo(sx + crate.w + depth, sy + crate.h - depth * 0.5);
-    ctx.lineTo(sx + crate.w, sy + crate.h);
+    ctx.moveTo(sx + W, sy);
+    ctx.lineTo(sx + W + depth, sy - depth * 0.5);
+    ctx.lineTo(sx + W + depth, sy + H - depth * 0.5);
+    ctx.lineTo(sx + W, sy + H);
     ctx.closePath();
     ctx.fill();
 
-    // Top face
-    const topGrad = ctx.createLinearGradient(sx, sy, sx + crate.w, sy + crate.h);
-    topGrad.addColorStop(0, `rgb(${baseR + 25},${baseG + 20},${baseB + 15})`);
-    topGrad.addColorStop(1, `rgb(${baseR - 10},${baseG - 8},${baseB - 6})`);
-    ctx.fillStyle = topGrad;
-    ctx.fillRect(sx, sy, crate.w, crate.h);
-
-    // Wood plank lines
-    ctx.strokeStyle = `rgb(${baseR - 35},${baseG - 30},${baseB - 25})`;
-    ctx.lineWidth = 1.5;
+    // Top-side face
+    ctx.fillStyle = "#3A0070";
     ctx.beginPath();
-    ctx.moveTo(sx, sy + crate.h / 2);
-    ctx.lineTo(sx + crate.w, sy + crate.h / 2);
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(sx + W, sy);
+    ctx.lineTo(sx + W + depth, sy - depth * 0.5);
+    ctx.lineTo(sx + depth, sy - depth * 0.5);
+    ctx.closePath();
+    ctx.fill();
+
+    // Main front face — gradient
+    const faceGrad = ctx.createLinearGradient(sx, sy, sx + W, sy + H);
+    faceGrad.addColorStop(0, "#7B2FBE");
+    faceGrad.addColorStop(0.5, "#5A1494");
+    faceGrad.addColorStop(1, "#3A006E");
+    ctx.fillStyle = faceGrad;
+    ctx.fillRect(sx, sy, W, H);
+    ctx.shadowBlur = 0;
+
+    // Energy lines (horizontal)
+    ctx.strokeStyle = "rgba(200,100,255,0.5)";
+    ctx.lineWidth = 1;
+    for (let li = 1; li <= 2; li++) {
+      ctx.beginPath();
+      ctx.moveTo(sx + 4, sy + H * li / 3);
+      ctx.lineTo(sx + W - 4, sy + H * li / 3);
+      ctx.stroke();
+    }
+    // Energy lines (vertical)
+    ctx.beginPath();
+    ctx.moveTo(sx + W / 2, sy + 4);
+    ctx.lineTo(sx + W / 2, sy + H - 4);
     ctx.stroke();
 
-    // Iron straps
-    ctx.fillStyle = "rgba(60,50,45,0.85)";
-    ctx.fillRect(sx, sy, crate.w, 4);
-    ctx.fillRect(sx, sy + crate.h - 4, crate.w, 4);
-    // Rivets
-    ctx.fillStyle = "#3E2723";
-    for (const px of [sx + 4, sx + crate.w - 6]) {
+    // Center star/diamond icon
+    ctx.fillStyle = "rgba(255,200,80,0.95)";
+    ctx.font = `bold ${Math.round(W * 0.44)}px Arial`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.shadowColor = "#FFD700";
+    ctx.shadowBlur = 8;
+    ctx.fillText("✦", sx + W / 2, sy + H / 2 + 1);
+    ctx.shadowBlur = 0;
+
+    // Corner rivets
+    ctx.fillStyle = "rgba(255,180,80,0.9)";
+    for (const [rx, ry] of [[sx + 5, sy + 5], [sx + W - 5, sy + 5], [sx + 5, sy + H - 5], [sx + W - 5, sy + H - 5]]) {
       ctx.beginPath();
-      ctx.arc(px + 1, sy + 2, 1.5, 0, Math.PI * 2);
-      ctx.arc(px + 1, sy + crate.h - 2, 1.5, 0, Math.PI * 2);
+      ctx.arc(rx, ry, 2.5, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // Bevel highlight on top edge
-    ctx.fillStyle = "rgba(255,235,200,0.3)";
-    ctx.fillRect(sx, sy, crate.w, 2);
-    ctx.fillRect(sx, sy, 2, crate.h);
+    // Bevel highlight (top-left edge)
+    ctx.fillStyle = "rgba(200,150,255,0.22)";
+    ctx.fillRect(sx, sy, W, 3);
+    ctx.fillRect(sx, sy, 3, H);
 
     // Outline
-    ctx.strokeStyle = "rgba(40,25,15,0.9)";
+    ctx.strokeStyle = "rgba(100,40,180,0.9)";
     ctx.lineWidth = 1.5;
-    ctx.strokeRect(sx + 0.5, sy + 0.5, crate.w - 1, crate.h - 1);
+    ctx.strokeRect(sx + 0.5, sy + 0.5, W - 1, H - 1);
 
     // Damage cracks
-    if (hpRatio < 1) {
-      ctx.strokeStyle = "rgba(0,0,0,0.7)";
+    if (hpRatio < 0.75) {
+      ctx.strokeStyle = "rgba(255,150,50,0.7)";
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.moveTo(sx + crate.w * 0.2, sy + crate.h * 0.3);
-      ctx.lineTo(sx + crate.w * 0.5, sy + crate.h * 0.5);
-      ctx.lineTo(sx + crate.w * 0.4, sy + crate.h * 0.7);
+      ctx.moveTo(sx + W * 0.15, sy + H * 0.25);
+      ctx.lineTo(sx + W * 0.45, sy + H * 0.50);
+      ctx.lineTo(sx + W * 0.35, sy + H * 0.75);
       ctx.stroke();
-      if (hpRatio < 0.5) {
+      if (hpRatio < 0.4) {
         ctx.beginPath();
-        ctx.moveTo(sx + crate.w * 0.7, sy + crate.h * 0.2);
-        ctx.lineTo(sx + crate.w * 0.6, sy + crate.h * 0.6);
-        ctx.lineTo(sx + crate.w * 0.85, sy + crate.h * 0.8);
+        ctx.moveTo(sx + W * 0.65, sy + H * 0.15);
+        ctx.lineTo(sx + W * 0.55, sy + H * 0.55);
+        ctx.lineTo(sx + W * 0.80, sy + H * 0.80);
         ctx.stroke();
       }
     }
+
+    // HP bar above the box
+    const barW = W + 14;
+    const barH = 5;
+    const barX = sx - 7;
+    const barY = sy - 12;
+    ctx.fillStyle = "rgba(0,0,0,0.65)";
+    ctx.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
+    const barColor = hpRatio > 0.5 ? "#4CAF50" : hpRatio > 0.25 ? "#FFB300" : "#F44336";
+    ctx.fillStyle = barColor;
+    ctx.fillRect(barX, barY, barW * hpRatio, barH);
+    ctx.strokeStyle = "rgba(255,255,255,0.5)";
+    ctx.lineWidth = 0.5;
+    ctx.strokeRect(barX, barY, barW, barH);
+
+    ctx.restore();
   }
 
   // ---------- WALLS — pseudo-3D extruded blocks ----------
@@ -502,7 +546,7 @@ export function renderTileGrid(
   // The bush is drawn wider than one cell and tall enough to be proportional
   // to brawler characters (~1.5–2 cells in height).
   const BUSH_W = C * 1.35;           // draw width (slightly wider than cell)
-  const BUSH_H = BUSH_W * 2;          // draw height (2× canvas aspect ratio)
+  const BUSH_H = BUSH_W * 2.6;          // draw height (taller for better visibility)
   const BUSH_X_OFF = (C - BUSH_W) / 2; // centre horizontally on cell
   // Anchor bottom of bush to cell bottom (sy + C), then subtract full height.
   const BUSH_Y_TOP_OFF = BUSH_H - C;  // how far above sy the top of the bush is
@@ -547,8 +591,8 @@ export function renderTileGrid(
           // Tall blocks: +1px bleed on all sides to eliminate subpixel seams
           ctx.drawImage(tileCanvas, sx - 1, sy - TALL_OVERFLOW - 1, C + 2, C + TALL_OVERFLOW + 2);
         } else if (type === TileType.WATER) {
-          // Water: overflow on sides to close gaps in the river (+1 extra for seams)
-          const ov = C * 0.06 + 1;
+          // Water: large overflow on all sides to close gaps between adjacent tiles
+          const ov = C * 0.15 + 2;
           ctx.drawImage(tileCanvas, sx - ov, sy - ov, C + ov * 2, C + ov * 2);
         } else {
           // Flat tiles: +1px bleed on all sides

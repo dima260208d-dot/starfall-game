@@ -156,6 +156,28 @@ export class ClashShowdown {
       damageMultiplier: 1,
     };
     
+    // ── Place power boxes on random grass tiles ─────────────────────────────
+    {
+      const C = TILE_CELL_SIZE;
+      const placed: Array<{ tx: number; ty: number }> = [];
+      const target = 18;
+      let tries = 0;
+      while (placed.length < target && tries < 3000) {
+        tries++;
+        const tx = randomInt(4, 55);
+        const ty = randomInt(4, 55);
+        const t = this.tileGrid.cells[ty * this.tileGrid.width + tx];
+        // Only place on grass (0), not on wall/water/bush etc.
+        if (t !== 0) continue;
+        // Not too close to another box
+        if (placed.some(p => Math.abs(p.tx - tx) <= 2 && Math.abs(p.ty - ty) <= 2)) continue;
+        const wx = tx * C + C * 0.25;
+        const wy = ty * C + C * 0.25;
+        this.map.crates.push({ x: wx, y: wy, w: 50, h: 50, hp: 2500, maxHp: 2500, destroyed: false });
+        placed.push({ tx, ty });
+      }
+    }
+
     this.camera = new Camera(CAM_W, CAM_H, this.map.width, this.map.height);
     this.input = new InputHandler(canvas, onAttack, onSuper);
   }
@@ -423,7 +445,7 @@ export class ClashShowdown {
     }
   }
 
-  private handleCrateHits(allBrawlers: Brawler[]): void {
+  private handleCrateHits(_allBrawlers: Brawler[]): void {
     for (const proj of this.projectiles) {
       if (!proj.active) continue;
       for (const crate of this.map.crates) {
@@ -432,18 +454,14 @@ export class ClashShowdown {
           proj.x > crate.x && proj.x < crate.x + crate.w &&
           proj.y > crate.y && proj.y < crate.y + crate.h
         ) {
-          crate.hp--;
+          crate.hp -= proj.damage;
           if (!proj.piercing) proj.active = false;
           if (crate.hp <= 0) {
             crate.destroyed = true;
-            const roll = Math.random();
-            if (roll < 0.55) {
-              this.drops.push({ x: crate.x + 20, y: crate.y + 20, type: "powerup", radius: 14 });
-            } else if (roll < 0.85) {
-              this.drops.push({ x: crate.x + 20, y: crate.y + 20, type: "health", radius: 15 });
-            } else {
-              this.drops.push({ x: crate.x + 20, y: crate.y + 20, type: "coins", radius: 12 });
-            }
+            // Always drop a power jar when the box is destroyed
+            const cx = crate.x + crate.w / 2;
+            const cy = crate.y + crate.h / 2;
+            this.drops.push({ x: cx, y: cy, type: "powerup", radius: 16 });
           }
           break;
         }
@@ -528,53 +546,85 @@ export class ClashShowdown {
       const sx = drop.x - this.camera.x;
       const sy = drop.y - this.camera.y;
 
-      let color: string;
-      let glowColor: string;
-      let label: string;
-      if (drop.type === "health") {
-        color = "#4CAF50"; glowColor = "#4CAF50"; label = "+";
-      } else if (drop.type === "powerup") {
-        color = "#9C27B0"; glowColor = "#E040FB"; label = "◆";
+      if (drop.type === "powerup") {
+        // Spinning power jar — draw a 3D-ish bottle/jar that rotates
+        const spin = (this.frame * 0.04) % (Math.PI * 2);
+        const R = drop.radius;
+        ctx.save();
+        ctx.translate(sx, sy);
+        ctx.rotate(spin);
+        ctx.shadowColor = "#E040FB";
+        ctx.shadowBlur = 22;
+
+        // Jar body (rounded rectangle)
+        const jW = R * 1.3, jH = R * 1.8;
+        const jX = -jW / 2, jY = -jH / 2;
+        // Body gradient
+        const jGrad = ctx.createLinearGradient(jX, jY, jX + jW, jY + jH);
+        jGrad.addColorStop(0, "#CE93D8");
+        jGrad.addColorStop(0.35, "#9C27B0");
+        jGrad.addColorStop(1, "#4A148C");
+        ctx.fillStyle = jGrad;
+        ctx.beginPath();
+        ctx.roundRect(jX, jY, jW, jH, R * 0.35);
+        ctx.fill();
+
+        // Inner glow / liquid
+        ctx.fillStyle = "rgba(230,100,255,0.4)";
+        ctx.beginPath();
+        ctx.roundRect(jX + jW * 0.2, jY + jH * 0.3, jW * 0.6, jH * 0.55, R * 0.2);
+        ctx.fill();
+
+        // Cap/lid
+        ctx.fillStyle = "#FFD700";
+        ctx.shadowColor = "#FFD700";
+        ctx.shadowBlur = 6;
+        ctx.fillRect(-jW * 0.3, jY - R * 0.18, jW * 0.6, R * 0.22);
+
+        // Specular highlight
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "rgba(255,255,255,0.3)";
+        ctx.beginPath();
+        ctx.roundRect(jX + jW * 0.15, jY + jH * 0.1, jW * 0.22, jH * 0.35, R * 0.1);
+        ctx.fill();
+
+        ctx.restore();
+
+        // Floating label above
+        ctx.save();
+        ctx.fillStyle = "#FFD700";
+        ctx.font = "bold 9px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.shadowColor = "#000";
+        ctx.shadowBlur = 3;
+        ctx.fillText("БАНКА", sx, sy - R * 1.6);
+        ctx.restore();
       } else {
-        color = "#FFD700"; glowColor = "#FFD700"; label = "$";
-      }
-
-      // Deterministic pseudo-random pile offsets based on drop position
-      const seed = ((drop.x * 31 + drop.y * 17) | 0) & 0xffff;
-      const r0 = drop.radius * 0.72;
-
-      // Pile: 4 small circles staggered (back-to-front painter order)
-      const pile = [
-        { dx: (((seed * 23) % 9) - 4) * 0.36, dy: (((seed * 13) % 9) - 4) * 0.36, r: r0 * 0.78 },
-        { dx: -(((seed * 7)  % 8) - 3) * 0.36, dy: (((seed * 19) % 8) - 3) * 0.36, r: r0 * 0.83 },
-        { dx: (((seed * 17) % 7) - 3) * 0.36, dy: -(((seed * 11) % 7) - 2) * 0.36, r: r0 * 0.87 },
-        { dx: 0, dy: 0, r: r0 },   // center / top piece
-      ];
-
-      ctx.save();
-      ctx.shadowColor = glowColor;
-      ctx.shadowBlur = drop.type === "powerup" ? 20 : 12;
-
-      for (const piece of pile) {
+        // Health / coins — colored circles
+        const color = drop.type === "health" ? "#4CAF50" : "#FFD700";
+        const glowColor = drop.type === "health" ? "#4CAF50" : "#FFD700";
+        const label = drop.type === "health" ? "+" : "$";
+        const r0 = drop.radius * 0.72;
+        ctx.save();
+        ctx.shadowColor = glowColor;
+        ctx.shadowBlur = 12;
         ctx.fillStyle = color;
         ctx.beginPath();
-        ctx.arc(sx + piece.dx, sy + piece.dy, piece.r, 0, Math.PI * 2);
+        ctx.arc(sx, sy, r0, 0, Math.PI * 2);
         ctx.fill();
-        // Specular highlight on each piece
         ctx.fillStyle = "rgba(255,255,255,0.25)";
         ctx.beginPath();
-        ctx.arc(sx + piece.dx - piece.r * 0.28, sy + piece.dy - piece.r * 0.28, piece.r * 0.32, 0, Math.PI * 2);
+        ctx.arc(sx - r0 * 0.28, sy - r0 * 0.28, r0 * 0.32, 0, Math.PI * 2);
         ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "white";
+        ctx.font = `bold ${Math.round(r0 * 0.9)}px Arial`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(label, sx, sy);
+        ctx.restore();
       }
-
-      // Label on the topmost (center) piece
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = "white";
-      ctx.font = `bold ${Math.round(r0 * 0.9)}px Arial`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(label, sx, sy);
-      ctx.restore();
     }
   }
 

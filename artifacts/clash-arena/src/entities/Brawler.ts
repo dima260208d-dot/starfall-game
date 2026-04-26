@@ -1091,7 +1091,7 @@ export class Brawler {
     if (this.alive) {
       this.renderNameLabel(ctx, sx, sy, viewerTeam);
       this.renderHPBar(ctx, sx, sy, viewerTeam);
-      this.renderAmmoBar(ctx, sx, sy);
+      this.renderAmmoBar(ctx, sx, sy, viewerTeam);
     }
 
     if (this.alive && this.isPlayer) {
@@ -1099,13 +1099,32 @@ export class Brawler {
     }
 
     if (this.alive && this.powerCubes > 0) {
+      // Spinning mini-jar icon above HP bar
+      const jarR = 7;
+      const jarY = sy - this.radius - 55;
       ctx.save();
+      ctx.shadowColor = "#E040FB";
+      ctx.shadowBlur = 8;
+      // Jar body
+      const jGrad = ctx.createLinearGradient(sx - jarR, jarY - jarR, sx + jarR, jarY + jarR);
+      jGrad.addColorStop(0, "#CE93D8");
+      jGrad.addColorStop(1, "#7B1FA2");
+      ctx.fillStyle = jGrad;
+      ctx.beginPath();
+      ctx.roundRect(sx - jarR * 0.7, jarY - jarR, jarR * 1.4, jarR * 2, jarR * 0.4);
+      ctx.fill();
+      // Gold lid
+      ctx.shadowBlur = 0;
       ctx.fillStyle = "#FFD700";
-      ctx.font = "bold 11px Arial";
+      ctx.fillRect(sx - jarR * 0.5, jarY - jarR - 2, jarR, 3);
+      // Count label
+      ctx.fillStyle = "#FFD700";
+      ctx.font = "bold 10px Arial";
       ctx.textAlign = "center";
-      ctx.shadowColor = "rgba(0,0,0,0.8)";
-      ctx.shadowBlur = 3;
-      ctx.fillText(`◆${this.powerCubes}`, sx, sy - this.radius - 70);
+      ctx.textBaseline = "middle";
+      ctx.shadowColor = "rgba(0,0,0,0.9)";
+      ctx.shadowBlur = 4;
+      ctx.fillText(`×${this.powerCubes}`, sx + jarR * 1.6, jarY);
       ctx.restore();
     }
   }
@@ -1144,8 +1163,10 @@ export class Brawler {
     ctx.restore();
   }
 
-  private renderAmmoBar(ctx: CanvasRenderingContext2D, sx: number, sy: number): void {
+  private renderAmmoBar(ctx: CanvasRenderingContext2D, sx: number, sy: number, viewerTeam?: string): void {
     if (this.maxAttackCharges <= 0) return;
+    // Don't show ammo count to enemies — only player and allies see ammo bars
+    if (viewerTeam !== undefined && !this.isPlayer && this.team !== viewerTeam) return;
     // Sit just below the HP bar, which now lives at sy - radius - 38.
     const by = sy - this.radius - 26;
     const totalW = this.radius * 2.6;

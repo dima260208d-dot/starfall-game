@@ -17,6 +17,15 @@ interface Safe {
   team: "blue" | "red";
   hp: number;
   maxHp: number;
+  exploded?: boolean;
+}
+
+interface CrystalParticle {
+  x: number; y: number;
+  vx: number; vy: number;
+  life: number; maxLife: number;
+  size: number; angle: number; spin: number;
+  color: string;
 }
 
 const GAME_ZOOM = 1.4;
@@ -32,6 +41,7 @@ export class ClashHeist {
   camera: Camera;
   input: InputHandler;
   safes: Safe[] = [];
+  crystalParticles: CrystalParticle[] = [];
   respawnTimers: Map<string, number> = new Map();
   playerRespawnTimer = 0;
 
@@ -164,6 +174,13 @@ export class ClashHeist {
     }
     const enemySafe = this.safes.find(s => s.team === "red")!;
     const playerSafe = this.safes.find(s => s.team === "blue")!;
+    // Trigger crystal explosion when safe first reaches 0 HP
+    for (const safe of this.safes) {
+      if (safe.hp <= 0 && !safe.exploded) {
+        safe.exploded = true;
+        this.spawnCrystalExplosion(safe.x, safe.y);
+      }
+    }
     if (enemySafe.hp <= 0) {
       this.over = true; this.won = true;
       if (!this.resultRecorded) { recordGameResult({ won: true, mode: "heist", place: 1 }); this.resultRecorded = true; }
@@ -172,8 +189,37 @@ export class ClashHeist {
       this.over = true; this.won = false;
       if (!this.resultRecorded) { recordGameResult({ won: false, mode: "heist", place: 2 }); this.resultRecorded = true; }
     }
+    // Update crystal particles
+    for (let i = this.crystalParticles.length - 1; i >= 0; i--) {
+      const p = this.crystalParticles[i];
+      p.x += p.vx * dt * 60;
+      p.y += p.vy * dt * 60;
+      p.vy += 0.18 * dt * 60; // gravity
+      p.angle += p.spin * dt * 60;
+      p.life -= dt;
+      if (p.life <= 0) this.crystalParticles.splice(i, 1);
+    }
     updateDamageNumbers(dt);
     updateEffects(dt, [this.player, ...this.allies, ...this.enemies]);
+  }
+
+  private spawnCrystalExplosion(x: number, y: number): void {
+    const colors = ["#00BCD4", "#26C6DA", "#4DD0E1", "#80DEEA", "#B2EBF2", "#00ACC1", "#006064"];
+    for (let i = 0; i < 50; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 1.5 + Math.random() * 4.5;
+      this.crystalParticles.push({
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 2,
+        life: 1.5 + Math.random() * 1.5,
+        maxLife: 3,
+        size: 4 + Math.random() * 8,
+        angle: Math.random() * Math.PI * 2,
+        spin: (Math.random() - 0.5) * 0.15,
+        color: colors[Math.floor(Math.random() * colors.length)],
+      });
+    }
   }
 
   private handleProjectileHits(allBrawlers: Brawler[]): void {
@@ -215,6 +261,7 @@ export class ClashHeist {
     ctx.scale(GAME_ZOOM, GAME_ZOOM);
     renderMap(ctx, this.map, this.camera.x, this.camera.y, CAM_W, CAM_H, this.frame);
     this.renderSafes(ctx);
+    this.renderCrystalParticles(ctx);
     const allBrawlers = [this.player, ...this.allies, ...this.enemies];
     const _friendlies = [this.player, ...this.allies].filter(b => b.alive).map(b => ({ x: b.x, y: b.y }));
     for (const b of allBrawlers) b.render(ctx, this.camera.x, this.camera.y, this.spriteLoaded, this.player.team, _friendlies);
@@ -225,32 +272,175 @@ export class ClashHeist {
     this.renderHUD(ctx);
   }
 
+  private renderCrystalParticles(ctx: CanvasRenderingContext2D): void {
+    for (const p of this.crystalParticles) {
+      const sx = p.x - this.camera.x;
+      const sy = p.y - this.camera.y;
+      const alpha = Math.max(0, p.life / p.maxLife);
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.rotate(p.angle);
+      ctx.globalAlpha = alpha;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = p.color;
+      // Draw diamond/crystal shape
+      const s = p.size;
+      ctx.beginPath();
+      ctx.moveTo(0, -s);
+      ctx.lineTo(s * 0.5, 0);
+      ctx.lineTo(0, s);
+      ctx.lineTo(-s * 0.5, 0);
+      ctx.closePath();
+      ctx.fill();
+      // Inner highlight
+      ctx.fillStyle = "rgba(255,255,255,0.4)";
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 0.5);
+      ctx.lineTo(s * 0.2, 0);
+      ctx.lineTo(0, s * 0.25);
+      ctx.lineTo(-s * 0.2, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
   private renderSafes(ctx: CanvasRenderingContext2D): void {
     for (const safe of this.safes) {
+      if (safe.hp <= 0) continue;
       const sx = safe.x - this.camera.x;
       const sy = safe.y - this.camera.y;
-      ctx.save();
-      ctx.fillStyle = safe.team === "blue" ? "#1565C0" : "#B71C1C";
-      ctx.shadowColor = safe.team === "blue" ? "#40C4FF" : "#FF5252";
-      ctx.shadowBlur = 20;
-      ctx.fillRect(sx - 50, sy - 50, 100, 100);
-      ctx.strokeStyle = "#FFD700";
-      ctx.lineWidth = 4;
-      ctx.strokeRect(sx - 50, sy - 50, 100, 100);
-      ctx.fillStyle = "#FFD700";
-      ctx.font = "bold 30px Arial";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText("$", sx, sy);
-      // HP bar
+      const isBlue = safe.team === "blue";
+      const teamColor = isBlue ? "#1565C0" : "#B71C1C";
+      const teamGlow = isBlue ? "#40C4FF" : "#FF5252";
       const hpRatio = Math.max(0, safe.hp / safe.maxHp);
+
+      ctx.save();
+      // Drop shadow
+      ctx.fillStyle = "rgba(0,0,0,0.5)";
+      ctx.beginPath();
+      ctx.ellipse(sx + 6, sy + 58, 56, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Glow
+      ctx.shadowColor = teamGlow;
+      ctx.shadowBlur = 20;
+
+      // Safe body — steel-gray box with extrusion
+      const depth = 12;
+      const W = 100, H = 100;
+      // Right extrusion
+      ctx.fillStyle = "#1A1A2E";
+      ctx.beginPath();
+      ctx.moveTo(sx + W/2, sy - H/2);
+      ctx.lineTo(sx + W/2 + depth, sy - H/2 - depth * 0.5);
+      ctx.lineTo(sx + W/2 + depth, sy + H/2 - depth * 0.5);
+      ctx.lineTo(sx + W/2, sy + H/2);
+      ctx.closePath();
+      ctx.fill();
+      // Top extrusion
+      ctx.fillStyle = "#2D2D4E";
+      ctx.beginPath();
+      ctx.moveTo(sx - W/2, sy - H/2);
+      ctx.lineTo(sx + W/2, sy - H/2);
+      ctx.lineTo(sx + W/2 + depth, sy - H/2 - depth * 0.5);
+      ctx.lineTo(sx - W/2 + depth, sy - H/2 - depth * 0.5);
+      ctx.closePath();
+      ctx.fill();
+
+      // Main face gradient
+      ctx.shadowBlur = 0;
+      const bodyGrad = ctx.createLinearGradient(sx - W/2, sy - H/2, sx + W/2, sy + H/2);
+      bodyGrad.addColorStop(0, "#546E7A");
+      bodyGrad.addColorStop(0.5, "#37474F");
+      bodyGrad.addColorStop(1, "#263238");
+      ctx.fillStyle = bodyGrad;
+      ctx.fillRect(sx - W/2, sy - H/2, W, H);
+
+      // Team color accent strip on top
+      ctx.fillStyle = teamColor;
+      ctx.fillRect(sx - W/2, sy - H/2, W, 8);
+      ctx.fillStyle = teamGlow;
+      ctx.globalAlpha = 0.35;
+      ctx.fillRect(sx - W/2, sy - H/2, W, H);
+      ctx.globalAlpha = 1;
+
+      // Safe door — circular vault wheel
+      ctx.shadowColor = "#FFD700";
+      ctx.shadowBlur = 8;
+      ctx.strokeStyle = "#FFD700";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 32, 0, Math.PI * 2);
+      ctx.stroke();
+      // Inner ring
+      ctx.strokeStyle = "#B0BEC5";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 22, 0, Math.PI * 2);
+      ctx.stroke();
+      // Wheel spokes
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = "#FFD700";
+      ctx.lineWidth = 3;
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(sx + Math.cos(a) * 10, sy + Math.sin(a) * 10);
+        ctx.lineTo(sx + Math.cos(a) * 30, sy + Math.sin(a) * 30);
+        ctx.stroke();
+      }
+      // Center bolt
+      ctx.fillStyle = "#FFD700";
+      ctx.shadowColor = "#FFD700";
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 6, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Corner rivets
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "#78909C";
+      for (const [rx, ry] of [[-W/2+7, -H/2+7], [W/2-7, -H/2+7], [-W/2+7, H/2-7], [W/2-7, H/2-7]]) {
+        ctx.beginPath();
+        ctx.arc(sx + rx, sy + ry, 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Outline
+      ctx.strokeStyle = "#546E7A";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(sx - W/2 + 0.5, sy - H/2 + 0.5, W - 1, H - 1);
+
+      // Damage cracks
+      if (hpRatio < 0.6) {
+        ctx.strokeStyle = "rgba(255,100,0,0.65)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(sx - W/2 + W*0.1, sy - H/2 + H*0.2);
+        ctx.lineTo(sx - W/2 + W*0.4, sy - H/2 + H*0.5);
+        ctx.lineTo(sx - W/2 + W*0.3, sy - H/2 + H*0.75);
+        ctx.stroke();
+        if (hpRatio < 0.3) {
+          ctx.beginPath();
+          ctx.moveTo(sx - W/2 + W*0.65, sy - H/2 + H*0.15);
+          ctx.lineTo(sx - W/2 + W*0.55, sy - H/2 + H*0.55);
+          ctx.lineTo(sx - W/2 + W*0.8, sy - H/2 + H*0.85);
+          ctx.stroke();
+        }
+      }
+
+      // HP bar
+      const barW = 120;
       ctx.fillStyle = "rgba(0,0,0,0.7)";
-      ctx.fillRect(sx - 55, sy - 75, 110, 12);
+      ctx.fillRect(sx - barW/2 - 1, sy - H/2 - 17, barW + 2, 12);
       ctx.fillStyle = hpRatio > 0.5 ? "#4CAF50" : hpRatio > 0.25 ? "#FFB300" : "#F44336";
-      ctx.fillRect(sx - 55, sy - 75, 110 * hpRatio, 12);
-      ctx.strokeStyle = "white";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(sx - 55, sy - 75, 110, 12);
+      ctx.fillRect(sx - barW/2, sy - H/2 - 16, barW * hpRatio, 10);
+      ctx.strokeStyle = "rgba(255,255,255,0.4)";
+      ctx.lineWidth = 0.5;
+      ctx.strokeRect(sx - barW/2, sy - H/2 - 16, barW, 10);
+
       ctx.restore();
     }
   }
