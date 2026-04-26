@@ -101,7 +101,7 @@ export default function RotateDeviceOverlay() {
         maxWidth: 320, lineHeight: 1.5,
         animation: "pulseHint 2s ease-in-out infinite",
       }}>
-        Clash Arena играется в горизонтальной ориентации.
+        Starfall играется в горизонтальной ориентации.
         Поверните телефон, чтобы продолжить.
       </div>
     </div>

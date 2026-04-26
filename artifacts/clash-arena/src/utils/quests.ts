@@ -55,7 +55,7 @@ const QUEST_POOL: Omit<QuestDef, "id">[] = [
   { kind: "play_games",     target: 1, description: "Сыграйте 1 матч",
     reward: { type: "coins", amount: 100, label: "100 монет" }, difficulty: 1 },
   { kind: "play_games",     target: 3, description: "Сыграйте 3 матча",
-    reward: { type: "xp", amount: 80, label: "80 опыта Clash Pass" }, difficulty: 1 },
+    reward: { type: "xp", amount: 80, label: "80 опыта Star Pass" }, difficulty: 1 },
   { kind: "play_showdown",  target: 2, description: "Сыграйте 2 матча в «Битве в одиночку»",
     reward: { type: "powerPoints", amount: 6, label: "6 очков прокачки" }, difficulty: 1 },
 
@@ -63,7 +63,7 @@ const QUEST_POOL: Omit<QuestDef, "id">[] = [
   { kind: "win_games",      target: 2, description: "Победите в 2 матчах",
     reward: { type: "chest", amount: 1, chestRarity: "rare", label: "Редкий сундук" }, difficulty: 2 },
   { kind: "win_games",      target: 3, description: "Победите в 3 матчах",
-    reward: { type: "xp", amount: 200, label: "200 опыта Clash Pass" }, difficulty: 2 },
+    reward: { type: "xp", amount: 200, label: "200 опыта Star Pass" }, difficulty: 2 },
   { kind: "earn_trophies",  target: 30, description: "Заработайте 30 трофеев",
     reward: { type: "gems", amount: 12, label: "12 кристаллов" }, difficulty: 2 },
   { kind: "open_chests",    target: 1, description: "Откройте 1 сундук",
@@ -71,7 +71,7 @@ const QUEST_POOL: Omit<QuestDef, "id">[] = [
   { kind: "upgrade_brawler", target: 1, description: "Прокачайте любого бойца",
     reward: { type: "powerPoints", amount: 10, label: "10 очков прокачки" }, difficulty: 2 },
   { kind: "play_team",      target: 4, description: "Сыграйте 4 командных матча",
-    reward: { type: "xp", amount: 150, label: "150 опыта Clash Pass" }, difficulty: 2 },
+    reward: { type: "xp", amount: 150, label: "150 опыта Star Pass" }, difficulty: 2 },
   { kind: "play_showdown",  target: 4, description: "Сыграйте 4 матча «Битва в одиночку»",
     reward: { type: "coins", amount: 200, label: "200 монет" }, difficulty: 2 },
 

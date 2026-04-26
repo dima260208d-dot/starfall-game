@@ -77,7 +77,7 @@ function ChestInfoModal({ rarity, onClose }: { rarity: ChestRarity; onClose: () 
               {d.bonusGems ? <Row label="💎 Бонус кристаллы" value={`+${d.bonusGems}`} color="#40C4FF" /> : null}
               {d.bonusPowerPoints ? <Row label="⚡ Бонус ОП" value={`+${d.bonusPowerPoints}`} color="#CE93D8" /> : null}
               {d.bonusCoins ? <Row label="🪙 Бонус монеты" value={`+${d.bonusCoins}`} color="#FFD700" /> : null}
-              {d.xp ? <Row label="⭐ Опыт Clash Pass" value={`+${d.xp}`} color="#FFD700" /> : null}
+              {d.xp ? <Row label="⭐ Опыт Star Pass" value={`+${d.xp}`} color="#FFD700" /> : null}
             </>
           )}
         </div>

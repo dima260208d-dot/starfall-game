@@ -411,7 +411,7 @@ export default function MainMenu(props: MainMenuProps) {
       {compact ? (
         <button
           onClick={onClashPass}
-          title="Clash Pass"
+          title="Star Pass"
           style={{
             position: "absolute", bottom: 8, left: 8, zIndex: 5,
             width: 48, height: 44,
@@ -444,7 +444,7 @@ export default function MainMenu(props: MainMenuProps) {
           <NotificationBadge count={clashPassBadge} />
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
             <div style={{ fontWeight: 900, letterSpacing: 1, fontSize: 14, color: "#FFD700" }}>
-              🎟️ CLASH PASS
+              🎟️ STAR PASS
             </div>
             <div style={{ fontSize: 13, fontWeight: 800, color: "#CE93D8" }}>УР. {passLevel}</div>
           </div>
@@ -498,6 +498,9 @@ export default function MainMenu(props: MainMenuProps) {
               <span style={{ display: "block", color: "rgba(255,255,255,0.55)", fontSize: 10, letterSpacing: 1 }}>РЕЖИМ</span>
             )}
             <span style={{ display: "block", fontSize: compact ? 11 : 16, fontWeight: 800, color: mode.color, whiteSpace: "nowrap" }}>{mode.name}</span>
+            {!compact && (
+              <span style={{ display: "block", fontSize: 11, color: "rgba(255,255,255,0.5)", whiteSpace: "nowrap", fontWeight: 600 }}>{mode.subtitle}</span>
+            )}
           </span>
           {!compact && (
             <span style={{ color: "rgba(255,255,255,0.45)", fontSize: 12 }}>► СМЕНИТЬ</span>

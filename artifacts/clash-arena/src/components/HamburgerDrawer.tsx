@@ -12,8 +12,8 @@ interface Props {
 type Panel = "menu" | "battle" | "leaderboard";
 
 const MODE_NAMES: Record<string, string> = {
-  showdown: "Шоудаун", crystals: "Захват кристаллов", heist: "Ограбление",
-  gemgrab: "Выноси кристаллы", siege: "Осада", training: "Тренировка",
+  showdown: "Столкновение", crystals: "Вынос кристаллов", heist: "Ограбление",
+  gemgrab: "Ограбление кристаллов", siege: "Осада", training: "Тренировка",
 };
 
 function modeName(m: string) { return MODE_NAMES[m] ?? m; }

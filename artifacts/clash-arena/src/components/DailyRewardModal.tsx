@@ -218,7 +218,7 @@ export default function DailyRewardModal({ onClose }: Props) {
               <div style={{
                 fontSize: 11, color: reward.color, fontWeight: 800, lineHeight: 1.2,
               }}>
-                {reward.label.replace("кристаллов", "крист.").replace("очков прокачки", "ОП").replace("опыта Clash Pass", "опыта")}
+                {reward.label.replace("кристаллов", "крист.").replace("очков прокачки", "ОП").replace("опыта Star Pass", "опыта")}
               </div>
             </div>
           ))}

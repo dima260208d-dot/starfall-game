@@ -173,7 +173,7 @@ export default function ProfilePage({ onBack }: Props) {
               <Stat label="Винрейт" value={`${winrate}%`} color="#69F0AE" icon="📈" />
               <Stat label="Побед" value={profile.totalWins} color="#69F0AE" icon="🥇" />
               <Stat label="Поражений" value={profile.totalLosses} color="#FF7043" icon="💀" />
-              <Stat label="Clash Pass" value={profile.clashPassLevel} color="#CE93D8" icon="🎟️" />
+              <Stat label="Star Pass" value={profile.clashPassLevel} color="#CE93D8" icon="🎟️" />
             </div>
 
             <h3 style={{ marginTop: 28, marginBottom: 12, color: "rgba(255,255,255,0.7)", fontWeight: 700, letterSpacing: 1 }}>
@@ -184,8 +184,8 @@ export default function ProfilePage({ onBack }: Props) {
                 const s = profile.modeStats[m] || { games: 0, wins: 0, losses: 0 };
                 const wr = s.games ? Math.round((s.wins / s.games) * 100) : 0;
                 const labels: Record<string,string> = {
-                  showdown: "Шоудаун", crystals: "Кристаллы", heist: "Ограбление",
-                  gemgrab: "Выноси кристаллы", siege: "Осада",
+                  showdown: "Столкновение", crystals: "Вынос кристаллов", heist: "Ограбление",
+                  gemgrab: "Ограбление кристаллов", siege: "Осада",
                 };
                 return (
                   <div key={m} style={{ ...card, padding: 12 }}>

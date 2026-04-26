@@ -120,10 +120,7 @@ export default function LoadingScreen({
         }}
       >
         <div style={{ fontSize: 44, fontWeight: 900, letterSpacing: 4, color: "white", lineHeight: 1, textShadow: "0 3px 12px rgba(0,0,0,0.5)" }}>
-          CLASH
-        </div>
-        <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: 10, color: "#FFE57F", marginTop: 4, textShadow: "0 2px 8px rgba(0,0,0,0.5)" }}>
-          ARENA
+          STARFALL
         </div>
       </div>
 

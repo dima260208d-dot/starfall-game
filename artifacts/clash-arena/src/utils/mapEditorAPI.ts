@@ -26,12 +26,12 @@ export function lockAdmin(): void {
 export type EditorMode = "showdown" | "gemgrab" | "heist" | "bounty" | "brawlball" | "siege";
 
 export const EDITOR_MODES: { id: EditorMode; label: string; icon: string }[] = [
-  { id: "showdown",  label: "Шоудаун",           icon: "💀" },
-  { id: "gemgrab",   label: "Захват кристаллов",  icon: "💎" },
-  { id: "heist",     label: "Ограбление",         icon: "💰" },
-  { id: "bounty",    label: "Охота за головами",  icon: "⭐" },
-  { id: "brawlball", label: "Футбол",             icon: "⚽" },
-  { id: "siege",     label: "Осада",              icon: "🏰" },
+  { id: "showdown",  label: "Столкновение",         icon: "💀" },
+  { id: "gemgrab",   label: "Ограбление кристаллов", icon: "💎" },
+  { id: "heist",     label: "Ограбление",            icon: "💰" },
+  { id: "bounty",    label: "Охота за головами",     icon: "⭐" },
+  { id: "brawlball", label: "Футбол",                icon: "⚽" },
+  { id: "siege",     label: "Осада",                 icon: "🏰" },
 ];
 
 export interface MapSave {

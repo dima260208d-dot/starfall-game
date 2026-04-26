@@ -80,7 +80,7 @@ export default function ClashPassPage({ onBack }: Props) {
           background: "linear-gradient(135deg, #FFD700, #CE93D8)",
           WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
         }}>
-          Clash Pass
+          Star Pass
         </h1>
         <p style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", marginTop: 6 }}>
           Получайте награды за каждый уровень. Опыт за победы или покупка за кристаллы.

@@ -65,7 +65,7 @@ export default function App() {
   const [forceMode, setForceMode] = useState<GameMode | null>(null);
 
   useEffect(() => {
-    document.title = "Clash Arena";
+    document.title = "Starfall";
     // Kick off parallel preloading of all GLB models immediately on boot.
     const base = (import.meta as any).env?.BASE_URL ?? "/";
     preloadAllModels(base, (p) => setBootProgress(p)).catch(() => setBootProgress(1));

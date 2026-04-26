@@ -43,7 +43,7 @@ function build(): DailyReward[] {
     } else if (day === 4 || day === 11 || day === 18 || day === 25) {
       const xp = 100 + day * 5;
       out.push({ day, type: "xp", amount: xp,
-        label: `${xp} опыта Clash Pass`, icon: "⭐", color: "#FFD700" });
+        label: `${xp} опыта Star Pass`, icon: "⭐", color: "#FFD700" });
     } else {
       const amount = 50 + day * 8;
       out.push({ day, type: "coins", amount,

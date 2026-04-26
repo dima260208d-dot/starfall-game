@@ -20,8 +20,8 @@ const modes: Array<{
 }> = [
   {
     id: "showdown",
-    name: "Шоудаун",
-    subtitle: "Королевская битва",
+    name: "Star Battle",
+    subtitle: "Столкновение",
     desc: "Последний выживший побеждает. 1 против 7 ботов. Газ сжимается со временем.",
     players: "1 на 7 ботов",
     iconImg: `${BASE}images/mode-showdown.png`,
@@ -30,8 +30,8 @@ const modes: Array<{
   },
   {
     id: "crystals",
-    name: "Захват кристаллов",
-    subtitle: "3 на 3 командный бой",
+    name: "Crystal Carry",
+    subtitle: "Вынос кристаллов",
     desc: "Несите кристаллы на свою базу. Кто первый соберёт 10 — побеждает!",
     players: "3 на 3",
     iconImg: `${BASE}images/mode-crystals.png`,
@@ -40,8 +40,8 @@ const modes: Array<{
   },
   {
     id: "siege",
-    name: "Осада",
-    subtitle: "Защита базы",
+    name: "Star Siege",
+    subtitle: "Осада",
     desc: "Защитите свою базу от 3 волн врагов!",
     players: "4 против волн",
     iconImg: `${BASE}images/mode-siege.png`,
@@ -50,8 +50,8 @@ const modes: Array<{
   },
   {
     id: "heist",
-    name: "Ограбление",
-    subtitle: "Атака сейфа",
+    name: "Fallen Crown",
+    subtitle: "Ограбление",
     desc: "Уничтожьте сейф врага раньше, чем они уничтожат ваш!",
     players: "3 на 3",
     iconImg: `${BASE}images/mode-heist.png`,
@@ -60,8 +60,8 @@ const modes: Array<{
   },
   {
     id: "gemgrab",
-    name: "Выноси кристаллы",
-    subtitle: "Удержи 10 секунд",
+    name: "Crystal Void",
+    subtitle: "Ограбление кристаллов",
     desc: "Соберите 10 камней и удержите их 15 секунд для победы!",
     players: "3 на 3",
     iconImg: `${BASE}images/mode-gemgrab.png`,
@@ -166,15 +166,19 @@ export default function ModeSelect({ onSelect, onBack }: ModeSelectProps) {
             <div
               style={{
                 fontSize: 22,
-                fontWeight: 800,
+                fontWeight: 900,
                 color: mode.color,
-                marginBottom: 4,
+                marginBottom: 2,
+                letterSpacing: 1,
               }}
             >
               {mode.name}
             </div>
-            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 12, fontWeight: 600, letterSpacing: 1 }}>
-              {mode.subtitle} • {mode.players}
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 2, fontWeight: 700 }}>
+              {mode.subtitle}
+            </div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginBottom: 10, letterSpacing: 1 }}>
+              {mode.players}
             </div>
             <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 14, margin: 0, lineHeight: 1.5 }}>
               {mode.desc}

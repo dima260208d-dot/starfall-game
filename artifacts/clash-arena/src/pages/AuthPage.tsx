@@ -113,17 +113,7 @@ export default function AuthPage({ onAuth }: AuthPageProps) {
               lineHeight: 1,
             }}
           >
-            CLASH
-          </div>
-          <div
-            style={{
-              fontSize: 24,
-              fontWeight: 700,
-              color: "#CE93D8",
-              letterSpacing: 8,
-            }}
-          >
-            ARENA
+            STARFALL
           </div>
           <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, marginTop: 5 }}>
             Эпичная аниме арена
