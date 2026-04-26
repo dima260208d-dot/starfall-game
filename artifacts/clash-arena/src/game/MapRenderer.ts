@@ -501,6 +501,66 @@ export function collidesWithWalls(x: number, y: number, radius: number, walls: W
 
 const BUSH_REVEAL_RADIUS = 4 * 50; // 4 tiles in world units
 
+// Base colours used to fill the full tile cell before placing the 3-D GLB
+// sprite on top.  Adjacent same-type tiles share the same colour so there are
+// zero seams between them regardless of any transparency in the sprite edges.
+const TILE_BASE: Partial<Record<number, string>> = {
+  [TileType.WALL]:       "#7A5555",
+  [TileType.MOUNTAIN]:   "#506050",
+  [TileType.WATER]:      "#1060B0",
+  [TileType.DECORATION]: "#B8B8B8",
+  [TileType.FENCE]:      "#C4A050",
+  [TileType.HEAL]:       "#9E1038",
+  [TileType.CACTUS]:     "#447A22",
+  [TileType.WOOD]:       "#7A5850",
+  [TileType.SAND_WALL]:  "#607080",
+  [PYRAMID_TILE]:        "#F9D520",
+};
+
+// Water wave pattern cache — re-created when tile size changes.
+let _waterPatternC = 0;
+let _waterPatternCanvas: HTMLCanvasElement | null = null;
+
+function getWaterPatternCanvas(C: number): HTMLCanvasElement {
+  if (_waterPatternCanvas && _waterPatternC === C) return _waterPatternCanvas;
+  _waterPatternC = C;
+  const pw = Math.max(64, C * 2);
+  const ph = Math.max(32, C);
+  const wc = document.createElement("canvas");
+  wc.width = pw; wc.height = ph;
+  const wctx = wc.getContext("2d")!;
+  // Deep water gradient
+  const g = wctx.createLinearGradient(0, 0, 0, ph);
+  g.addColorStop(0,   "#1878D0");
+  g.addColorStop(0.4, "#1060A8");
+  g.addColorStop(1,   "#0A4888");
+  wctx.fillStyle = g;
+  wctx.fillRect(0, 0, pw, ph);
+  // Seamless wave lines
+  wctx.strokeStyle = "rgba(180,220,255,0.35)";
+  wctx.lineWidth = 1.5;
+  for (let wy = ph * 0.2; wy < ph; wy += ph * 0.28) {
+    wctx.beginPath();
+    for (let wx = 0; wx <= pw; wx += 4) {
+      const yOff = Math.sin((wx / pw) * Math.PI * 4) * (ph * 0.05);
+      if (wx === 0) wctx.moveTo(wx, wy + yOff);
+      else wctx.lineTo(wx, wy + yOff);
+    }
+    wctx.stroke();
+  }
+  // Foam dots
+  wctx.fillStyle = "rgba(220,240,255,0.18)";
+  for (let i = 0; i < 12; i++) {
+    const fx = (i * pw * 0.13) % pw;
+    const fy = ph * 0.15 + (i % 3) * ph * 0.25;
+    wctx.beginPath();
+    wctx.arc(fx, fy, pw * 0.018, 0, Math.PI * 2);
+    wctx.fill();
+  }
+  _waterPatternCanvas = wc;
+  return wc;
+}
+
 export function renderTileGrid(
   ctx: CanvasRenderingContext2D,
   grid: TileGrid,
@@ -510,35 +570,87 @@ export function renderTileGrid(
   bushLayer: boolean
 ): void {
   const C = grid.cellSize;
-  // Extra rows above the viewport to render — bushes can overflow up to ~2C
-  // above their cell, so we need more look-ahead rows than for regular blocks.
   const TALL_ROWS_ABOVE = 4;
   const startTX = Math.max(0, Math.floor(camX / C));
-  const endTX = Math.min(grid.width - 1, Math.ceil((camX + canvasW) / C));
+  const endTX   = Math.min(grid.width - 1,  Math.ceil((camX + canvasW) / C));
   const startTY = Math.max(0, Math.floor(camY / C) - TALL_ROWS_ABOVE);
-  const endTY = Math.min(grid.height - 1, Math.ceil((camY + canvasH) / C));
+  const endTY   = Math.min(grid.height - 1, Math.ceil((camY + canvasH) / C));
 
   // TALL_OVERFLOW: how far tall block sprites extend above their cell.
   const TALL_OVERFLOW = C * 0.9;
 
-  // BUSH drawing constants — canvas is 256×512 (1:2 aspect).
-  // The bush is drawn wider than one cell and tall enough to be proportional
-  // to brawler characters (~1.5–2 cells in height).
-  const BUSH_W = C * 1.35;           // draw width (slightly wider than cell)
-  const BUSH_H = BUSH_W * 2.6;          // draw height (taller for better visibility)
-  const BUSH_X_OFF = (C - BUSH_W) / 2; // centre horizontally on cell
-  // Anchor bottom of bush to cell bottom (sy + C), then subtract full height.
-  const BUSH_Y_TOP_OFF = BUSH_H - C;  // how far above sy the top of the bush is
+  // Bush drawing constants — canvas is 256×512 (1:2 aspect).
+  const BUSH_W     = C * 1.35;
+  const BUSH_H     = BUSH_W * 2.6;
+  const BUSH_X_OFF = (C - BUSH_W) / 2;
+  const BUSH_Y_TOP_OFF = BUSH_H - C;
 
+  // ── PASS 1: seamless base-colour fill for every non-grass, non-bush tile ───
+  // This eliminates all seams between adjacent same-type tiles: even if the 3-D
+  // GLB sprite has transparent/dark edges, the solid base layer below shows the
+  // correct colour in those edge pixels.
+  // We extend the fill 3px into each neighbouring same-type tile's area so the
+  // colour patches blend together with zero visible gap.
+  if (!bushLayer) {
+    const GAP = 3; // px of colour bleed toward each same-type neighbour
+    for (let tx = startTX; tx <= endTX; tx++) {
+      for (let ty = startTY; ty <= endTY; ty++) {
+        const type = getTile(grid, tx, ty);
+        if (type === TileType.GRASS || type === TileType.BUSH) continue;
+
+        const sx = Math.round(tx * C - camX);
+        const sy = Math.round(ty * C - camY);
+
+        if (type === TileType.WATER) {
+          // Water: tile a seamless wave canvas across the cell (no GLB)
+          const wpc = getWaterPatternCanvas(C);
+          const offX = ((tx * C) % wpc.width  + wpc.width)  % wpc.width;
+          const offY = ((ty * C) % wpc.height + wpc.height) % wpc.height;
+          // Expand by 2px on every side to close subpixel gaps
+          ctx.drawImage(wpc, offX, offY, C + 4, Math.min(wpc.height - offY, C + 4),
+                        sx - 2, sy - 2, C + 4, Math.min(wpc.height - offY, C + 4));
+          // Fill any remaining strip if the wave canvas is shorter than C
+          ctx.fillStyle = "#1060A8";
+          if (wpc.height - offY < C + 4)
+            ctx.fillRect(sx - 2, sy + wpc.height - offY - 2, C + 4,
+                         (C + 4) - (wpc.height - offY));
+          // Blend adjacent water rows
+          if (getTile(grid, tx, ty - 1) === TileType.WATER)
+            ctx.fillRect(sx - 2, sy - GAP, C + 4, GAP + 2);
+          if (getTile(grid, tx, ty + 1) === TileType.WATER)
+            ctx.fillRect(sx - 2, sy + C - 2, C + 4, GAP + 2);
+          if (getTile(grid, tx - 1, ty) === TileType.WATER)
+            ctx.fillRect(sx - GAP, sy - 2, GAP + 2, C + 4);
+          if (getTile(grid, tx + 1, ty) === TileType.WATER)
+            ctx.fillRect(sx + C - 2, sy - 2, GAP + 2, C + 4);
+          continue; // water has no GLB sprite pass
+        }
+
+        const base = TILE_BASE[type];
+        if (!base) continue;
+
+        ctx.fillStyle = base;
+        // Core cell (+1px bleed already handles subpixel)
+        ctx.fillRect(sx - 1, sy - 1, C + 2, C + 2);
+        // Extend into same-type neighbours so their base colours merge
+        if (getTile(grid, tx, ty - 1) === type) ctx.fillRect(sx - 1, sy - GAP, C + 2, GAP);
+        if (getTile(grid, tx, ty + 1) === type) ctx.fillRect(sx - 1, sy + C,   C + 2, GAP);
+        if (getTile(grid, tx - 1, ty) === type) ctx.fillRect(sx - GAP, sy - 1, GAP, C + 2);
+        if (getTile(grid, tx + 1, ty) === type) ctx.fillRect(sx + C,  sy - 1, GAP, C + 2);
+      }
+    }
+  }
+
+  // ── PASS 2: draw GLB sprites (or Canvas fallback) on top ───────────────────
   for (let tx = startTX; tx <= endTX; tx++) {
     for (let ty = startTY; ty <= endTY; ty++) {
       const type = getTile(grid, tx, ty);
       if (type === TileType.GRASS) continue;
+      if (type === TileType.WATER) continue; // handled in pass 1
 
       const isBush = type === TileType.BUSH;
       if (isBush !== bushLayer) continue;
 
-      // Round to integer pixels to prevent subpixel hairline gaps between tiles.
       const sx = Math.round(tx * C - camX);
       const sy = Math.round(ty * C - camY);
 
@@ -548,55 +660,26 @@ export function renderTileGrid(
         const dx = worldX - playerX;
         const dy = worldY - playerY;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        const alpha = dist < BUSH_REVEAL_RADIUS ? 0.35 : 1.0;
         ctx.save();
-        ctx.globalAlpha = alpha;
+        ctx.globalAlpha = dist < BUSH_REVEAL_RADIUS ? 0.35 : 1.0;
       }
 
       const tileCanvas = getTileCanvas(type);
       if (tileCanvas) {
         if (isBush) {
-          // Bush uses a 256×512 (1:2) canvas rendered from a low frontal angle.
-          // Draw it anchored at the bottom of the cell and extending upward so
-          // it is proportional to brawler characters.
-          ctx.drawImage(
-            tileCanvas,
-            sx + BUSH_X_OFF - 1,
-            sy - BUSH_Y_TOP_OFF - 1,
-            BUSH_W + 2,
-            BUSH_H + 2,
-          );
+          ctx.drawImage(tileCanvas,
+            sx + BUSH_X_OFF - 1, sy - BUSH_Y_TOP_OFF - 1,
+            BUSH_W + 2, BUSH_H + 2);
         } else if (TALL_TILE_TYPES.has(type)) {
-          // Tall blocks: +1px bleed on all sides to eliminate subpixel seams
           ctx.drawImage(tileCanvas, sx - 1, sy - TALL_OVERFLOW - 1, C + 2, C + TALL_OVERFLOW + 2);
-        } else if (type === TileType.WATER) {
-          // Water: large overflow on all sides to close gaps between adjacent tiles
-          const ov = C * 0.15 + 2;
-          ctx.drawImage(tileCanvas, sx - ov, sy - ov, C + ov * 2, C + ov * 2);
         } else {
-          // Flat tiles: +1px bleed on all sides
           ctx.drawImage(tileCanvas, sx - 1, sy - 1, C + 2, C + 2);
         }
-      } else {
-        const colors: Record<number, string> = {
-          [TileType.WALL]:       "#8B6060",
-          [TileType.MOUNTAIN]:   "#607060",
-          [TileType.BUSH]:       "#4CAF50",
-          [TileType.WATER]:      "#1565C0",
-          [TileType.DECORATION]: "#E0E0E0",
-          [TileType.FENCE]:      "#C8A45A",
-          [TileType.HEAL]:       "#C2185B",
-          [TileType.TREE]:       "#1B5E20",
-          [TileType.CACTUS]:     "#558B2F",
-          [TileType.WOOD]:       "#8D6E63",
-          [TileType.SAND_WALL]:  "#78909C",
-          [PYRAMID_TILE]:        "#FDD835",
-        };
-        const baseColor = colors[type] ?? "#888";
-        // Fill with 1px bleed to prevent seams — no stroke border that creates gaps
-        ctx.fillStyle = baseColor;
+      } else if (!isBush) {
+        // Canvas 2D fallback (model not yet loaded)
+        const base = TILE_BASE[type] ?? "#888";
+        ctx.fillStyle = base;
         ctx.fillRect(sx - 1, sy - 1, C + 2, C + 2);
-        // Subtle top-face highlight and bottom-face shadow for a chunky 3-D look
         const hl = Math.round(C * 0.28);
         ctx.fillStyle = "rgba(255,255,255,0.20)";
         ctx.fillRect(sx - 1, sy - 1, C + 2, hl);

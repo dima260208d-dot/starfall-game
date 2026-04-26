@@ -10,6 +10,7 @@ import { updateEffects, renderEffects, clearEffects } from "../utils/effects";
 import { angleTo, autoAimAngle, distance, randomInt } from "../utils/helpers";
 import { recordGameResult, getCurrentUsername } from "../utils/localStorageAPI";
 import { renderPlayerHUD } from "./sharedHUD";
+import { getSafeCanvas } from "../utils/powerModelCache";
 
 interface CrystalParticle {
   x: number; y: number;
@@ -360,124 +361,71 @@ export class ClashSiege {
     const sx = this.baseX - this.camera.x;
     const sy = this.baseY - this.camera.y;
     const hpRatio = Math.max(0, this.baseHp / this.baseMaxHp);
-    const W = 120, H = 120, depth = 14;
+    const W = 120, H = 120;
+    const safeSprite = getSafeCanvas();
 
     ctx.save();
+
     // Drop shadow
-    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.fillStyle = "rgba(0,0,0,0.45)";
     ctx.beginPath();
-    ctx.ellipse(sx + 7, sy + H/2 + 12, 66, 12, 0, 0, Math.PI * 2);
+    ctx.ellipse(sx + 6, sy + H / 2 + 12, 70, 12, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Team glow (blue = allied base)
     ctx.shadowColor = "#4CAF50";
     ctx.shadowBlur = 28;
 
-    // Right extrusion
-    ctx.fillStyle = "#1A2E1A";
-    ctx.beginPath();
-    ctx.moveTo(sx + W/2, sy - H/2);
-    ctx.lineTo(sx + W/2 + depth, sy - H/2 - depth * 0.5);
-    ctx.lineTo(sx + W/2 + depth, sy + H/2 - depth * 0.5);
-    ctx.lineTo(sx + W/2, sy + H/2);
-    ctx.closePath();
-    ctx.fill();
-    // Top extrusion
-    ctx.fillStyle = "#2E4E2E";
-    ctx.beginPath();
-    ctx.moveTo(sx - W/2, sy - H/2);
-    ctx.lineTo(sx + W/2, sy - H/2);
-    ctx.lineTo(sx + W/2 + depth, sy - H/2 - depth * 0.5);
-    ctx.lineTo(sx - W/2 + depth, sy - H/2 - depth * 0.5);
-    ctx.closePath();
-    ctx.fill();
-
-    // Main face
-    ctx.shadowBlur = 0;
-    const bodyGrad = ctx.createLinearGradient(sx - W/2, sy - H/2, sx + W/2, sy + H/2);
-    bodyGrad.addColorStop(0, "#546E7A");
-    bodyGrad.addColorStop(0.5, "#37474F");
-    bodyGrad.addColorStop(1, "#263238");
-    ctx.fillStyle = bodyGrad;
-    ctx.fillRect(sx - W/2, sy - H/2, W, H);
-
-    // Green team accent
-    ctx.fillStyle = "#4CAF50";
-    ctx.fillRect(sx - W/2, sy - H/2, W, 9);
-    ctx.fillStyle = "rgba(76,175,80,0.22)";
-    ctx.fillRect(sx - W/2, sy - H/2, W, H);
-
-    // Vault wheel
-    ctx.shadowColor = "#FFD700";
-    ctx.shadowBlur = 10;
-    ctx.strokeStyle = "#FFD700";
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.arc(sx, sy, 38, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.strokeStyle = "#B0BEC5";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(sx, sy, 26, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = "#FFD700";
-    ctx.lineWidth = 3.5;
-    for (let i = 0; i < 4; i++) {
-      const a = (i / 4) * Math.PI * 2;
-      ctx.beginPath();
-      ctx.moveTo(sx + Math.cos(a) * 12, sy + Math.sin(a) * 12);
-      ctx.lineTo(sx + Math.cos(a) * 36, sy + Math.sin(a) * 36);
-      ctx.stroke();
-    }
-    ctx.fillStyle = "#FFD700";
-    ctx.shadowColor = "#FFD700";
-    ctx.shadowBlur = 7;
-    ctx.beginPath();
-    ctx.arc(sx, sy, 7, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Corner rivets
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = "#78909C";
-    for (const [rx, ry] of [[-W/2+8, -H/2+8], [W/2-8, -H/2+8], [-W/2+8, H/2-8], [W/2-8, H/2-8]]) {
-      ctx.beginPath();
-      ctx.arc(sx + rx, sy + ry, 5, 0, Math.PI * 2);
-      ctx.fill();
+    if (safeSprite) {
+      const D = W * 2.2;
+      ctx.globalAlpha = hpRatio < 0.25 ? 0.55 : 1;
+      ctx.drawImage(safeSprite, sx - D / 2, sy - D / 2, D, D);
+      ctx.globalAlpha = 1;
+      // Green allied tint
+      ctx.fillStyle = "rgba(50,180,80,0.18)";
+      ctx.fillRect(sx - D / 2, sy - D / 2, D, D);
+    } else {
+      // Canvas 2D fallback while GLB loads
+      ctx.shadowBlur = 0;
+      const bodyGrad = ctx.createLinearGradient(sx - W/2, sy - H/2, sx + W/2, sy + H/2);
+      bodyGrad.addColorStop(0, "#546E7A");
+      bodyGrad.addColorStop(1, "#263238");
+      ctx.fillStyle = bodyGrad;
+      ctx.fillRect(sx - W/2, sy - H/2, W, H);
+      ctx.fillStyle = "#FFD700";
+      ctx.font = `bold ${Math.round(W * 0.44)}px Arial`;
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText("🔒", sx, sy);
     }
 
-    // Outline
-    ctx.strokeStyle = "#4CAF50";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(sx - W/2 + 0.5, sy - H/2 + 0.5, W - 1, H - 1);
+    ctx.shadowBlur = 0;
 
     // Damage cracks
     if (hpRatio < 0.6) {
-      ctx.strokeStyle = "rgba(255,100,0,0.7)";
+      ctx.strokeStyle = "rgba(255,100,0,0.75)";
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(sx - W/2 + W*0.1, sy - H/2 + H*0.2);
-      ctx.lineTo(sx - W/2 + W*0.4, sy - H/2 + H*0.5);
-      ctx.lineTo(sx - W/2 + W*0.3, sy - H/2 + H*0.75);
+      ctx.moveTo(sx - W * 0.3, sy - H * 0.2);
+      ctx.lineTo(sx, sy + H * 0.05);
+      ctx.lineTo(sx - W * 0.15, sy + H * 0.3);
       ctx.stroke();
       if (hpRatio < 0.3) {
         ctx.beginPath();
-        ctx.moveTo(sx - W/2 + W*0.65, sy - H/2 + H*0.15);
-        ctx.lineTo(sx - W/2 + W*0.55, sy - H/2 + H*0.55);
-        ctx.lineTo(sx - W/2 + W*0.8, sy - H/2 + H*0.85);
+        ctx.moveTo(sx + W * 0.2, sy - H * 0.3);
+        ctx.lineTo(sx + W * 0.05, sy + H * 0.1);
+        ctx.lineTo(sx + W * 0.3, sy + H * 0.35);
         ctx.stroke();
       }
     }
 
     // HP bar
-    const barW = 140;
+    const barW = W * 1.25;
     ctx.fillStyle = "rgba(0,0,0,0.7)";
-    ctx.fillRect(sx - barW/2 - 1, sy - H/2 - 20, barW + 2, 13);
+    ctx.fillRect(sx - barW / 2 - 1, sy - H / 2 - 20, barW + 2, 13);
     ctx.fillStyle = hpRatio > 0.5 ? "#4CAF50" : hpRatio > 0.25 ? "#FFB300" : "#F44336";
-    ctx.fillRect(sx - barW/2, sy - H/2 - 19, barW * hpRatio, 11);
+    ctx.fillRect(sx - barW / 2, sy - H / 2 - 19, barW * hpRatio, 11);
     ctx.strokeStyle = "rgba(255,255,255,0.4)";
     ctx.lineWidth = 0.5;
-    ctx.strokeRect(sx - barW/2, sy - H/2 - 19, barW, 11);
+    ctx.strokeRect(sx - barW / 2, sy - H / 2 - 19, barW, 11);
 
     ctx.restore();
   }

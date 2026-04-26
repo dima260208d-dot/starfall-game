@@ -9,7 +9,7 @@ import {
 } from "../utils/mapEditorAPI";
 import { getTileCanvas, loadAllTileModels } from "../utils/tileModelCache";
 import { getPlatformTileCanvas, loadPlatformTile } from "../utils/platformTile";
-import { getPowerBoxCanvas, loadPowerModels } from "../utils/powerModelCache";
+import { getPowerBoxCanvas, getSafeCanvas, loadPowerModels } from "../utils/powerModelCache";
 
 const GS = 60;
 const IDX = (x: number, y: number) => y * GS + x;
@@ -455,7 +455,8 @@ function EditorCore({ onBack }: { onBack: () => void }) {
           if (ovDef) {
             const r = cs * 0.38;
             ctx.save();
-            // Power-box overlay: use the 3-D GLB sprite when available
+            const isSafeOv = ov === OV.SAFE_BLUE || ov === OV.SAFE_RED
+              || ov === OV.BASE_BLUE || ov === OV.BASE_RED;
             if (ov === OV.POWER_BOX) {
               const boxSprite = getPowerBoxCanvas();
               if (boxSprite) {
@@ -467,7 +468,31 @@ function EditorCore({ onBack }: { onBack: () => void }) {
                 ctx.shadowBlur = 0;
                 ctx.globalAlpha = 1;
               } else {
-                // Fallback emoji while model loads
+                ctx.globalAlpha = 0.92;
+                ctx.fillStyle = ovDef.color;
+                ctx.beginPath();
+                ctx.arc(sx + cs / 2, sy + cs / 2, r, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+                ctx.font = `${Math.min(r * 1.2, 18)}px serif`;
+                ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                ctx.fillText(ovDef.icon, sx + cs / 2, sy + cs / 2);
+              }
+            } else if (isSafeOv) {
+              const safeSprite = getSafeCanvas();
+              if (safeSprite) {
+                const D = cs * 1.35;
+                ctx.globalAlpha = 0.95;
+                ctx.shadowColor = ovDef.color;
+                ctx.shadowBlur = 10;
+                ctx.drawImage(safeSprite, sx + cs / 2 - D / 2, sy + cs / 2 - D / 2 - 2, D, D);
+                ctx.shadowBlur = 0;
+                ctx.globalAlpha = 1;
+                // Team tint
+                const isBlue = ov === OV.SAFE_BLUE || ov === OV.BASE_BLUE;
+                ctx.fillStyle = isBlue ? "rgba(25,100,210,0.22)" : "rgba(210,30,30,0.22)";
+                ctx.fillRect(sx + cs / 2 - D / 2, sy + cs / 2 - D / 2 - 2, D, D);
+              } else {
                 ctx.globalAlpha = 0.92;
                 ctx.fillStyle = ovDef.color;
                 ctx.beginPath();

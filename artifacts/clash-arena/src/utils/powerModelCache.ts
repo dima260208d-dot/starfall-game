@@ -1,17 +1,17 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
-const SZ = 128; // render resolution
+const SZ = 128; // sprite render resolution
 
-let boxCanvas: HTMLCanvasElement | null = null;
-let jarCanvas: HTMLCanvasElement | null = null;
+let boxCanvas:  HTMLCanvasElement | null = null;
+let jarCanvas:  HTMLCanvasElement | null = null;
+let safeCanvas: HTMLCanvasElement | null = null;
 let loadPromise: Promise<void> | null = null;
 
 function getBaseUrl(): string {
   const base: string = ((import.meta as any).env?.BASE_URL ?? "/");
   return base.replace(/\/$/, "");
 }
-
 
 let sharedRenderer: THREE.WebGLRenderer | null = null;
 function getRenderer(): THREE.WebGLRenderer | null {
@@ -48,10 +48,12 @@ function fixMaterials(root: THREE.Object3D): void {
   });
 }
 
+type CamPreset = "iso" | "front" | "front-low";
+
 function loadAndRender(
   renderer: THREE.WebGLRenderer,
   url: string,
-  isoCam: boolean,
+  cam: CamPreset,
 ): Promise<HTMLCanvasElement> {
   return new Promise((resolve, reject) => {
     new GLTFLoader().load(
@@ -73,19 +75,22 @@ function loadAndRender(
           scene.add(model);
 
           let camera: THREE.Camera;
-          if (isoCam) {
+          if (cam === "iso") {
             const H = 6.5;
-            const cam = new THREE.OrthographicCamera(-H, H, H, -H, 0.1, 200);
-            cam.position.set(0, 8, 8);
-            cam.lookAt(0, 1.5, 0);
-            camera = cam;
-          } else {
-            // Slight top-front for jar
+            const c = new THREE.OrthographicCamera(-H, H, H, -H, 0.1, 200);
+            c.position.set(0, 8, 8); c.lookAt(0, 1.5, 0);
+            camera = c;
+          } else if (cam === "front") {
             const H = 5.5;
-            const cam = new THREE.OrthographicCamera(-H, H, H, -H, 0.1, 200);
-            cam.position.set(1, 6, 6);
-            cam.lookAt(0, 1, 0);
-            camera = cam;
+            const c = new THREE.OrthographicCamera(-H, H, H, -H, 0.1, 200);
+            c.position.set(1, 6, 6); c.lookAt(0, 1, 0);
+            camera = c;
+          } else {
+            // front-low: good for safes/vaults — slightly elevated frontal view
+            const H = 6.0;
+            const c = new THREE.OrthographicCamera(-H, H, H, -H, 0.1, 200);
+            c.position.set(0, 5, 9); c.lookAt(0, 2, 0);
+            camera = c;
           }
 
           renderer.setSize(SZ, SZ);
@@ -106,26 +111,23 @@ function loadAndRender(
 
 export function getPowerBoxCanvas(): HTMLCanvasElement | null { return boxCanvas; }
 export function getPowerJarCanvas(): HTMLCanvasElement | null { return jarCanvas; }
+export function getSafeCanvas():     HTMLCanvasElement | null { return safeCanvas; }
 
 export function loadPowerModels(): Promise<void> {
   if (loadPromise) return loadPromise;
   loadPromise = (async () => {
     const base = getBaseUrl();
     const renderer = getRenderer();
-    if (!renderer) {
-      // No WebGL — leave canvases null so callers fall back to Canvas 2D
-      return;
-    }
-    try {
-      boxCanvas = await loadAndRender(renderer, `${base}/models/power_box.glb`, true);
-    } catch {
-      // GLB load failed — leave null so caller uses Canvas fallback
-    }
-    try {
-      jarCanvas  = await loadAndRender(renderer, `${base}/models/power_jar.glb`, false);
-    } catch {
-      // GLB load failed — leave null so caller uses Canvas fallback
-    }
+    if (!renderer) return; // no WebGL — callers fall back to Canvas 2D
+
+    try { boxCanvas  = await loadAndRender(renderer, `${base}/models/power_box.glb`, "iso"); }
+    catch { /* leave null → Canvas fallback */ }
+
+    try { jarCanvas  = await loadAndRender(renderer, `${base}/models/power_jar.glb`, "front"); }
+    catch { /* leave null → Canvas fallback */ }
+
+    try { safeCanvas = await loadAndRender(renderer, `${base}/models/safe.glb`, "front-low"); }
+    catch { /* leave null → Canvas fallback */ }
   })();
   return loadPromise;
 }

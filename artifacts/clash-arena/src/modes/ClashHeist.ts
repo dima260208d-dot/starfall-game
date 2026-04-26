@@ -10,6 +10,7 @@ import { updateEffects, renderEffects, clearEffects } from "../utils/effects";
 import { angleTo, autoAimAngle, distance, randomInt } from "../utils/helpers";
 import { recordGameResult, getCurrentUsername } from "../utils/localStorageAPI";
 import { renderPlayerHUD } from "./sharedHUD";
+import { getSafeCanvas } from "../utils/powerModelCache";
 
 interface Safe {
   x: number;
@@ -307,139 +308,79 @@ export class ClashHeist {
   }
 
   private renderSafes(ctx: CanvasRenderingContext2D): void {
+    const safeSprite = getSafeCanvas();
     for (const safe of this.safes) {
       if (safe.hp <= 0) continue;
       const sx = safe.x - this.camera.x;
       const sy = safe.y - this.camera.y;
       const isBlue = safe.team === "blue";
-      const teamColor = isBlue ? "#1565C0" : "#B71C1C";
       const teamGlow = isBlue ? "#40C4FF" : "#FF5252";
       const hpRatio = Math.max(0, safe.hp / safe.maxHp);
+      const W = 100, H = 100;
 
       ctx.save();
+
       // Drop shadow
-      ctx.fillStyle = "rgba(0,0,0,0.5)";
+      ctx.fillStyle = "rgba(0,0,0,0.45)";
       ctx.beginPath();
-      ctx.ellipse(sx + 6, sy + 58, 56, 10, 0, 0, Math.PI * 2);
+      ctx.ellipse(sx + 5, sy + H / 2 + 10, 60, 10, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // Glow
       ctx.shadowColor = teamGlow;
-      ctx.shadowBlur = 20;
+      ctx.shadowBlur = 22;
 
-      // Safe body — steel-gray box with extrusion
-      const depth = 12;
-      const W = 100, H = 100;
-      // Right extrusion
-      ctx.fillStyle = "#1A1A2E";
-      ctx.beginPath();
-      ctx.moveTo(sx + W/2, sy - H/2);
-      ctx.lineTo(sx + W/2 + depth, sy - H/2 - depth * 0.5);
-      ctx.lineTo(sx + W/2 + depth, sy + H/2 - depth * 0.5);
-      ctx.lineTo(sx + W/2, sy + H/2);
-      ctx.closePath();
-      ctx.fill();
-      // Top extrusion
-      ctx.fillStyle = "#2D2D4E";
-      ctx.beginPath();
-      ctx.moveTo(sx - W/2, sy - H/2);
-      ctx.lineTo(sx + W/2, sy - H/2);
-      ctx.lineTo(sx + W/2 + depth, sy - H/2 - depth * 0.5);
-      ctx.lineTo(sx - W/2 + depth, sy - H/2 - depth * 0.5);
-      ctx.closePath();
-      ctx.fill();
-
-      // Main face gradient
-      ctx.shadowBlur = 0;
-      const bodyGrad = ctx.createLinearGradient(sx - W/2, sy - H/2, sx + W/2, sy + H/2);
-      bodyGrad.addColorStop(0, "#546E7A");
-      bodyGrad.addColorStop(0.5, "#37474F");
-      bodyGrad.addColorStop(1, "#263238");
-      ctx.fillStyle = bodyGrad;
-      ctx.fillRect(sx - W/2, sy - H/2, W, H);
-
-      // Team color accent strip on top
-      ctx.fillStyle = teamColor;
-      ctx.fillRect(sx - W/2, sy - H/2, W, 8);
-      ctx.fillStyle = teamGlow;
-      ctx.globalAlpha = 0.35;
-      ctx.fillRect(sx - W/2, sy - H/2, W, H);
-      ctx.globalAlpha = 1;
-
-      // Safe door — circular vault wheel
-      ctx.shadowColor = "#FFD700";
-      ctx.shadowBlur = 8;
-      ctx.strokeStyle = "#FFD700";
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(sx, sy, 32, 0, Math.PI * 2);
-      ctx.stroke();
-      // Inner ring
-      ctx.strokeStyle = "#B0BEC5";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(sx, sy, 22, 0, Math.PI * 2);
-      ctx.stroke();
-      // Wheel spokes
-      ctx.shadowBlur = 0;
-      ctx.strokeStyle = "#FFD700";
-      ctx.lineWidth = 3;
-      for (let i = 0; i < 4; i++) {
-        const a = (i / 4) * Math.PI * 2;
-        ctx.beginPath();
-        ctx.moveTo(sx + Math.cos(a) * 10, sy + Math.sin(a) * 10);
-        ctx.lineTo(sx + Math.cos(a) * 30, sy + Math.sin(a) * 30);
-        ctx.stroke();
-      }
-      // Center bolt
-      ctx.fillStyle = "#FFD700";
-      ctx.shadowColor = "#FFD700";
-      ctx.shadowBlur = 6;
-      ctx.beginPath();
-      ctx.arc(sx, sy, 6, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Corner rivets
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = "#78909C";
-      for (const [rx, ry] of [[-W/2+7, -H/2+7], [W/2-7, -H/2+7], [-W/2+7, H/2-7], [W/2-7, H/2-7]]) {
-        ctx.beginPath();
-        ctx.arc(sx + rx, sy + ry, 4, 0, Math.PI * 2);
-        ctx.fill();
+      if (safeSprite) {
+        // 3-D GLB sprite — rendered slightly larger than the footprint
+        const D = W * 2.1;
+        ctx.globalAlpha = hpRatio < 0.25 ? 0.55 : 1;
+        ctx.drawImage(safeSprite, sx - D / 2, sy - D / 2, D, D);
+        ctx.globalAlpha = 1;
+        // Team color tint overlay
+        ctx.fillStyle = isBlue ? "rgba(25,100,210,0.18)" : "rgba(210,30,30,0.18)";
+        ctx.fillRect(sx - D / 2, sy - D / 2, D, D);
+      } else {
+        // Canvas 2D fallback while GLB loads
+        ctx.shadowBlur = 0;
+        const bodyGrad = ctx.createLinearGradient(sx - W/2, sy - H/2, sx + W/2, sy + H/2);
+        bodyGrad.addColorStop(0, "#546E7A");
+        bodyGrad.addColorStop(1, "#263238");
+        ctx.fillStyle = bodyGrad;
+        ctx.fillRect(sx - W/2, sy - H/2, W, H);
+        ctx.fillStyle = "#FFD700";
+        ctx.font = `bold ${Math.round(W * 0.44)}px Arial`;
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText("🔒", sx, sy);
       }
 
-      // Outline
-      ctx.strokeStyle = "#546E7A";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(sx - W/2 + 0.5, sy - H/2 + 0.5, W - 1, H - 1);
+      ctx.shadowBlur = 0;
 
       // Damage cracks
       if (hpRatio < 0.6) {
-        ctx.strokeStyle = "rgba(255,100,0,0.65)";
+        ctx.strokeStyle = "rgba(255,100,0,0.75)";
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(sx - W/2 + W*0.1, sy - H/2 + H*0.2);
-        ctx.lineTo(sx - W/2 + W*0.4, sy - H/2 + H*0.5);
-        ctx.lineTo(sx - W/2 + W*0.3, sy - H/2 + H*0.75);
+        ctx.moveTo(sx - W * 0.3, sy - H * 0.2);
+        ctx.lineTo(sx, sy + H * 0.05);
+        ctx.lineTo(sx - W * 0.15, sy + H * 0.3);
         ctx.stroke();
         if (hpRatio < 0.3) {
           ctx.beginPath();
-          ctx.moveTo(sx - W/2 + W*0.65, sy - H/2 + H*0.15);
-          ctx.lineTo(sx - W/2 + W*0.55, sy - H/2 + H*0.55);
-          ctx.lineTo(sx - W/2 + W*0.8, sy - H/2 + H*0.85);
+          ctx.moveTo(sx + W * 0.2, sy - H * 0.3);
+          ctx.lineTo(sx + W * 0.05, sy + H * 0.1);
+          ctx.lineTo(sx + W * 0.3, sy + H * 0.35);
           ctx.stroke();
         }
       }
 
       // HP bar
-      const barW = 120;
+      const barW = W * 1.3;
       ctx.fillStyle = "rgba(0,0,0,0.7)";
-      ctx.fillRect(sx - barW/2 - 1, sy - H/2 - 17, barW + 2, 12);
+      ctx.fillRect(sx - barW / 2 - 1, sy - H / 2 - 18, barW + 2, 12);
       ctx.fillStyle = hpRatio > 0.5 ? "#4CAF50" : hpRatio > 0.25 ? "#FFB300" : "#F44336";
-      ctx.fillRect(sx - barW/2, sy - H/2 - 16, barW * hpRatio, 10);
+      ctx.fillRect(sx - barW / 2, sy - H / 2 - 17, barW * hpRatio, 10);
       ctx.strokeStyle = "rgba(255,255,255,0.4)";
       ctx.lineWidth = 0.5;
-      ctx.strokeRect(sx - barW/2, sy - H/2 - 16, barW, 10);
+      ctx.strokeRect(sx - barW / 2, sy - H / 2 - 17, barW, 10);
 
       ctx.restore();
     }
