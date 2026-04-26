@@ -15,3 +15,4 @@ artifacts/clash-arena/public/models/bones.glb filter=lfs diff=lfs merge=lfs -tex
 attached_assets/кости_декорация_1777120030611.glb filter=lfs diff=lfs merge=lfs -text
 artifacts/clash-arena/public/models/power_box.glb filter=lfs diff=lfs merge=lfs -text
 attached_assets/бокс_прокачки_1777203943827.glb filter=lfs diff=lfs merge=lfs -text
+attached_assets/бокс_прокачки_1777206425523.glb filter=lfs diff=lfs merge=lfs -text

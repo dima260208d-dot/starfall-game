@@ -1,6 +1,7 @@
 import { getPlatformTileCanvas } from "../utils/platformTile";
 import { TileGrid, TileType, getTile, TILE_PROPS, TILE_CELL_SIZE } from "./TileMap";
 import { getTileCanvas, TALL_TILE_TYPES, PYRAMID_TILE } from "../utils/tileModelCache";
+import { getPowerBoxCanvas } from "../utils/powerModelCache";
 
 export interface Wall {
   x: number;
@@ -287,7 +288,8 @@ export function renderMap(
     ctx.restore();
   }
 
-  // ---------- POWER BOXES — 3D upgrade crates ----------
+  // ---------- POWER BOXES — rendered from 3-D GLB sprite ----------
+  const _boxSprite = getPowerBoxCanvas();
   for (const crate of map.crates) {
     if (crate.destroyed) continue;
     const sx = crate.x - camX;
@@ -296,115 +298,69 @@ export function renderMap(
 
     const hpRatio = crate.hp / crate.maxHp;
     const W = crate.w, H = crate.h;
-    const depth = 10;
+    // Render slightly bigger than the tile footprint so it looks imposing
+    const draw = W * 1.8;
 
-    // Drop shadow
     ctx.save();
-    ctx.fillStyle = "rgba(0,0,0,0.45)";
+
+    // Ground shadow
+    ctx.fillStyle = "rgba(0,0,0,0.35)";
     ctx.beginPath();
-    ctx.ellipse(sx + W / 2 + 4, sy + H + 6, W * 0.55, 6, 0, 0, Math.PI * 2);
+    ctx.ellipse(sx + W / 2 + 2, sy + H + 4, draw * 0.45, 7, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Glow based on HP
-    const glowAlpha = hpRatio > 0.5 ? 0.7 : hpRatio > 0.25 ? 0.5 : 0.3;
-    ctx.shadowColor = `rgba(180,100,255,${glowAlpha})`;
-    ctx.shadowBlur = 16;
+    // Purple ambient glow
+    ctx.shadowColor = hpRatio > 0.5 ? "#CE93D8" : hpRatio > 0.25 ? "#FF9800" : "#F44336";
+    ctx.shadowBlur = 18;
 
-    // Side face (right extrusion — darker)
-    ctx.fillStyle = "#2D0055";
-    ctx.beginPath();
-    ctx.moveTo(sx + W, sy);
-    ctx.lineTo(sx + W + depth, sy - depth * 0.5);
-    ctx.lineTo(sx + W + depth, sy + H - depth * 0.5);
-    ctx.lineTo(sx + W, sy + H);
-    ctx.closePath();
-    ctx.fill();
-
-    // Top-side face
-    ctx.fillStyle = "#3A0070";
-    ctx.beginPath();
-    ctx.moveTo(sx, sy);
-    ctx.lineTo(sx + W, sy);
-    ctx.lineTo(sx + W + depth, sy - depth * 0.5);
-    ctx.lineTo(sx + depth, sy - depth * 0.5);
-    ctx.closePath();
-    ctx.fill();
-
-    // Main front face — gradient
-    const faceGrad = ctx.createLinearGradient(sx, sy, sx + W, sy + H);
-    faceGrad.addColorStop(0, "#7B2FBE");
-    faceGrad.addColorStop(0.5, "#5A1494");
-    faceGrad.addColorStop(1, "#3A006E");
-    ctx.fillStyle = faceGrad;
-    ctx.fillRect(sx, sy, W, H);
-    ctx.shadowBlur = 0;
-
-    // Energy lines (horizontal)
-    ctx.strokeStyle = "rgba(200,100,255,0.5)";
-    ctx.lineWidth = 1;
-    for (let li = 1; li <= 2; li++) {
-      ctx.beginPath();
-      ctx.moveTo(sx + 4, sy + H * li / 3);
-      ctx.lineTo(sx + W - 4, sy + H * li / 3);
-      ctx.stroke();
-    }
-    // Energy lines (vertical)
-    ctx.beginPath();
-    ctx.moveTo(sx + W / 2, sy + 4);
-    ctx.lineTo(sx + W / 2, sy + H - 4);
-    ctx.stroke();
-
-    // Center star/diamond icon
-    ctx.fillStyle = "rgba(255,200,80,0.95)";
-    ctx.font = `bold ${Math.round(W * 0.44)}px Arial`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.shadowColor = "#FFD700";
-    ctx.shadowBlur = 8;
-    ctx.fillText("✦", sx + W / 2, sy + H / 2 + 1);
-    ctx.shadowBlur = 0;
-
-    // Corner rivets
-    ctx.fillStyle = "rgba(255,180,80,0.9)";
-    for (const [rx, ry] of [[sx + 5, sy + 5], [sx + W - 5, sy + 5], [sx + 5, sy + H - 5], [sx + W - 5, sy + H - 5]]) {
-      ctx.beginPath();
-      ctx.arc(rx, ry, 2.5, 0, Math.PI * 2);
-      ctx.fill();
+    if (_boxSprite) {
+      // Draw the 3-D GLB sprite centred on the crate cell
+      const dx = sx + W / 2 - draw / 2;
+      const dy = sy + H / 2 - draw / 2 - 4; // nudge up slightly
+      ctx.globalAlpha = hpRatio < 0.25 ? 0.55 : 1;
+      ctx.drawImage(_boxSprite, dx, dy, draw, draw);
+      ctx.globalAlpha = 1;
+    } else {
+      // Canvas fallback (shows until GLB loads)
+      const faceGrad = ctx.createLinearGradient(sx, sy, sx + W, sy + H);
+      faceGrad.addColorStop(0, "#7B2FBE");
+      faceGrad.addColorStop(1, "#3A006E");
+      ctx.fillStyle = faceGrad;
+      ctx.fillRect(sx, sy, W, H);
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "#FFD700";
+      ctx.font = `bold ${Math.round(W * 0.44)}px Arial`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("✦", sx + W / 2, sy + H / 2);
     }
 
-    // Bevel highlight (top-left edge)
-    ctx.fillStyle = "rgba(200,150,255,0.22)";
-    ctx.fillRect(sx, sy, W, 3);
-    ctx.fillRect(sx, sy, 3, H);
+    ctx.shadowBlur = 0;
 
-    // Outline
-    ctx.strokeStyle = "rgba(100,40,180,0.9)";
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(sx + 0.5, sy + 0.5, W - 1, H - 1);
-
-    // Damage cracks
+    // Damage cracks overlay (drawn on top of the sprite)
     if (hpRatio < 0.75) {
-      ctx.strokeStyle = "rgba(255,150,50,0.7)";
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = "rgba(255,120,0,0.75)";
+      ctx.lineWidth = 2;
+      const cx = sx + W / 2, cy = sy + H / 2;
       ctx.beginPath();
-      ctx.moveTo(sx + W * 0.15, sy + H * 0.25);
-      ctx.lineTo(sx + W * 0.45, sy + H * 0.50);
-      ctx.lineTo(sx + W * 0.35, sy + H * 0.75);
+      ctx.moveTo(cx - W * 0.3, cy - H * 0.25);
+      ctx.lineTo(cx, cy + H * 0.05);
+      ctx.lineTo(cx - W * 0.15, cy + H * 0.3);
       ctx.stroke();
       if (hpRatio < 0.4) {
         ctx.beginPath();
-        ctx.moveTo(sx + W * 0.65, sy + H * 0.15);
-        ctx.lineTo(sx + W * 0.55, sy + H * 0.55);
-        ctx.lineTo(sx + W * 0.80, sy + H * 0.80);
+        ctx.moveTo(cx + W * 0.2, cy - H * 0.3);
+        ctx.lineTo(cx + W * 0.05, cy + H * 0.1);
+        ctx.lineTo(cx + W * 0.3, cy + H * 0.35);
         ctx.stroke();
       }
     }
 
     // HP bar above the box
-    const barW = W + 14;
+    const barW = draw;
     const barH = 5;
-    const barX = sx - 7;
-    const barY = sy - 12;
+    const barX = sx + W / 2 - draw / 2;
+    const barY = sy - 10;
     ctx.fillStyle = "rgba(0,0,0,0.65)";
     ctx.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
     const barColor = hpRatio > 0.5 ? "#4CAF50" : hpRatio > 0.25 ? "#FFB300" : "#F44336";

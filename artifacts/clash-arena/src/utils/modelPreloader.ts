@@ -13,6 +13,7 @@ import { loadGLTFCached, MODEL_URLS } from "../components/BrawlerRevealModal";
 import { loadChestCached, CHEST_MODELS } from "../components/Chest3DViewer";
 import { loadAllTileModels } from "./tileModelCache";
 import { loadPlatformTile } from "./platformTile";
+import { loadPowerModels } from "./powerModelCache";
 
 // ── Resource model cache (coin / gem / powerpoint) ────────────────────────────
 const resourceCache = new Map<string, Promise<void>>();
@@ -39,6 +40,7 @@ export async function preloadAllModels(
   // until the 3-D tiles are ready.
   loadAllTileModels();
   loadPlatformTile();
+  loadPowerModels(); // power box + power jar GLBs (non-blocking)
 
   // Only these tasks gate the loading screen.
   const brawlerTasks = Object.values(MODEL_URLS).map((m) =>

@@ -9,6 +9,7 @@ import {
 } from "../utils/mapEditorAPI";
 import { getTileCanvas, loadAllTileModels } from "../utils/tileModelCache";
 import { getPlatformTileCanvas, loadPlatformTile } from "../utils/platformTile";
+import { getPowerBoxCanvas, loadPowerModels } from "../utils/powerModelCache";
 
 const GS = 60;
 const IDX = (x: number, y: number) => y * GS + x;
@@ -252,7 +253,7 @@ function EditorCore({ onBack }: { onBack: () => void }) {
   // 3D model assets
   const [modelsReady, setModelsReady] = useState(false);
   useEffect(() => {
-    Promise.all([loadAllTileModels(), loadPlatformTile()]).then(() => {
+    Promise.all([loadAllTileModels(), loadPlatformTile(), loadPowerModels()]).then(() => {
       setModelsReady(true);
     });
   }, []);
@@ -454,16 +455,41 @@ function EditorCore({ onBack }: { onBack: () => void }) {
           if (ovDef) {
             const r = cs * 0.38;
             ctx.save();
-            ctx.globalAlpha = 0.92;
-            ctx.fillStyle = ovDef.color;
-            ctx.beginPath();
-            ctx.arc(sx + cs / 2, sy + cs / 2, r, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.globalAlpha = 1;
-            if (cs >= 16) {
-              ctx.font = `${Math.min(r * 1.2, 18)}px serif`;
-              ctx.textAlign = "center"; ctx.textBaseline = "middle";
-              ctx.fillText(ovDef.icon, sx + cs / 2, sy + cs / 2);
+            // Power-box overlay: use the 3-D GLB sprite when available
+            if (ov === OV.POWER_BOX) {
+              const boxSprite = getPowerBoxCanvas();
+              if (boxSprite) {
+                const D = cs * 1.4;
+                ctx.globalAlpha = 0.95;
+                ctx.shadowColor = "#CE93D8";
+                ctx.shadowBlur = 10;
+                ctx.drawImage(boxSprite, sx + cs / 2 - D / 2, sy + cs / 2 - D / 2 - 2, D, D);
+                ctx.shadowBlur = 0;
+                ctx.globalAlpha = 1;
+              } else {
+                // Fallback emoji while model loads
+                ctx.globalAlpha = 0.92;
+                ctx.fillStyle = ovDef.color;
+                ctx.beginPath();
+                ctx.arc(sx + cs / 2, sy + cs / 2, r, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+                ctx.font = `${Math.min(r * 1.2, 18)}px serif`;
+                ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                ctx.fillText(ovDef.icon, sx + cs / 2, sy + cs / 2);
+              }
+            } else {
+              ctx.globalAlpha = 0.92;
+              ctx.fillStyle = ovDef.color;
+              ctx.beginPath();
+              ctx.arc(sx + cs / 2, sy + cs / 2, r, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.globalAlpha = 1;
+              if (cs >= 16) {
+                ctx.font = `${Math.min(r * 1.2, 18)}px serif`;
+                ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                ctx.fillText(ovDef.icon, sx + cs / 2, sy + cs / 2);
+              }
             }
             ctx.restore();
           }

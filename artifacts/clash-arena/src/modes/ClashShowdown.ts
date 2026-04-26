@@ -17,6 +17,7 @@ import {
   destroyTile, nearestGrassTile,
 } from "../game/TileMap";
 import { getPublishedMap, OV } from "../utils/mapEditorAPI";
+import { getPowerJarCanvas } from "../utils/powerModelCache";
 
 export interface DropItem {
   x: number;
@@ -591,46 +592,35 @@ export class ClashShowdown {
       const sy = drop.y - this.camera.y;
 
       if (drop.type === "powerup") {
-        // Spinning power jar — draw a 3D-ish bottle/jar that rotates
+        // Spinning power jar — use GLB-rendered sprite with rotation
         const spin = (this.frame * 0.04) % (Math.PI * 2);
         const R = drop.radius;
+        const jarSprite = getPowerJarCanvas();
+
         ctx.save();
         ctx.translate(sx, sy);
         ctx.rotate(spin);
         ctx.shadowColor = "#E040FB";
         ctx.shadowBlur = 22;
 
-        // Jar body (rounded rectangle)
-        const jW = R * 1.3, jH = R * 1.8;
-        const jX = -jW / 2, jY = -jH / 2;
-        // Body gradient
-        const jGrad = ctx.createLinearGradient(jX, jY, jX + jW, jY + jH);
-        jGrad.addColorStop(0, "#CE93D8");
-        jGrad.addColorStop(0.35, "#9C27B0");
-        jGrad.addColorStop(1, "#4A148C");
-        ctx.fillStyle = jGrad;
-        ctx.beginPath();
-        ctx.roundRect(jX, jY, jW, jH, R * 0.35);
-        ctx.fill();
-
-        // Inner glow / liquid
-        ctx.fillStyle = "rgba(230,100,255,0.4)";
-        ctx.beginPath();
-        ctx.roundRect(jX + jW * 0.2, jY + jH * 0.3, jW * 0.6, jH * 0.55, R * 0.2);
-        ctx.fill();
-
-        // Cap/lid
-        ctx.fillStyle = "#FFD700";
-        ctx.shadowColor = "#FFD700";
-        ctx.shadowBlur = 6;
-        ctx.fillRect(-jW * 0.3, jY - R * 0.18, jW * 0.6, R * 0.22);
-
-        // Specular highlight
-        ctx.shadowBlur = 0;
-        ctx.fillStyle = "rgba(255,255,255,0.3)";
-        ctx.beginPath();
-        ctx.roundRect(jX + jW * 0.15, jY + jH * 0.1, jW * 0.22, jH * 0.35, R * 0.1);
-        ctx.fill();
+        if (jarSprite) {
+          const D = R * 3.0;
+          ctx.drawImage(jarSprite, -D / 2, -D / 2, D, D);
+        } else {
+          // Canvas fallback until GLB loads
+          const jW = R * 1.3, jH = R * 1.8;
+          const jX = -jW / 2, jY = -jH / 2;
+          const jGrad = ctx.createLinearGradient(jX, jY, jX + jW, jY + jH);
+          jGrad.addColorStop(0, "#CE93D8");
+          jGrad.addColorStop(0.35, "#9C27B0");
+          jGrad.addColorStop(1, "#4A148C");
+          ctx.fillStyle = jGrad;
+          ctx.beginPath();
+          ctx.roundRect(jX, jY, jW, jH, R * 0.35);
+          ctx.fill();
+          ctx.fillStyle = "#FFD700";
+          ctx.fillRect(-jW * 0.3, jY - R * 0.18, jW * 0.6, R * 0.22);
+        }
 
         ctx.restore();
 
