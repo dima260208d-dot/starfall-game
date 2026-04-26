@@ -183,7 +183,84 @@ export function renderMap(
     ctx.fillRect(0, 0, canvasW, canvasH);
   }
 
-  // Tile-grid maps handle all terrain — skip old rivers/bushes/walls/crates
+  // ---------- POWER BOXES — must render for ALL map types (incl. tileGrid) ----
+  {
+    const _boxSprite = getPowerBoxCanvas();
+    for (const crate of map.crates) {
+      if (crate.destroyed) continue;
+      const sx = crate.x - camX;
+      const sy = crate.y - camY;
+      if (sx + crate.w < 0 || sy + crate.h < 0 || sx > canvasW || sy > canvasH) continue;
+
+      const hpRatio = crate.hp / crate.maxHp;
+      const W = crate.w, H = crate.h;
+      const draw = W * 1.8;
+
+      ctx.save();
+      ctx.fillStyle = "rgba(0,0,0,0.35)";
+      ctx.beginPath();
+      ctx.ellipse(sx + W / 2 + 2, sy + H + 4, draw * 0.45, 7, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.shadowColor = hpRatio > 0.5 ? "#CE93D8" : hpRatio > 0.25 ? "#FF9800" : "#F44336";
+      ctx.shadowBlur = 18;
+
+      if (_boxSprite) {
+        const dx = sx + W / 2 - draw / 2;
+        const dy = sy + H / 2 - draw / 2 - 4;
+        ctx.globalAlpha = hpRatio < 0.25 ? 0.55 : 1;
+        ctx.drawImage(_boxSprite, dx, dy, draw, draw);
+        ctx.globalAlpha = 1;
+      } else {
+        const faceGrad = ctx.createLinearGradient(sx, sy, sx + W, sy + H);
+        faceGrad.addColorStop(0, "#7B2FBE");
+        faceGrad.addColorStop(1, "#3A006E");
+        ctx.fillStyle = faceGrad;
+        ctx.fillRect(sx, sy, W, H);
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "#FFD700";
+        ctx.font = `bold ${Math.round(W * 0.44)}px Arial`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("✦", sx + W / 2, sy + H / 2);
+      }
+
+      ctx.shadowBlur = 0;
+
+      if (hpRatio < 0.75) {
+        ctx.strokeStyle = "rgba(255,120,0,0.75)";
+        ctx.lineWidth = 2;
+        const cx = sx + W / 2, cy = sy + H / 2;
+        ctx.beginPath();
+        ctx.moveTo(cx - W * 0.3, cy - H * 0.25);
+        ctx.lineTo(cx, cy + H * 0.05);
+        ctx.lineTo(cx - W * 0.15, cy + H * 0.3);
+        ctx.stroke();
+        if (hpRatio < 0.4) {
+          ctx.beginPath();
+          ctx.moveTo(cx + W * 0.2, cy - H * 0.3);
+          ctx.lineTo(cx + W * 0.05, cy + H * 0.1);
+          ctx.lineTo(cx + W * 0.3, cy + H * 0.35);
+          ctx.stroke();
+        }
+      }
+
+      const barW = draw;
+      const barH = 5;
+      const barX = sx + W / 2 - draw / 2;
+      const barY = sy - 10;
+      ctx.fillStyle = "rgba(0,0,0,0.65)";
+      ctx.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
+      ctx.fillStyle = hpRatio > 0.5 ? "#4CAF50" : hpRatio > 0.25 ? "#FFB300" : "#F44336";
+      ctx.fillRect(barX, barY, barW * hpRatio, barH);
+      ctx.strokeStyle = "rgba(255,255,255,0.5)";
+      ctx.lineWidth = 0.5;
+      ctx.strokeRect(barX, barY, barW, barH);
+      ctx.restore();
+    }
+  }
+
+  // Tile-grid maps handle all terrain via renderTileGrid — skip legacy geometry
   if (isShowdown) return;
 
   // ---------- RIVERS with animated water ----------
@@ -285,91 +362,6 @@ export function renderMap(
     ctx.beginPath();
     ctx.ellipse(sx - bush.radius * 0.25, sy - bush.radius * 0.3, bush.radius * 0.15, bush.radius * 0.07, -0.4, 0, Math.PI * 2);
     ctx.fill();
-    ctx.restore();
-  }
-
-  // ---------- POWER BOXES — rendered from 3-D GLB sprite ----------
-  const _boxSprite = getPowerBoxCanvas();
-  for (const crate of map.crates) {
-    if (crate.destroyed) continue;
-    const sx = crate.x - camX;
-    const sy = crate.y - camY;
-    if (sx + crate.w < 0 || sy + crate.h < 0 || sx > canvasW || sy > canvasH) continue;
-
-    const hpRatio = crate.hp / crate.maxHp;
-    const W = crate.w, H = crate.h;
-    // Render slightly bigger than the tile footprint so it looks imposing
-    const draw = W * 1.8;
-
-    ctx.save();
-
-    // Ground shadow
-    ctx.fillStyle = "rgba(0,0,0,0.35)";
-    ctx.beginPath();
-    ctx.ellipse(sx + W / 2 + 2, sy + H + 4, draw * 0.45, 7, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Purple ambient glow
-    ctx.shadowColor = hpRatio > 0.5 ? "#CE93D8" : hpRatio > 0.25 ? "#FF9800" : "#F44336";
-    ctx.shadowBlur = 18;
-
-    if (_boxSprite) {
-      // Draw the 3-D GLB sprite centred on the crate cell
-      const dx = sx + W / 2 - draw / 2;
-      const dy = sy + H / 2 - draw / 2 - 4; // nudge up slightly
-      ctx.globalAlpha = hpRatio < 0.25 ? 0.55 : 1;
-      ctx.drawImage(_boxSprite, dx, dy, draw, draw);
-      ctx.globalAlpha = 1;
-    } else {
-      // Canvas fallback (shows until GLB loads)
-      const faceGrad = ctx.createLinearGradient(sx, sy, sx + W, sy + H);
-      faceGrad.addColorStop(0, "#7B2FBE");
-      faceGrad.addColorStop(1, "#3A006E");
-      ctx.fillStyle = faceGrad;
-      ctx.fillRect(sx, sy, W, H);
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = "#FFD700";
-      ctx.font = `bold ${Math.round(W * 0.44)}px Arial`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText("✦", sx + W / 2, sy + H / 2);
-    }
-
-    ctx.shadowBlur = 0;
-
-    // Damage cracks overlay (drawn on top of the sprite)
-    if (hpRatio < 0.75) {
-      ctx.strokeStyle = "rgba(255,120,0,0.75)";
-      ctx.lineWidth = 2;
-      const cx = sx + W / 2, cy = sy + H / 2;
-      ctx.beginPath();
-      ctx.moveTo(cx - W * 0.3, cy - H * 0.25);
-      ctx.lineTo(cx, cy + H * 0.05);
-      ctx.lineTo(cx - W * 0.15, cy + H * 0.3);
-      ctx.stroke();
-      if (hpRatio < 0.4) {
-        ctx.beginPath();
-        ctx.moveTo(cx + W * 0.2, cy - H * 0.3);
-        ctx.lineTo(cx + W * 0.05, cy + H * 0.1);
-        ctx.lineTo(cx + W * 0.3, cy + H * 0.35);
-        ctx.stroke();
-      }
-    }
-
-    // HP bar above the box
-    const barW = draw;
-    const barH = 5;
-    const barX = sx + W / 2 - draw / 2;
-    const barY = sy - 10;
-    ctx.fillStyle = "rgba(0,0,0,0.65)";
-    ctx.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
-    const barColor = hpRatio > 0.5 ? "#4CAF50" : hpRatio > 0.25 ? "#FFB300" : "#F44336";
-    ctx.fillStyle = barColor;
-    ctx.fillRect(barX, barY, barW * hpRatio, barH);
-    ctx.strokeStyle = "rgba(255,255,255,0.5)";
-    ctx.lineWidth = 0.5;
-    ctx.strokeRect(barX, barY, barW, barH);
-
     ctx.restore();
   }
 
