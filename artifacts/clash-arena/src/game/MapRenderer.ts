@@ -2,7 +2,7 @@ import { getPlatformTileCanvas } from "../utils/platformTile";
 import { TileGrid, TileType, getTile, TILE_CELL_SIZE } from "./TileMap";
 import { getTileCanvas, TALL_TILE_TYPES, PYRAMID_TILE } from "../utils/tileModelCache";
 import { getPowerBoxCanvas } from "../utils/powerModelCache";
-import { getNeighbourMask, drawSolidTile, SOLID_STYLES } from "../utils/autoTile";
+import { getNeighbourMask, SOLID_STYLES } from "../utils/autoTile";
 
 export interface Wall {
   x: number;
@@ -643,19 +643,8 @@ export function renderTileGrid(
           continue;
         }
 
-        // ── Solid connecting tiles (wall / mountain / wood / sand / fence) ──
-        // Layer 1: seamless auto-tiling base fill (closes all GLB-edge gaps,
-        //          shows bevel corners when the model isn't loaded yet).
-        // Layer 2: 3-D GLB sprite drawn on top (if the model is ready).
-        const solidStyle = SOLID_STYLES[type];
-        if (solidStyle) {
-          const mask = getNeighbourMask(
-            grid.cells, grid.destroyed, grid.width, grid.height, tx, ty, type
-          );
-          // Base fill + bevel (also serves as Canvas-2D fallback)
-          drawSolidTile(ctx, solidStyle, sx, sy, C, mask);
-
-          // 3-D GLB sprite on top
+        // ── Solid tiles — 3-D GLB sprite only ───────────────────────────────
+        if (SOLID_STYLES[type]) {
           const glbCanvas = getTileCanvas(type);
           if (glbCanvas) {
             const TALL_OVERFLOW = C * 0.9;
