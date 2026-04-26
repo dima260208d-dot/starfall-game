@@ -88,6 +88,7 @@ export const OV = {
   BASE_RED:    8,
   GOAL_BLUE:   9,
   GOAL_RED:    10,
+  POWER_BOX:   11,
 } as const;
 export type OVType = typeof OV[keyof typeof OV];
 

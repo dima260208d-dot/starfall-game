@@ -94,6 +94,22 @@ export class ClashShowdown {
       }
       // Shuffle so every game picks a random subset of spawn points
       overlaySpawns = overlaySpawns.sort(() => Math.random() - 0.5);
+
+      // ── Place power boxes from POWER_BOX overlays ──────────────────────
+      const boxOverlays: Array<{ x: number; y: number }> = [];
+      for (let i = 0; i < pubMap.overlays.length; i++) {
+        if (pubMap.overlays[i] === OV.POWER_BOX) {
+          const tx = i % 60;
+          const ty = Math.floor(i / 60);
+          boxOverlays.push({ x: tx * TILE_CELL_SIZE + 12, y: ty * TILE_CELL_SIZE + 12 });
+        }
+      }
+      if (boxOverlays.length > 0) {
+        // Replace randomly-placed boxes with editor-defined ones
+        this.map.crates = boxOverlays.map(p => ({
+          x: p.x, y: p.y, w: 50, h: 50, hp: 2500, maxHp: 2500, destroyed: false,
+        }));
+      }
     }
 
     const totalSlots = 10;
@@ -320,8 +336,45 @@ export class ClashShowdown {
       .map(b => ({ id: b.id, x: b.x, y: b.y, team: b.team }));
     updateProjectiles(this.projectiles, dt, this.map, homingTargets);
     this.handleTileHits();
+
+    // Snapshot which bots are alive before projectile resolution
+    const aliveBeforeProj = new Set(this.bots.filter(b => b.alive).map(b => b.id));
+    const playerAliveBeforeProj = this.player.alive;
+
     this.handleProjectileHits(allBrawlers);
     this.projectiles = this.projectiles.filter(p => p.active);
+
+    // Drop jars for bots killed by projectiles (not caught by the bot-loop wasAlive check)
+    for (const bot of this.bots) {
+      if (aliveBeforeProj.has(bot.id) && !bot.alive) {
+        const cubeCount = Math.max(1, bot.powerCubes);
+        for (let i = 0; i < cubeCount; i++) {
+          const a = Math.random() * Math.PI * 2;
+          const r = 20 + Math.random() * 40;
+          this.drops.push({
+            x: bot.x + Math.cos(a) * r,
+            y: bot.y + Math.sin(a) * r,
+            type: "powerup",
+            radius: 14,
+          });
+        }
+      }
+    }
+    // Drop jars if player was killed by a projectile
+    if (playerAliveBeforeProj && !this.player.alive && !this.playerDropsSpawned) {
+      const cubeCount = Math.max(1, this.player.powerCubes);
+      for (let i = 0; i < cubeCount; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const r = 20 + Math.random() * 40;
+        this.drops.push({
+          x: this.player.x + Math.cos(a) * r,
+          y: this.player.y + Math.sin(a) * r,
+          type: "powerup",
+          radius: 14,
+        });
+      }
+      this.playerDropsSpawned = true;
+    }
     
     this.gasDoubleTimer -= dt;
     

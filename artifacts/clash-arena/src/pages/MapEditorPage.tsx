@@ -42,11 +42,12 @@ const ALL_OVERLAY_DEFS: { ov: OVType; label: string; color: string; icon: string
   { ov: OV.BASE_RED,   label: "База красных",   color: "#B71C1C", icon: "🏰" },
   { ov: OV.GOAL_BLUE,  label: "Ворота синих",   color: "#0288D1", icon: "⚽" },
   { ov: OV.GOAL_RED,   label: "Ворота красных", color: "#C62828", icon: "⚽" },
+  { ov: OV.POWER_BOX,  label: "Бокс усиления",  color: "#7B2FBE", icon: "📦" },
 ];
 
 // Which overlays are valid for each mode
 const MODE_OVERLAYS: Record<EditorMode, OVType[]> = {
-  showdown:  [OV.SPAWN_SD],
+  showdown:  [OV.SPAWN_SD, OV.POWER_BOX],
   gemgrab:   [OV.SPAWN_BLUE, OV.SPAWN_RED, OV.GEM_CENTER],
   heist:     [OV.SPAWN_BLUE, OV.SPAWN_RED, OV.SAFE_BLUE, OV.SAFE_RED],
   bounty:    [OV.SPAWN_BLUE, OV.SPAWN_RED],
