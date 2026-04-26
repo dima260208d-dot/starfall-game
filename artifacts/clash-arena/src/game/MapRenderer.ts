@@ -1,7 +1,8 @@
 import { getPlatformTileCanvas } from "../utils/platformTile";
-import { TileGrid, TileType, getTile, TILE_PROPS, TILE_CELL_SIZE } from "./TileMap";
-import { getTileCanvas, TALL_TILE_TYPES, PYRAMID_TILE } from "../utils/tileModelCache";
+import { TileGrid, TileType, getTile, TILE_CELL_SIZE } from "./TileMap";
+import { getTileCanvas, PYRAMID_TILE } from "../utils/tileModelCache";
 import { getPowerBoxCanvas } from "../utils/powerModelCache";
+import { getNeighbourMask, drawSolidTile, SOLID_STYLES } from "../utils/autoTile";
 
 export interface Wall {
   x: number;
@@ -493,19 +494,11 @@ export function collidesWithWalls(x: number, y: number, radius: number, walls: W
 
 const BUSH_REVEAL_RADIUS = 4 * 50; // 4 tiles in world units
 
-// Base colours used to fill the full tile cell before placing the 3-D GLB
-// sprite on top.  Adjacent same-type tiles share the same colour so there are
-// zero seams between them regardless of any transparency in the sprite edges.
+// Fallback base colours for object tiles (non-solid, non-connecting).
 const TILE_BASE: Partial<Record<number, string>> = {
-  [TileType.WALL]:       "#7A5555",
-  [TileType.MOUNTAIN]:   "#506050",
-  [TileType.WATER]:      "#1060B0",
   [TileType.DECORATION]: "#B8B8B8",
-  [TileType.FENCE]:      "#C4A050",
   [TileType.HEAL]:       "#9E1038",
   [TileType.CACTUS]:     "#447A22",
-  [TileType.WOOD]:       "#7A5850",
-  [TileType.SAND_WALL]:  "#607080",
   [PYRAMID_TILE]:        "#F9D520",
 };
 
@@ -516,41 +509,98 @@ let _waterPatternCanvas: HTMLCanvasElement | null = null;
 function getWaterPatternCanvas(C: number): HTMLCanvasElement {
   if (_waterPatternCanvas && _waterPatternC === C) return _waterPatternCanvas;
   _waterPatternC = C;
-  const pw = Math.max(64, C * 2);
-  const ph = Math.max(32, C);
+  // Pattern is 4×4 cells wide/tall so offsets vary meaningfully across tiles.
+  const pw = C * 4;
+  const ph = C * 4;
   const wc = document.createElement("canvas");
   wc.width = pw; wc.height = ph;
   const wctx = wc.getContext("2d")!;
-  // Deep water gradient
+
+  // Deep water background
   const g = wctx.createLinearGradient(0, 0, 0, ph);
   g.addColorStop(0,   "#1878D0");
-  g.addColorStop(0.4, "#1060A8");
+  g.addColorStop(0.5, "#1060A8");
   g.addColorStop(1,   "#0A4888");
   wctx.fillStyle = g;
   wctx.fillRect(0, 0, pw, ph);
-  // Seamless wave lines
-  wctx.strokeStyle = "rgba(180,220,255,0.35)";
+
+  // Seamless sinusoidal wave lines (period = pw so they tile horizontally)
+  wctx.strokeStyle = "rgba(180,220,255,0.32)";
   wctx.lineWidth = 1.5;
-  for (let wy = ph * 0.2; wy < ph; wy += ph * 0.28) {
+  const waveRows = 8;
+  for (let row = 0; row < waveRows; row++) {
+    const wy = (ph / waveRows) * (row + 0.3);
+    const phase = (row * Math.PI * 0.618); // golden-ratio phase offset
     wctx.beginPath();
-    for (let wx = 0; wx <= pw; wx += 4) {
-      const yOff = Math.sin((wx / pw) * Math.PI * 4) * (ph * 0.05);
-      if (wx === 0) wctx.moveTo(wx, wy + yOff);
-      else wctx.lineTo(wx, wy + yOff);
+    for (let wx = 0; wx <= pw; wx += 2) {
+      const yo = Math.sin((wx / pw) * Math.PI * 2 * 3 + phase) * (C * 0.06);
+      if (wx === 0) wctx.moveTo(wx, wy + yo);
+      else          wctx.lineTo(wx, wy + yo);
     }
     wctx.stroke();
   }
-  // Foam dots
-  wctx.fillStyle = "rgba(220,240,255,0.18)";
-  for (let i = 0; i < 12; i++) {
-    const fx = (i * pw * 0.13) % pw;
-    const fy = ph * 0.15 + (i % 3) * ph * 0.25;
+
+  // Foam specks distributed evenly
+  wctx.fillStyle = "rgba(210,235,255,0.22)";
+  for (let i = 0; i < 40; i++) {
+    const fx = (i * pw * 0.137) % pw;
+    const fy = (i * ph * 0.213) % ph;
+    const r  = C * 0.022 + (i % 3) * C * 0.010;
     wctx.beginPath();
-    wctx.arc(fx, fy, pw * 0.018, 0, Math.PI * 2);
+    wctx.arc(fx, fy, r, 0, Math.PI * 2);
     wctx.fill();
   }
+
   _waterPatternCanvas = wc;
   return wc;
+}
+
+// Bush drawing constants (canvas is 256×512, 1:2 aspect).
+const BUSH_SPRITE_SCALE  = 1.35;          // width relative to cell
+const BUSH_SPRITE_ASPECT = 2.6;           // height / width of the canvas
+
+/**
+ * Blit a rectangle from the pattern canvas (with wrap-around) into (sx,sy,C,C).
+ * offX / offY are the starting coordinates within the pattern canvas.
+ */
+function blitWrapped(
+  ctx: CanvasRenderingContext2D,
+  wpc: HTMLCanvasElement,
+  offX: number, offY: number,
+  sx: number, sy: number, C: number,
+): void {
+  const pw = wpc.width, ph = wpc.height;
+  // Quadrants to handle horizontal + vertical wrap-around
+  const x0 = offX,  w0 = Math.min(pw - offX, C);
+  const x1 = 0,     w1 = C - w0;
+  const y0 = offY,  h0 = Math.min(ph - offY, C);
+  const y1 = 0,     h1 = C - h0;
+  ctx.drawImage(wpc, x0, y0, w0, h0, sx,      sy,      w0, h0);
+  if (w1 > 0) ctx.drawImage(wpc, x1, y0, w1, h0, sx + w0, sy,      w1, h0);
+  if (h1 > 0) ctx.drawImage(wpc, x0, y1, w0, h1, sx,      sy + h0, w0, h1);
+  if (w1 > 0 && h1 > 0) ctx.drawImage(wpc, x1, y1, w1, h1, sx + w0, sy + h0, w1, h1);
+}
+
+function drawWaterCell(
+  ctx: CanvasRenderingContext2D,
+  wpc: HTMLCanvasElement,
+  sx: number, sy: number, C: number,
+  tx: number, ty: number,
+  hasN: boolean, hasE: boolean, hasS: boolean, hasW: boolean,
+): void {
+  const pw = wpc.width, ph = wpc.height;
+  // World-coordinate-based offset so adjacent cells sample continuous regions
+  const offX = ((tx * C) % pw + pw) % pw;
+  const offY = ((ty * C) % ph + ph) % ph;
+  blitWrapped(ctx, wpc, offX, offY, sx, sy, C);
+
+  // Foam on exposed edges (where water meets land / non-water)
+  const F = Math.max(2, Math.round(C * 0.09));
+  ctx.fillStyle = "rgba(190,225,255,0.32)";
+  if (!hasN) ctx.fillRect(sx, sy,           C, F);
+  if (!hasS) ctx.fillRect(sx, sy + C - F,   C, F);
+  if (!hasW) ctx.fillRect(sx, sy,           F, C);
+  if (!hasE) ctx.fillRect(sx + C - F, sy,   F, C);
 }
 
 export function renderTileGrid(
@@ -562,124 +612,101 @@ export function renderTileGrid(
   bushLayer: boolean
 ): void {
   const C = grid.cellSize;
-  const TALL_ROWS_ABOVE = 4;
+
+  // Front faces of solid tiles extend below the cell by up to depth*C pixels,
+  // so include one extra row below the visible area. Bushes extend upward.
   const startTX = Math.max(0, Math.floor(camX / C));
-  const endTX   = Math.min(grid.width - 1,  Math.ceil((camX + canvasW) / C));
-  const startTY = Math.max(0, Math.floor(camY / C) - TALL_ROWS_ABOVE);
-  const endTY   = Math.min(grid.height - 1, Math.ceil((camY + canvasH) / C));
+  const endTX   = Math.min(grid.width  - 1, Math.ceil((camX + canvasW) / C));
+  const startTY = Math.max(0, Math.floor(camY / C) - 2);  // 2 extra rows above
+  const endTY   = Math.min(grid.height - 1, Math.ceil((camY + canvasH) / C) + 1);
 
-  // TALL_OVERFLOW: how far tall block sprites extend above their cell.
-  const TALL_OVERFLOW = C * 0.9;
+  const wpc = getWaterPatternCanvas(C);
 
-  // Bush drawing constants — canvas is 256×512 (1:2 aspect).
-  const BUSH_W     = C * 1.35;
-  const BUSH_H     = BUSH_W * 2.6;
-  const BUSH_X_OFF = (C - BUSH_W) / 2;
-  const BUSH_Y_TOP_OFF = BUSH_H - C;
-
-  // ── PASS 1: seamless base-colour fill for every non-grass, non-bush tile ───
-  // This eliminates all seams between adjacent same-type tiles: even if the 3-D
-  // GLB sprite has transparent/dark edges, the solid base layer below shows the
-  // correct colour in those edge pixels.
-  // We extend the fill 3px into each neighbouring same-type tile's area so the
-  // colour patches blend together with zero visible gap.
   if (!bushLayer) {
-    const GAP = 3; // px of colour bleed toward each same-type neighbour
-    for (let tx = startTX; tx <= endTX; tx++) {
-      for (let ty = startTY; ty <= endTY; ty++) {
+    // ── ROW-MAJOR pass — top to bottom so each row's top face naturally
+    //    covers the front face of the row above it. ────────────────────────
+    for (let ty = startTY; ty <= endTY; ty++) {
+      for (let tx = startTX; tx <= endTX; tx++) {
         const type = getTile(grid, tx, ty);
         if (type === TileType.GRASS || type === TileType.BUSH) continue;
 
         const sx = Math.round(tx * C - camX);
         const sy = Math.round(ty * C - camY);
 
+        // ── Water ────────────────────────────────────────────────────────
         if (type === TileType.WATER) {
-          // Water: tile a seamless wave canvas across the cell (no GLB)
-          const wpc = getWaterPatternCanvas(C);
-          const offX = ((tx * C) % wpc.width  + wpc.width)  % wpc.width;
-          const offY = ((ty * C) % wpc.height + wpc.height) % wpc.height;
-          // Expand by 2px on every side to close subpixel gaps
-          ctx.drawImage(wpc, offX, offY, C + 4, Math.min(wpc.height - offY, C + 4),
-                        sx - 2, sy - 2, C + 4, Math.min(wpc.height - offY, C + 4));
-          // Fill any remaining strip if the wave canvas is shorter than C
-          ctx.fillStyle = "#1060A8";
-          if (wpc.height - offY < C + 4)
-            ctx.fillRect(sx - 2, sy + wpc.height - offY - 2, C + 4,
-                         (C + 4) - (wpc.height - offY));
-          // Blend adjacent water rows
-          if (getTile(grid, tx, ty - 1) === TileType.WATER)
-            ctx.fillRect(sx - 2, sy - GAP, C + 4, GAP + 2);
-          if (getTile(grid, tx, ty + 1) === TileType.WATER)
-            ctx.fillRect(sx - 2, sy + C - 2, C + 4, GAP + 2);
-          if (getTile(grid, tx - 1, ty) === TileType.WATER)
-            ctx.fillRect(sx - GAP, sy - 2, GAP + 2, C + 4);
-          if (getTile(grid, tx + 1, ty) === TileType.WATER)
-            ctx.fillRect(sx + C - 2, sy - 2, GAP + 2, C + 4);
-          continue; // water has no GLB sprite pass
+          const mask = getNeighbourMask(
+            grid.cells, grid.destroyed, grid.width, grid.height, tx, ty, type
+          );
+          drawWaterCell(ctx, wpc, sx, sy, C, tx, ty,
+            !!(mask & 1), !!(mask & 2), !!(mask & 4), !!(mask & 8));
+          continue;
         }
 
-        const base = TILE_BASE[type];
-        if (!base) continue;
+        // ── Solid auto-tiling tiles ───────────────────────────────────────
+        const solidStyle = SOLID_STYLES[type];
+        if (solidStyle) {
+          const mask = getNeighbourMask(
+            grid.cells, grid.destroyed, grid.width, grid.height, tx, ty, type
+          );
+          drawSolidTile(ctx, solidStyle, sx, sy, C, mask);
+          continue;
+        }
 
-        ctx.fillStyle = base;
-        // Core cell (+1px bleed already handles subpixel)
-        ctx.fillRect(sx - 1, sy - 1, C + 2, C + 2);
-        // Extend into same-type neighbours so their base colours merge
-        if (getTile(grid, tx, ty - 1) === type) ctx.fillRect(sx - 1, sy - GAP, C + 2, GAP);
-        if (getTile(grid, tx, ty + 1) === type) ctx.fillRect(sx - 1, sy + C,   C + 2, GAP);
-        if (getTile(grid, tx - 1, ty) === type) ctx.fillRect(sx - GAP, sy - 1, GAP, C + 2);
-        if (getTile(grid, tx + 1, ty) === type) ctx.fillRect(sx + C,  sy - 1, GAP, C + 2);
+        // ── Object tiles (grid-aligned, centred, no neighbour logic) ─────
+        const tileCanvas = getTileCanvas(type);
+        if (tileCanvas) {
+          ctx.drawImage(tileCanvas, sx, sy, C, C);
+        } else {
+          ctx.fillStyle = TILE_BASE[type] ?? "#888888";
+          ctx.fillRect(sx, sy, C, C);
+          ctx.fillStyle = "rgba(255,255,255,0.18)";
+          ctx.fillRect(sx, sy, C, Math.round(C * 0.25));
+          ctx.fillStyle = "rgba(0,0,0,0.20)";
+          ctx.fillRect(sx, sy + Math.round(C * 0.75), C, Math.round(C * 0.25));
+        }
       }
     }
-  }
-
-  // ── PASS 2: draw GLB sprites (or Canvas fallback) on top ───────────────────
-  for (let tx = startTX; tx <= endTX; tx++) {
+  } else {
+    // ── Bush layer — drawn after all solid tiles so bushes sit on top ────────
     for (let ty = startTY; ty <= endTY; ty++) {
-      const type = getTile(grid, tx, ty);
-      if (type === TileType.GRASS) continue;
-      if (type === TileType.WATER) continue; // handled in pass 1
+      for (let tx = startTX; tx <= endTX; tx++) {
+        const type = getTile(grid, tx, ty);
+        if (type !== TileType.BUSH) continue;
 
-      const isBush = type === TileType.BUSH;
-      if (isBush !== bushLayer) continue;
+        const sx = Math.round(tx * C - camX);
+        const sy = Math.round(ty * C - camY);
 
-      const sx = Math.round(tx * C - camX);
-      const sy = Math.round(ty * C - camY);
-
-      if (isBush) {
         const worldX = tx * C + C / 2;
         const worldY = ty * C + C / 2;
-        const dx = worldX - playerX;
-        const dy = worldY - playerY;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+        const ddx = worldX - playerX;
+        const ddy = worldY - playerY;
+        const dist = Math.sqrt(ddx * ddx + ddy * ddy);
+
         ctx.save();
         ctx.globalAlpha = dist < BUSH_REVEAL_RADIUS ? 0.35 : 1.0;
-      }
 
-      const tileCanvas = getTileCanvas(type);
-      if (tileCanvas) {
-        if (isBush) {
+        const tileCanvas = getTileCanvas(TileType.BUSH);
+        if (tileCanvas) {
+          const bw = C * BUSH_SPRITE_SCALE;
+          const bh = bw * BUSH_SPRITE_ASPECT;
           ctx.drawImage(tileCanvas,
-            sx + BUSH_X_OFF - 1, sy - BUSH_Y_TOP_OFF - 1,
-            BUSH_W + 2, BUSH_H + 2);
-        } else if (TALL_TILE_TYPES.has(type)) {
-          ctx.drawImage(tileCanvas, sx - 1, sy - TALL_OVERFLOW - 1, C + 2, C + TALL_OVERFLOW + 2);
+            sx + (C - bw) / 2,
+            sy - (bh - C),
+            bw, bh);
         } else {
-          ctx.drawImage(tileCanvas, sx - 1, sy - 1, C + 2, C + 2);
+          ctx.fillStyle = "#2A7A2A";
+          ctx.beginPath();
+          ctx.arc(sx + C / 2, sy + C / 2, C * 0.42, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#3AA03A";
+          ctx.beginPath();
+          ctx.arc(sx + C / 2, sy + C / 3, C * 0.28, 0, Math.PI * 2);
+          ctx.fill();
         }
-      } else if (!isBush) {
-        // Canvas 2D fallback (model not yet loaded)
-        const base = TILE_BASE[type] ?? "#888";
-        ctx.fillStyle = base;
-        ctx.fillRect(sx - 1, sy - 1, C + 2, C + 2);
-        const hl = Math.round(C * 0.28);
-        ctx.fillStyle = "rgba(255,255,255,0.20)";
-        ctx.fillRect(sx - 1, sy - 1, C + 2, hl);
-        ctx.fillStyle = "rgba(0,0,0,0.22)";
-        ctx.fillRect(sx - 1, sy + C - hl + 1, C + 2, hl + 1);
-      }
 
-      if (isBush) ctx.restore();
+        ctx.restore();
+      }
     }
   }
 }
