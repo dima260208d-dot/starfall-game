@@ -246,6 +246,7 @@ function EditorCore({ onBack }: { onBack: () => void }) {
 
   // Tools
   const [tool, setTool] = useState<Tool>("pan");
+  const [fenceDir, setFenceDir] = useState<"auto" | "h" | "v">("auto");
   const [mirror, setMirror] = useState<Mirror>("none");
   const [selectedTile, setSelectedTile] = useState<number>(0);   // 0 = none selected
   const [selectedOv, setSelectedOv]   = useState<OVType | 0>(0); // 0 = not using overlay
@@ -280,6 +281,17 @@ function EditorCore({ onBack }: { onBack: () => void }) {
   const notify = (msg: string) => { setNotif(msg); setTimeout(() => setNotif(""), 3000); };
 
   // ── Coordinate helpers ──────────────────────────────────────────────────────
+  // Convert a clientX/Y position into canvas pixel-buffer coordinates.
+  // Needed because the canvas CSS size (width:100%/height:100%) may differ from
+  // the pixel buffer dimensions set by the resize function.
+  const clientToCanvas = (clientX: number, clientY: number) => {
+    const c = canvasRef.current!;
+    const rect = c.getBoundingClientRect();
+    const scaleX = c.width  / rect.width;
+    const scaleY = c.height / rect.height;
+    return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+  };
+
   const screenToGrid = (sx: number, sy: number): { gx: number; gy: number } => ({
     gx: Math.floor((sx + camX.current) / zoom.current),
     gy: Math.floor((sy + camY.current) / zoom.current),
@@ -395,11 +407,6 @@ function EditorCore({ onBack }: { onBack: () => void }) {
     const TALL_TILES = new Set([1, 2, 9, 10, 11, 12]);
     // Line tiles (fence, bone) auto-rotate 90° when they only have vertical neighbors
     const LINE_TILES = new Set([5, 6]);
-    // Face colours used to "bridge" adjacent same-type tall blocks (hides the top diamond)
-    const BLOCK_BRIDGE: Partial<Record<number, string>> = {
-      1: "#7A5555", 2: "#506050", 5: "#B8B8B8",
-      6: "#C4A050", 9: "#447A22", 10: "#7A5850", 11: "#607080", 12: "#F9D520",
-    };
 
     for (let gy = y0; gy <= y1; gy++) {
       for (let gx = x0; gx <= x1; gx++) {
@@ -415,14 +422,19 @@ function EditorCore({ onBack }: { onBack: () => void }) {
 
           if (modelCanvas) {
             if (LINE_TILES.has(t)) {
-              // Auto-detect orientation: vertical wins when only vertical neighbors present
-              const tAbove = gy > 0       ? cells.current[IDX(gx, gy - 1)] : 0;
-              const tBelow = gy < GS - 1  ? cells.current[IDX(gx, gy + 1)] : 0;
-              const tLeft  = gx > 0       ? cells.current[IDX(gx - 1, gy)] : 0;
-              const tRight = gx < GS - 1  ? cells.current[IDX(gx + 1, gy)] : 0;
-              const hasVert  = (tAbove === t || tBelow === t);
-              const hasHoriz = (tLeft  === t || tRight === t);
-              const isVertical = hasVert && !hasHoriz;
+              // Fence (type 6) respects manual direction; bones auto-detect by neighbors
+              let isVertical: boolean;
+              if (t === 6 && fenceDir !== "auto") {
+                isVertical = fenceDir === "v";
+              } else {
+                const tAbove = gy > 0       ? cells.current[IDX(gx, gy - 1)] : 0;
+                const tBelow = gy < GS - 1  ? cells.current[IDX(gx, gy + 1)] : 0;
+                const tLeft  = gx > 0       ? cells.current[IDX(gx - 1, gy)] : 0;
+                const tRight = gx < GS - 1  ? cells.current[IDX(gx + 1, gy)] : 0;
+                const hasVert  = (tAbove === t || tBelow === t);
+                const hasHoriz = (tLeft  === t || tRight === t);
+                isVertical = hasVert && !hasHoriz;
+              }
               const od = SOLID_OD;
               if (isVertical) {
                 ctx.save();
@@ -434,20 +446,14 @@ function EditorCore({ onBack }: { onBack: () => void }) {
                 ctx.drawImage(modelCanvas, sx - od, sy - od, cs + od * 2, cs + od * 2);
               }
             } else if (TALL_TILES.has(t)) {
-              // Asymmetric overdraw: big upward so lower tiles cover upper tiles' bottom edges
+              // When the same block type is directly above (north), extend odTop to 1.3×cs
+              // so this sprite naturally covers the seam — the upper portion of the sprite
+              // is transparent, letting the upper block's south face show through, while the
+              // lower portion starts just at the upper block's bottom: no extra painting needed.
               const odSide = SOLID_OD;
-              const odTop  = cs * 0.65;
-              ctx.drawImage(modelCanvas, sx - odSide, sy - odTop, cs + odSide * 2, cs + odTop + odSide);
-              // When the same type is directly above (north), fill the top-diamond region
-              // with the block's face colour so the two sprites appear as one continuous wall.
               const hasSameNorth = gy > 0 && cells.current[IDX(gx, gy - 1)] === t;
-              if (hasSameNorth) {
-                const bridgeCol = BLOCK_BRIDGE[t];
-                if (bridgeCol) {
-                  ctx.fillStyle = bridgeCol;
-                  ctx.fillRect(sx - odSide, sy - odTop, cs + odSide * 2, odTop * 0.80);
-                }
-              }
+              const odTop = hasSameNorth ? cs * 1.3 : cs * 0.65;
+              ctx.drawImage(modelCanvas, sx - odSide, sy - odTop, cs + odSide * 2, cs + odTop + odSide);
             } else {
               // Barrel (type 7) is drawn without side overdraw so it stays within the cell
               const od = t === 3 ? BUSH_OD : t === 4 ? WATER_OD : t === 7 ? 0 : SOLID_OD;
@@ -591,7 +597,7 @@ function EditorCore({ onBack }: { onBack: () => void }) {
       });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [forceRedraw, hovCell, fillSel, zoom.current, camX.current, camY.current]);
+  }, [forceRedraw, hovCell, fillSel, zoom.current, camX.current, camY.current, fenceDir]);
 
   // ── Resize canvas to parent ─────────────────────────────────────────────────
   const initialCamSet = useRef(false);
@@ -632,7 +638,6 @@ function EditorCore({ onBack }: { onBack: () => void }) {
   // ── Mouse handlers ──────────────────────────────────────────────────────────
   const onMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     e.preventDefault();
-    // Right-click or middle-click always pans
     if (e.button === 1 || e.button === 2) {
       isPanning.current = true;
       lastMouse.current = { x: e.clientX, y: e.clientY };
@@ -640,15 +645,14 @@ function EditorCore({ onBack }: { onBack: () => void }) {
     }
     if (e.button !== 0) return;
 
-    // Pan tool or no tile selected — left-click pans too
     if (tool === "pan" || (tool === "place" && selectedTile === 0 && selectedOv === 0)) {
       isPanning.current = true;
       lastMouse.current = { x: e.clientX, y: e.clientY };
       return;
     }
 
-    const rect = canvasRef.current!.getBoundingClientRect();
-    const { gx, gy } = screenToGrid(e.clientX - rect.left, e.clientY - rect.top);
+    const { x: sx, y: sy } = clientToCanvas(e.clientX, e.clientY);
+    const { gx, gy } = screenToGrid(sx, sy);
 
     if (tool === "fill_rect") {
       fillStart.current = { x: gx, y: gy };
@@ -662,14 +666,17 @@ function EditorCore({ onBack }: { onBack: () => void }) {
   };
 
   const onMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const rect = canvasRef.current!.getBoundingClientRect();
-    const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+    const { x: sx, y: sy } = clientToCanvas(e.clientX, e.clientY);
     const { gx, gy } = screenToGrid(sx, sy);
     setHovCell({ x: gx, y: gy });
 
     if (isPanning.current) {
-      camX.current -= e.clientX - lastMouse.current.x;
-      camY.current -= e.clientY - lastMouse.current.y;
+      const c = canvasRef.current!;
+      const rect = c.getBoundingClientRect();
+      const scaleX = c.width / rect.width;
+      const scaleY = c.height / rect.height;
+      camX.current -= (e.clientX - lastMouse.current.x) * scaleX;
+      camY.current -= (e.clientY - lastMouse.current.y) * scaleY;
       clampCam();
       lastMouse.current = { x: e.clientX, y: e.clientY };
       redraw();
@@ -700,12 +707,11 @@ function EditorCore({ onBack }: { onBack: () => void }) {
 
   const onWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
     e.preventDefault();
-    const rect = canvasRef.current!.getBoundingClientRect();
-    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const { x: mx, y: my } = clientToCanvas(e.clientX, e.clientY);
     const worldX = (mx + camX.current) / zoom.current;
     const worldY = (my + camY.current) / zoom.current;
-    const delta = e.deltaY > 0 ? -2 : 2;
-    zoom.current = Math.max(6, Math.min(36, zoom.current + delta));
+    const delta = e.deltaY > 0 ? -3 : 3;
+    zoom.current = Math.max(4, Math.min(36, zoom.current + delta));
     camX.current = worldX * zoom.current - mx;
     camY.current = worldY * zoom.current - my;
     clampCam();
@@ -722,9 +728,9 @@ function EditorCore({ onBack }: { onBack: () => void }) {
         isPanning.current = true;
         lastMouse.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       } else {
-        const rect = canvasRef.current!.getBoundingClientRect();
         const t = e.touches[0];
-        const { gx, gy } = screenToGrid(t.clientX - rect.left, t.clientY - rect.top);
+        const { x: tx, y: ty } = clientToCanvas(t.clientX, t.clientY);
+        const { gx, gy } = screenToGrid(tx, ty);
         isDrawing.current = true;
         applyToCell(gx, gy, tool === "erase" ? "erase" : "place");
       }
@@ -740,38 +746,46 @@ function EditorCore({ onBack }: { onBack: () => void }) {
         const curDist  = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
         const ratio = curDist / prevDist;
         const oldZ = zoom.current;
-        zoom.current = Math.max(6, Math.min(36, Math.round(oldZ * ratio)));
+        zoom.current = Math.max(4, Math.min(36, Math.round(oldZ * ratio)));
         const cx = (a.clientX + b.clientX) / 2;
         const cy = (a.clientY + b.clientY) / 2;
-        const rect = canvasRef.current!.getBoundingClientRect();
-        const wx = (cx - rect.left + camX.current) / oldZ;
-        const wy = (cy - rect.top  + camY.current) / oldZ;
-        camX.current = wx * zoom.current - (cx - rect.left);
-        camY.current = wy * zoom.current - (cy - rect.top);
+        const { x: cmx, y: cmy } = clientToCanvas(cx, cy);
+        const wx = (cmx + camX.current) / oldZ;
+        const wy = (cmy + camY.current) / oldZ;
+        camX.current = wx * zoom.current - cmx;
+        camY.current = wy * zoom.current - cmy;
         clampCam();
       }
       // Pan with two fingers
       if (pa && pb) {
+        const c = canvasRef.current!;
+        const rect = c.getBoundingClientRect();
+        const scaleX = c.width / rect.width;
+        const scaleY = c.height / rect.height;
         const prevMid = { x: (pa.clientX + pb.clientX) / 2, y: (pa.clientY + pb.clientY) / 2 };
         const curMid  = { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 };
-        camX.current -= curMid.x - prevMid.x;
-        camY.current -= curMid.y - prevMid.y;
+        camX.current -= (curMid.x - prevMid.x) * scaleX;
+        camY.current -= (curMid.y - prevMid.y) * scaleY;
         clampCam();
       }
       redraw();
     } else if (e.touches.length === 1) {
       const t = e.touches[0];
       if (isPanning.current) {
+        const c = canvasRef.current!;
+        const rect = c.getBoundingClientRect();
+        const scaleX = c.width / rect.width;
+        const scaleY = c.height / rect.height;
         const dx = t.clientX - lastMouse.current.x;
         const dy = t.clientY - lastMouse.current.y;
-        camX.current -= dx;
-        camY.current -= dy;
+        camX.current -= dx * scaleX;
+        camY.current -= dy * scaleY;
         lastMouse.current = { x: t.clientX, y: t.clientY };
         clampCam();
         redraw();
       } else if (isDrawing.current) {
-        const rect = canvasRef.current!.getBoundingClientRect();
-        const { gx, gy } = screenToGrid(t.clientX - rect.left, t.clientY - rect.top);
+        const { x: tx, y: ty } = clientToCanvas(t.clientX, t.clientY);
+        const { gx, gy } = screenToGrid(tx, ty);
         if (!brushLastCell.current || brushLastCell.current.x !== gx || brushLastCell.current.y !== gy) {
           applyToCell(gx, gy, tool === "erase" ? "erase" : "place");
           brushLastCell.current = { x: gx, y: gy };
@@ -952,6 +966,16 @@ function EditorCore({ onBack }: { onBack: () => void }) {
         <ToolBtn active={tool === "erase"}     onClick={() => setTool("erase")}    label="🧹 Ластик" />
         <ToolBtn active={tool === "brush"}     onClick={() => setTool("brush")}    label="🖌️ Кисть" />
         <ToolBtn active={tool === "fill_rect"} onClick={() => setTool("fill_rect")}label="▭ Заполнить" />
+
+        {/* Fence direction — only shown when fence tile is selected */}
+        {selectedTile === 6 && (
+          <>
+            <div style={{ width: 1, height: 28, background: "rgba(255,255,255,0.15)", flexShrink: 0 }} />
+            <ToolBtn active={fenceDir === "auto"} onClick={() => setFenceDir("auto")} label="🔀 Авто" />
+            <ToolBtn active={fenceDir === "h"}    onClick={() => setFenceDir("h")}    label="↔ Гориз." />
+            <ToolBtn active={fenceDir === "v"}    onClick={() => setFenceDir("v")}    label="↕ Верт." />
+          </>
+        )}
 
         <div style={{ width: 1, height: 28, background: "rgba(255,255,255,0.15)", flexShrink: 0 }} />
 

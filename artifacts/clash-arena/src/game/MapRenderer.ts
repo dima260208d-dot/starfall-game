@@ -697,17 +697,12 @@ export function renderTileGrid(
             sx + BUSH_X_OFF - 1, sy - BUSH_Y_TOP_OFF - 1,
             BUSH_W + 2, BUSH_H + 2);
         } else if (TALL_TILE_TYPES.has(type)) {
-          ctx.drawImage(tileCanvas, sx - 1, sy - TALL_OVERFLOW - 1, C + 2, C + TALL_OVERFLOW + 2);
-          // When the same block type is directly above (north = ty-1), cover the
-          // top-diamond region of this sprite with the block's face colour so the
-          // two sprites merge into one continuous wall.
-          if (ty > 0 && getTile(grid, tx, ty - 1) === type) {
-            const bridgeC = TILE_BASE[type];
-            if (bridgeC) {
-              ctx.fillStyle = bridgeC;
-              ctx.fillRect(sx, sy - TALL_OVERFLOW, C, Math.round(TALL_OVERFLOW * 0.80));
-            }
-          }
+          // When the same block type is directly above (north = ty-1), use a
+          // larger upward overdraw (1.3×C) so this sprite naturally covers the
+          // seam via its own transparent/opaque pixels — no extra painting needed.
+          const hasSameNorth = ty > 0 && getTile(grid, tx, ty - 1) === type;
+          const overflow = hasSameNorth ? C * 1.3 : TALL_OVERFLOW;
+          ctx.drawImage(tileCanvas, sx - 1, sy - overflow - 1, C + 2, C + overflow + 2);
         } else {
           ctx.drawImage(tileCanvas, sx - 1, sy - 1, C + 2, C + 2);
         }
