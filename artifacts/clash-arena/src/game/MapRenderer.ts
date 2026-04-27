@@ -613,6 +613,8 @@ export function renderTileGrid(
   playerX: number, playerY: number,
   bushLayer: boolean
 ): void {
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
   const C = grid.cellSize;
   const TALL_ROWS_ABOVE = 4;
   const startTX = Math.max(0, Math.floor(camX / C));
@@ -728,27 +730,20 @@ export function renderTileGrid(
           }
         } else if (TALL_TILE_TYPES.has(type)) {
           // South-face bleed fix: clip the UPPER block's south face so it doesn't
-          // bleed into the lower block's territory. The lower block's diamond starts
-          // at ~73% of cell height from the upper block's top — clip there.
-          // hasSameNorth: extend odTop to 1.3×C so this block's diamond covers the gap.
+          // bleed into the lower block's territory.
           const hasSameNorth = ty > 0       && getTile(grid, tx, ty - 1) === type;
           const hasSameSouth = ty < grid.height - 1 && getTile(grid, tx, ty + 1) === type;
-          // hasSameNorth: extend overflow so this block's diamond covers the gap left
-          // by the upper block's clip. 1.0×C → diamond at ~70% of combined sprite height,
-          // which aligns with the upper block's clip point at 0.50×C.
-          const overflow = hasSameNorth ? C * 1.0 : TALL_OVERFLOW;
+          const odTop  = hasSameNorth ? C * 1.0 : TALL_OVERFLOW; // upward overdraw
+          const odSide = C * 0.30;                                // horizontal overdraw (matches editor)
           if (hasSameSouth) {
-            // Clip the upper block's south face so it doesn't bleed into the lower
-            // block's territory. Clip at 50% of cell height — just before the south
-            // wall face appears (~52%), eliminating the visible south-side seam.
             ctx.save();
             ctx.beginPath();
             ctx.rect(sx - C, 0, C * 3, Math.round(sy + C * 0.50));
             ctx.clip();
-            ctx.drawImage(tileCanvas, sx - 1, sy - overflow - 1, C + 2, C + overflow + 2);
+            ctx.drawImage(tileCanvas, sx - odSide, sy - odTop, C + odSide * 2, C + odTop + odSide);
             ctx.restore();
           } else {
-            ctx.drawImage(tileCanvas, sx - 1, sy - overflow - 1, C + 2, C + overflow + 2);
+            ctx.drawImage(tileCanvas, sx - odSide, sy - odTop, C + odSide * 2, C + odTop + odSide);
           }
         } else if (type === TileType.HEAL) {
           // Barrel: render slightly larger than the raw cell so it looks substantial.

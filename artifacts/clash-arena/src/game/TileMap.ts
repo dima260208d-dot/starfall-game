@@ -34,7 +34,7 @@ export const TILE_PROPS: Record<number, TileProps> = {
   [TileType.WATER]:      { walkable: false, shootThrough: true,  destructible: false, soraDestructible: false, healRate: 0,   cover: false },
   [TileType.DECORATION]: { walkable: false, shootThrough: false, destructible: true,  soraDestructible: true,  healRate: 0,   cover: false },
   [TileType.FENCE]:      { walkable: false, shootThrough: true,  destructible: false, soraDestructible: false, healRate: 0,   cover: false },
-  [TileType.HEAL]:       { walkable: true,  shootThrough: true,  destructible: false, soraDestructible: false, healRate: 500, cover: false },
+  [TileType.HEAL]:       { walkable: false, shootThrough: true,  destructible: false, soraDestructible: false, healRate: 500, cover: false },
   [TileType.TREE]:       { walkable: false, shootThrough: false, destructible: false, soraDestructible: false, healRate: 0,   cover: false },
   [TileType.CACTUS]:     { walkable: false, shootThrough: false, destructible: false, soraDestructible: false, healRate: 0,   cover: false },
   [TileType.WOOD]:       { walkable: false, shootThrough: false, destructible: false, soraDestructible: false, healRate: 0,   cover: false },
@@ -136,8 +136,21 @@ export function getTileHealRate(x: number, y: number, grid: TileGrid): number {
   const C = grid.cellSize;
   const tx = Math.floor(x / C);
   const ty = Math.floor(y / C);
-  const type = getTile(grid, tx, ty);
-  return TILE_PROPS[type]?.healRate ?? 0;
+  // Check own tile first; also check 4 orthogonal neighbours so players
+  // standing next to a non-walkable HEAL barrel still receive healing.
+  const checks = [
+    getTile(grid, tx, ty),
+    getTile(grid, tx, ty - 1),
+    getTile(grid, tx, ty + 1),
+    getTile(grid, tx - 1, ty),
+    getTile(grid, tx + 1, ty),
+  ];
+  let best = 0;
+  for (const type of checks) {
+    const rate = TILE_PROPS[type]?.healRate ?? 0;
+    if (rate > best) best = rate;
+  }
+  return best;
 }
 
 export function isTileInBush(x: number, y: number, grid: TileGrid): boolean {

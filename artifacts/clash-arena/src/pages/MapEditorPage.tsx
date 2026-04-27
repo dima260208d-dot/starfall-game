@@ -304,9 +304,10 @@ function EditorCore({ onBack }: { onBack: () => void }) {
   const redraw = useCallback(() => forceRedraw(n => n + 1), []);
 
   // Camera
-  const camX = useRef(0);   // world px
+  const camX = useRef(0);   // world px (CSS units)
   const camY = useRef(0);
-  const zoom = useRef(14);  // px per cell (6–36)
+  const zoom = useRef(14);  // px per cell (CSS units, may be fractional)
+  const cssCanvas = useRef({ w: 800, h: 600 }); // CSS pixel size of canvas
 
   // Tools
   const [tool, setTool] = useState<Tool>("pan");
@@ -353,9 +354,8 @@ function EditorCore({ onBack }: { onBack: () => void }) {
   const clientToCanvas = (clientX: number, clientY: number) => {
     const c = canvasRef.current!;
     const rect = c.getBoundingClientRect();
-    const scaleX = c.width  / rect.width;
-    const scaleY = c.height / rect.height;
-    return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+    // Return CSS-pixel coordinates (zoom/cam are all in CSS px; DPR is only for drawing)
+    return { x: clientX - rect.left, y: clientY - rect.top };
   };
 
   const screenToGrid = (sx: number, sy: number): { gx: number; gy: number } => ({
@@ -365,8 +365,8 @@ function EditorCore({ onBack }: { onBack: () => void }) {
 
   const clampCam = () => {
     const cs = zoom.current;
-    const maxX = GS * cs - (canvasRef.current?.width ?? 800);
-    const maxY = GS * cs - (canvasRef.current?.height ?? 600);
+    const maxX = GS * cs - cssCanvas.current.w;
+    const maxY = GS * cs - cssCanvas.current.h;
     camX.current = Math.max(0, Math.min(camX.current, Math.max(0, maxX)));
     camY.current = Math.max(0, Math.min(camY.current, Math.max(0, maxY)));
   };
@@ -465,9 +465,15 @@ function EditorCore({ onBack }: { onBack: () => void }) {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+    const dpr = window.devicePixelRatio || 1;
+    // Scale all drawing to CSS pixels so DPR canvas renders crisp on high-DPI screens
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
     const cs = zoom.current;
     const ox = camX.current, oy = camY.current;
-    const W = canvas.width, H = canvas.height;
+    const W = cssCanvas.current.w;
+    const H = cssCanvas.current.h;
 
     ctx.clearRect(0, 0, W, H);
 
@@ -542,7 +548,7 @@ function EditorCore({ onBack }: { onBack: () => void }) {
               if (hasSameSouth) {
                 ctx.save();
                 ctx.beginPath();
-                ctx.rect(0, 0, canvas.width, Math.round(sy + cs * 0.50));
+                ctx.rect(0, 0, W, Math.round(sy + cs * 0.50));
                 ctx.clip();
                 ctx.drawImage(modelCanvas, sx - odSide, sy - odTop, cs + odSide * 2, cs + odTop + odSide);
                 ctx.restore();
@@ -758,15 +764,19 @@ function EditorCore({ onBack }: { onBack: () => void }) {
       const pw = c.parentElement?.clientWidth  ?? window.innerWidth;
       const ph = c.parentElement?.clientHeight ?? window.innerHeight;
       if (pw === 0 || ph === 0) return; // layout not settled yet
-      c.width  = pw;
-      c.height = ph;
-      // On first load, zoom so the full 60-cell map fills the canvas width
+      const dpr = window.devicePixelRatio || 1;
+      c.width  = Math.round(pw * dpr);
+      c.height = Math.round(ph * dpr);
+      c.style.width  = pw + "px";
+      c.style.height = ph + "px";
+      cssCanvas.current = { w: pw, h: ph };
+      // On first load, zoom so the full 60-cell map fills the canvas width (CSS px)
       if (!initialCamSet.current) {
         initialCamSet.current = true;
-        zoom.current = Math.max(6, Math.min(24, Math.floor(c.width / GS)));
+        zoom.current = Math.max(6, Math.min(24, Math.floor(pw / GS)));
         const mapPx = GS * zoom.current;
         camX.current = 0;
-        camY.current = Math.max(0, (mapPx - c.height) / 2);
+        camY.current = Math.max(0, (mapPx - ph) / 2);
       }
       clampCam();
       redraw();
@@ -878,8 +888,9 @@ function EditorCore({ onBack }: { onBack: () => void }) {
     const { x: mx, y: my } = clientToCanvas(e.clientX, e.clientY);
     const worldX = (mx + camX.current) / zoom.current;
     const worldY = (my + camY.current) / zoom.current;
-    const delta = e.deltaY > 0 ? -3 : 3;
-    zoom.current = Math.max(4, Math.min(36, zoom.current + delta));
+    // Multiplicative zoom (±15% per tick) for smooth, even steps at all zoom levels
+    const factor = e.deltaY > 0 ? (1 / 1.15) : 1.15;
+    zoom.current = Math.max(4, Math.min(36, zoom.current * factor));
     camX.current = worldX * zoom.current - mx;
     camY.current = worldY * zoom.current - my;
     clampCam();
@@ -914,7 +925,7 @@ function EditorCore({ onBack }: { onBack: () => void }) {
         const curDist  = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
         const ratio = curDist / prevDist;
         const oldZ = zoom.current;
-        zoom.current = Math.max(4, Math.min(36, Math.round(oldZ * ratio)));
+        zoom.current = Math.max(4, Math.min(36, oldZ * ratio));
         const cx = (a.clientX + b.clientX) / 2;
         const cy = (a.clientY + b.clientY) / 2;
         const { x: cmx, y: cmy } = clientToCanvas(cx, cy);
@@ -1230,7 +1241,7 @@ function EditorCore({ onBack }: { onBack: () => void }) {
           background: "rgba(0,0,0,0.5)", borderRadius: 8, padding: "4px 10px",
           fontSize: 11, color: "rgba(255,255,255,0.5)",
         }}>
-          {zoom.current}px/кл
+          {Math.round(zoom.current)}px/кл
         </div>
 
         {/* Notification */}
