@@ -395,6 +395,11 @@ function EditorCore({ onBack }: { onBack: () => void }) {
     const TALL_TILES = new Set([1, 2, 9, 10, 11, 12]);
     // Line tiles (fence, bone) auto-rotate 90° when they only have vertical neighbors
     const LINE_TILES = new Set([5, 6]);
+    // Face colours used to "bridge" adjacent same-type tall blocks (hides the top diamond)
+    const BLOCK_BRIDGE: Partial<Record<number, string>> = {
+      1: "#7A5555", 2: "#506050", 5: "#B8B8B8",
+      6: "#C4A050", 9: "#447A22", 10: "#7A5850", 11: "#607080", 12: "#F9D520",
+    };
 
     for (let gy = y0; gy <= y1; gy++) {
       for (let gx = x0; gx <= x1; gx++) {
@@ -433,8 +438,19 @@ function EditorCore({ onBack }: { onBack: () => void }) {
               const odSide = SOLID_OD;
               const odTop  = cs * 0.65;
               ctx.drawImage(modelCanvas, sx - odSide, sy - odTop, cs + odSide * 2, cs + odTop + odSide);
+              // When the same type is directly above (north), fill the top-diamond region
+              // with the block's face colour so the two sprites appear as one continuous wall.
+              const hasSameNorth = gy > 0 && cells.current[IDX(gx, gy - 1)] === t;
+              if (hasSameNorth) {
+                const bridgeCol = BLOCK_BRIDGE[t];
+                if (bridgeCol) {
+                  ctx.fillStyle = bridgeCol;
+                  ctx.fillRect(sx - odSide, sy - odTop, cs + odSide * 2, odTop * 0.80);
+                }
+              }
             } else {
-              const od = t === 3 ? BUSH_OD : t === 4 ? WATER_OD : SOLID_OD;
+              // Barrel (type 7) is drawn without side overdraw so it stays within the cell
+              const od = t === 3 ? BUSH_OD : t === 4 ? WATER_OD : t === 7 ? 0 : SOLID_OD;
               ctx.drawImage(modelCanvas, sx - od, sy - od, cs + od * 2, cs + od * 2);
             }
           } else {
@@ -602,11 +618,13 @@ function EditorCore({ onBack }: { onBack: () => void }) {
     // Defer so parent flex container has settled to its final dimensions
     const rafId = requestAnimationFrame(resize);
     window.addEventListener("resize", resize);
-    document.addEventListener("fullscreenchange", resize);
+    // Fullscreen transitions need two animation frames before the layout settles
+    const handleFullscreen = () => { requestAnimationFrame(() => { requestAnimationFrame(resize); }); };
+    document.addEventListener("fullscreenchange", handleFullscreen);
     return () => {
       cancelAnimationFrame(rafId);
       window.removeEventListener("resize", resize);
-      document.removeEventListener("fullscreenchange", resize);
+      document.removeEventListener("fullscreenchange", handleFullscreen);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

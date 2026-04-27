@@ -698,6 +698,16 @@ export function renderTileGrid(
             BUSH_W + 2, BUSH_H + 2);
         } else if (TALL_TILE_TYPES.has(type)) {
           ctx.drawImage(tileCanvas, sx - 1, sy - TALL_OVERFLOW - 1, C + 2, C + TALL_OVERFLOW + 2);
+          // When the same block type is directly above (north = ty-1), cover the
+          // top-diamond region of this sprite with the block's face colour so the
+          // two sprites merge into one continuous wall.
+          if (ty > 0 && getTile(grid, tx, ty - 1) === type) {
+            const bridgeC = TILE_BASE[type];
+            if (bridgeC) {
+              ctx.fillStyle = bridgeC;
+              ctx.fillRect(sx, sy - TALL_OVERFLOW, C, Math.round(TALL_OVERFLOW * 0.80));
+            }
+          }
         } else {
           ctx.drawImage(tileCanvas, sx - 1, sy - 1, C + 2, C + 2);
         }

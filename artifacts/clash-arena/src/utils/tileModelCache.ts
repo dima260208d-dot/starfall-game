@@ -167,6 +167,9 @@ export function loadAllTileModels(): Promise<void> {
         fixMaterials(model);
 
         if (type === TileType.WATER) model.rotation.x = -Math.PI / 2;
+        // Fence faces along Z in model space; rotate 90° so the flat face shows
+        // to the isometric camera (which is in the +Z / +Y direction).
+        if (type === TileType.FENCE) model.rotation.y = Math.PI / 2;
 
         const box = new THREE.Box3().setFromObject(model);
         const center = box.getCenter(new THREE.Vector3());
@@ -180,13 +183,18 @@ export function loadAllTileModels(): Promise<void> {
         const scaleByY  = (HALF_Y * 2 * 0.90) / maxY;
 
         let scale: number;
+        let lookAtY = 0.8; // default camera focus point
 
         if (type === TileType.CACTUS) {
-          // Cactus is thin/tall — scale by XZ so it appears wide and prominent.
-          // Cap at 3× the Y-safe scale so it's large but not massively clipped.
-          scale = Math.min(scaleByXZ, scaleByY * 3.0);
-        } else if (type === TileType.FENCE || type === TileType.HEAL || type === TileType.WOOD) {
-          // These models have large Y relative to XZ — scale by XZ so they fill the cell.
+          // Cactus is thin and tall — cap at 80 % of the safe Y scale to avoid clipping.
+          // Raise the camera focus to centre the cactus vertically in the frustum.
+          scale = Math.min(scaleByXZ, scaleByY * 0.80);
+          lookAtY = (maxY * scale) * 0.45;
+        } else if (type === TileType.HEAL) {
+          // Barrel — scale it down so it doesn't overflow the cell width.
+          scale = Math.min(scaleByXZ * 0.55, scaleByY * 0.90);
+        } else if (type === TileType.FENCE || type === TileType.WOOD) {
+          // These models are taller than they are wide — safe to let Y go a bit larger.
           scale = Math.min(scaleByXZ, scaleByY * 2.0);
         } else if (type === TileType.BUSH) {
           // grass_tile is flat — scale to fill full frustum width.
@@ -204,7 +212,7 @@ export function loadAllTileModels(): Promise<void> {
 
         const scene = buildScene();
         scene.add(model);
-        const camera = buildCamera();
+        const camera = buildCamera(lookAtY);
         renderer.render(scene, camera);
 
         const out = document.createElement("canvas");
