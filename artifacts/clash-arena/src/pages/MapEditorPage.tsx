@@ -59,6 +59,62 @@ const MODE_OVERLAYS: Record<EditorMode, OVType[]> = {
 type Tool = "pan" | "place" | "erase" | "brush" | "fill_rect";
 type Mirror = "none" | "h" | "v" | "both";
 
+// ── Spawn-point auto-placement ────────────────────────────────────────────────
+// Default spawn positions for each mode (x, y in grid cells, 0-indexed).
+// Blue spawns on the left third, Red on the right — symmetric.
+const DEFAULT_SPAWNS: Record<EditorMode, { type: OVType; x: number; y: number }[]> = {
+  showdown: Array.from({ length: 10 }, (_, i) => ({
+    type: OV.SPAWN_SD as OVType,
+    x: Math.round(30 + Math.cos((i / 10) * Math.PI * 2 - Math.PI / 2) * 22),
+    y: Math.round(30 + Math.sin((i / 10) * Math.PI * 2 - Math.PI / 2) * 22),
+  })),
+  gemgrab:   [
+    { type: OV.SPAWN_BLUE as OVType, x: 8,  y: 24 }, { type: OV.SPAWN_BLUE as OVType, x: 8,  y: 30 }, { type: OV.SPAWN_BLUE as OVType, x: 8,  y: 36 },
+    { type: OV.SPAWN_RED  as OVType, x: 52, y: 24 }, { type: OV.SPAWN_RED  as OVType, x: 52, y: 30 }, { type: OV.SPAWN_RED  as OVType, x: 52, y: 36 },
+    { type: OV.GEM_CENTER as OVType, x: 30, y: 30 },
+  ],
+  heist:     [
+    { type: OV.SPAWN_BLUE as OVType, x: 10, y: 24 }, { type: OV.SPAWN_BLUE as OVType, x: 10, y: 30 }, { type: OV.SPAWN_BLUE as OVType, x: 10, y: 36 },
+    { type: OV.SPAWN_RED  as OVType, x: 50, y: 24 }, { type: OV.SPAWN_RED  as OVType, x: 50, y: 30 }, { type: OV.SPAWN_RED  as OVType, x: 50, y: 36 },
+    { type: OV.SAFE_BLUE  as OVType, x: 5,  y: 30 },
+    { type: OV.SAFE_RED   as OVType, x: 55, y: 30 },
+  ],
+  bounty:    [
+    { type: OV.SPAWN_BLUE as OVType, x: 8,  y: 24 }, { type: OV.SPAWN_BLUE as OVType, x: 8,  y: 30 }, { type: OV.SPAWN_BLUE as OVType, x: 8,  y: 36 },
+    { type: OV.SPAWN_RED  as OVType, x: 52, y: 24 }, { type: OV.SPAWN_RED  as OVType, x: 52, y: 30 }, { type: OV.SPAWN_RED  as OVType, x: 52, y: 36 },
+  ],
+  brawlball: [
+    { type: OV.SPAWN_BLUE as OVType, x: 10, y: 24 }, { type: OV.SPAWN_BLUE as OVType, x: 10, y: 30 }, { type: OV.SPAWN_BLUE as OVType, x: 10, y: 36 },
+    { type: OV.SPAWN_RED  as OVType, x: 50, y: 24 }, { type: OV.SPAWN_RED  as OVType, x: 50, y: 30 }, { type: OV.SPAWN_RED  as OVType, x: 50, y: 36 },
+    { type: OV.GOAL_BLUE  as OVType, x: 2,  y: 30 },
+    { type: OV.GOAL_RED   as OVType, x: 57, y: 30 },
+  ],
+  siege:     [
+    { type: OV.SPAWN_BLUE as OVType, x: 8,  y: 24 }, { type: OV.SPAWN_BLUE as OVType, x: 8,  y: 30 }, { type: OV.SPAWN_BLUE as OVType, x: 8,  y: 36 },
+    { type: OV.SPAWN_RED  as OVType, x: 52, y: 24 }, { type: OV.SPAWN_RED  as OVType, x: 52, y: 30 }, { type: OV.SPAWN_RED  as OVType, x: 52, y: 36 },
+    { type: OV.BASE_BLUE  as OVType, x: 4,  y: 30 },
+    { type: OV.BASE_RED   as OVType, x: 56, y: 30 },
+  ],
+};
+
+function applyAutoSpawns(mode: EditorMode, ovArr: number[]): void {
+  for (const { type, x, y } of DEFAULT_SPAWNS[mode]) {
+    if (x >= 0 && x < GS && y >= 0 && y < GS) ovArr[IDX(x, y)] = type;
+  }
+}
+
+function hasAnySpawns(mode: EditorMode, ovArr: number[]): boolean {
+  if (mode === "showdown") return ovArr.some(v => v === OV.SPAWN_SD);
+  return ovArr.some(v => v === OV.SPAWN_BLUE) || ovArr.some(v => v === OV.SPAWN_RED);
+}
+
+// Max number of each spawn type allowed per mode
+const SPAWN_MAX: Partial<Record<number, number>> = {
+  [OV.SPAWN_SD]:   10,
+  [OV.SPAWN_BLUE]: 3,
+  [OV.SPAWN_RED]:  3,
+};
+
 interface Selection { x0: number; y0: number; x1: number; y1: number }
 
 // ── Admin Login modal ─────────────────────────────────────────────────────────
@@ -246,8 +302,10 @@ function EditorCore({ onBack }: { onBack: () => void }) {
 
   // Tools
   const [tool, setTool] = useState<Tool>("pan");
-  const [fenceDir, setFenceDir] = useState<"auto" | "h" | "v">("auto");
+  const [lineDir, setLineDir] = useState<"auto" | "h" | "v">("auto");
   const [mirror, setMirror] = useState<Mirror>("none");
+  // Modal: offer to auto-place spawns when none are found
+  const [autoSpawnPrompt, setAutoSpawnPrompt] = useState<{ yes: () => void; no: () => void } | null>(null);
   const [selectedTile, setSelectedTile] = useState<number>(0);   // 0 = none selected
   const [selectedOv, setSelectedOv]   = useState<OVType | 0>(0); // 0 = not using overlay
 
@@ -317,6 +375,21 @@ function EditorCore({ onBack }: { onBack: () => void }) {
   // ── Place / erase at cell ───────────────────────────────────────────────────
   const applyToCell = useCallback((gx: number, gy: number, t: Tool) => {
     if (gx < 0 || gy < 0 || gx >= GS || gy >= GS) return;
+
+    // Enforce max spawn-point count before placing
+    if (t !== "erase" && selectedOv !== 0) {
+      const max = SPAWN_MAX[selectedOv];
+      if (max !== undefined) {
+        const alreadyHere = overlays.current[IDX(gx, gy)] === selectedOv;
+        const existing = overlays.current.filter(v => v === selectedOv).length;
+        if (!alreadyHere && existing >= max) {
+          setNotif(`Максимум ${max} точек для этого режима`);
+          setTimeout(() => setNotif(""), 3000);
+          return;
+        }
+      }
+    }
+
     const pts = mirrorCells(gx, gy);
     pts.forEach(([x, y]) => {
       if (t === "erase") {
@@ -422,10 +495,11 @@ function EditorCore({ onBack }: { onBack: () => void }) {
 
           if (modelCanvas) {
             if (LINE_TILES.has(t)) {
-              // Fence (type 6) respects manual direction; bones auto-detect by neighbors
+              // Bones (5) and Fence (6) both respect the manual direction toggle.
+              // In "auto" mode, orientation is derived from same-type neighbors.
               let isVertical: boolean;
-              if (t === 6 && fenceDir !== "auto") {
-                isVertical = fenceDir === "v";
+              if (lineDir !== "auto") {
+                isVertical = lineDir === "v";
               } else {
                 const tAbove = gy > 0       ? cells.current[IDX(gx, gy - 1)] : 0;
                 const tBelow = gy < GS - 1  ? cells.current[IDX(gx, gy + 1)] : 0;
@@ -446,14 +520,22 @@ function EditorCore({ onBack }: { onBack: () => void }) {
                 ctx.drawImage(modelCanvas, sx - od, sy - od, cs + od * 2, cs + od * 2);
               }
             } else if (TALL_TILES.has(t)) {
-              // When the same block type is directly above (north), extend odTop to 1.3×cs
-              // so this sprite naturally covers the seam — the upper portion of the sprite
-              // is transparent, letting the upper block's south face show through, while the
-              // lower portion starts just at the upper block's bottom: no extra painting needed.
+              // When same-type block is above: draw with larger odTop (1.3cs) BUT clip
+              // to just above the cell boundary so the lower block's sky/side pixels
+              // don't bleed into the upper block's territory.
               const odSide = SOLID_OD;
               const hasSameNorth = gy > 0 && cells.current[IDX(gx, gy - 1)] === t;
-              const odTop = hasSameNorth ? cs * 1.3 : cs * 0.65;
-              ctx.drawImage(modelCanvas, sx - odSide, sy - odTop, cs + odSide * 2, cs + odTop + odSide);
+              if (hasSameNorth) {
+                const odTop = cs * 1.3;
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(0, Math.round(sy - cs * 0.10), canvas.width, canvas.height);
+                ctx.clip();
+                ctx.drawImage(modelCanvas, sx - odSide, sy - odTop, cs + odSide * 2, cs + odTop + odSide);
+                ctx.restore();
+              } else {
+                ctx.drawImage(modelCanvas, sx - odSide, sy - cs * 0.65, cs + odSide * 2, cs * 0.65 + cs + odSide);
+              }
             } else {
               // Barrel (type 7) is drawn without side overdraw so it stays within the cell
               const od = t === 3 ? BUSH_OD : t === 4 ? WATER_OD : t === 7 ? 0 : SOLID_OD;
@@ -597,7 +679,18 @@ function EditorCore({ onBack }: { onBack: () => void }) {
       });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [forceRedraw, hovCell, fillSel, zoom.current, camX.current, camY.current, fenceDir]);
+  }, [forceRedraw, hovCell, fillSel, zoom.current, camX.current, camY.current, lineDir]);
+
+  // ── Arrow keys toggle line direction when bones/fence selected ──────────────
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (selectedTile !== 5 && selectedTile !== 6) return;
+      if (e.key === "ArrowLeft")  { e.preventDefault(); setLineDir("h"); }
+      if (e.key === "ArrowRight") { e.preventDefault(); setLineDir("v"); }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [selectedTile]);
 
   // ── Resize canvas to parent ─────────────────────────────────────────────────
   const initialCamSet = useRef(false);
@@ -815,19 +908,26 @@ function EditorCore({ onBack }: { onBack: () => void }) {
 
   const handleSave = (name: string) => {
     if (!mode) return;
-    const map: MapSave = {
-      id: currentId ?? `map_${Date.now()}`,
-      name, mode,
-      cells:    Array.from(cells.current),
-      overlays: Array.from(overlays.current),
-      createdAt: currentId ? (getSavedMaps().find(m => m.id === currentId)?.createdAt ?? Date.now()) : Date.now(),
-      updatedAt: Date.now(),
+    const doSave = (n: string) => {
+      const map: MapSave = {
+        id: currentId ?? `map_${Date.now()}`,
+        name: n, mode,
+        cells:    Array.from(cells.current),
+        overlays: Array.from(overlays.current),
+        createdAt: currentId ? (getSavedMaps().find(m => m.id === currentId)?.createdAt ?? Date.now()) : Date.now(),
+        updatedAt: Date.now(),
+      };
+      upsertMap(map);
+      setCurrentId(map.id);
+      setSaveName(n);
+      setShowSave(false);
+      notify(`Карта «${n}» сохранена`);
     };
-    upsertMap(map);
-    setCurrentId(map.id);
-    setSaveName(name);
-    setShowSave(false);
-    notify(`Карта «${name}» сохранена`);
+    if (!hasAnySpawns(mode, overlays.current)) {
+      setAutoSpawnPrompt({ yes: () => { applyAutoSpawns(mode, overlays.current); redraw(); doSave(name); }, no: () => doSave(name) });
+    } else {
+      doSave(name);
+    }
   };
 
   const handleLoad = (map: MapSave) => {
@@ -855,34 +955,41 @@ function EditorCore({ onBack }: { onBack: () => void }) {
 
   const handlePublishCurrent = () => {
     if (!mode) return;
-    const res = validateMap(cells.current, overlays.current, mode);
-    if (res.ok) {
-      const map: MapSave = {
-        id: currentId ?? `map_${Date.now()}`,
-        name: saveName, mode,
-        cells: Array.from(cells.current),
-        overlays: Array.from(overlays.current),
-        createdAt: currentId ? Date.now() : Date.now(),
-        updatedAt: Date.now(),
-      };
-      upsertMap(map);
-      doPublish(map);
+    const doPub = () => {
+      const res = validateMap(cells.current, overlays.current, mode);
+      if (res.ok) {
+        const map: MapSave = {
+          id: currentId ?? `map_${Date.now()}`,
+          name: saveName, mode,
+          cells: Array.from(cells.current),
+          overlays: Array.from(overlays.current),
+          createdAt: currentId ? Date.now() : Date.now(),
+          updatedAt: Date.now(),
+        };
+        upsertMap(map);
+        doPublish(map);
+      } else {
+        setValResult({
+          errors: res.errors,
+          action: () => {
+            const map: MapSave = {
+              id: currentId ?? `map_${Date.now()}`,
+              name: saveName, mode,
+              cells: Array.from(cells.current),
+              overlays: Array.from(overlays.current),
+              createdAt: Date.now(), updatedAt: Date.now(),
+            };
+            upsertMap(map);
+            doPublish(map);
+            setValResult(null);
+          },
+        });
+      }
+    };
+    if (!hasAnySpawns(mode, overlays.current)) {
+      setAutoSpawnPrompt({ yes: () => { applyAutoSpawns(mode, overlays.current); redraw(); doPub(); }, no: () => doPub() });
     } else {
-      setValResult({
-        errors: res.errors,
-        action: () => {
-          const map: MapSave = {
-            id: currentId ?? `map_${Date.now()}`,
-            name: saveName, mode,
-            cells: Array.from(cells.current),
-            overlays: Array.from(overlays.current),
-            createdAt: Date.now(), updatedAt: Date.now(),
-          };
-          upsertMap(map);
-          doPublish(map);
-          setValResult(null);
-        },
-      });
+      doPub();
     }
   };
 
@@ -924,7 +1031,13 @@ function EditorCore({ onBack }: { onBack: () => void }) {
 
   // Show mode select if no mode chosen
   if (!mode) {
-    return <ModeSelectModal onSelect={(m) => { setMode(m); }} />;
+    return <ModeSelectModal onSelect={(m) => {
+      setMode(m);
+      // Auto-place default spawn points immediately when a mode is chosen.
+      // The user can delete or move them later.
+      applyAutoSpawns(m, overlays.current);
+      redraw();
+    }} />;
   }
 
   const modeInfo = EDITOR_MODES.find(m => m.id === mode)!;
@@ -968,12 +1081,12 @@ function EditorCore({ onBack }: { onBack: () => void }) {
         <ToolBtn active={tool === "fill_rect"} onClick={() => setTool("fill_rect")}label="▭ Заполнить" />
 
         {/* Fence direction — only shown when fence tile is selected */}
-        {selectedTile === 6 && (
+        {(selectedTile === 5 || selectedTile === 6) && (
           <>
             <div style={{ width: 1, height: 28, background: "rgba(255,255,255,0.15)", flexShrink: 0 }} />
-            <ToolBtn active={fenceDir === "auto"} onClick={() => setFenceDir("auto")} label="🔀 Авто" />
-            <ToolBtn active={fenceDir === "h"}    onClick={() => setFenceDir("h")}    label="↔ Гориз." />
-            <ToolBtn active={fenceDir === "v"}    onClick={() => setFenceDir("v")}    label="↕ Верт." />
+            <ToolBtn active={lineDir === "auto"} onClick={() => setLineDir("auto")} label="🔀 Авто" />
+            <ToolBtn active={lineDir === "h"}    onClick={() => setLineDir("h")}    label="↔ Гориз." />
+            <ToolBtn active={lineDir === "v"}    onClick={() => setLineDir("v")}    label="↕ Верт." />
           </>
         )}
 
@@ -1111,6 +1224,27 @@ function EditorCore({ onBack }: { onBack: () => void }) {
           }}
           onClose={() => setShowMaps(false)}
         />
+      )}
+
+      {autoSpawnPrompt && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.65)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:9999 }}>
+          <div style={{ background:"#1e1e2e", borderRadius:12, padding:"28px 32px", maxWidth:380, width:"90%", textAlign:"center", boxShadow:"0 8px 40px #000a" }}>
+            <div style={{ fontSize:18, fontWeight:700, color:"#fff", marginBottom:10 }}>Точки спауна не расставлены</div>
+            <div style={{ fontSize:14, color:"#ccc", marginBottom:22 }}>
+              Расставить точки спауна автоматически? Их можно переместить позже.
+            </div>
+            <div style={{ display:"flex", gap:12, justifyContent:"center" }}>
+              <button onClick={() => { const p = autoSpawnPrompt; setAutoSpawnPrompt(null); p?.yes(); }}
+                style={{ padding:"8px 22px", borderRadius:8, border:"none", background:"#4CAF50", color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer" }}>
+                Да, расставить
+              </button>
+              <button onClick={() => { const p = autoSpawnPrompt; setAutoSpawnPrompt(null); p?.no(); }}
+                style={{ padding:"8px 22px", borderRadius:8, border:"none", background:"#555", color:"#eee", fontWeight:700, fontSize:14, cursor:"pointer" }}>
+                Нет, сохранить как есть
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {valResult && (

@@ -691,18 +691,49 @@ export function renderTileGrid(
       }
 
       const tileCanvas = getTileCanvas(type);
+
+      // LINE_TILE_TYPES: bones (5/DECORATION) and fence (6/FENCE) — detect neighbor orientation
+      const isLineTile = type === TileType.DECORATION || type === TileType.FENCE;
+
       if (tileCanvas) {
         if (isBush) {
           ctx.drawImage(tileCanvas,
             sx + BUSH_X_OFF - 1, sy - BUSH_Y_TOP_OFF - 1,
             BUSH_W + 2, BUSH_H + 2);
+        } else if (isLineTile) {
+          // Orient based on same-type neighbors: rotate 90° if connected vertically
+          const tAbove = getTile(grid, tx, ty - 1);
+          const tBelow = getTile(grid, tx, ty + 1);
+          const tLeft  = getTile(grid, tx - 1, ty);
+          const tRight = getTile(grid, tx + 1, ty);
+          const hasVert  = (tAbove === type || tBelow === type);
+          const hasHoriz = (tLeft  === type || tRight === type);
+          const isVertical = hasVert && !hasHoriz;
+          const od = 2;
+          if (isVertical) {
+            ctx.save();
+            ctx.translate(sx + C / 2, sy + C / 2);
+            ctx.rotate(Math.PI / 2);
+            ctx.drawImage(tileCanvas, -C / 2 - od, -C / 2 - od, C + od * 2, C + od * 2);
+            ctx.restore();
+          } else {
+            ctx.drawImage(tileCanvas, sx - od, sy - od, C + od * 2, C + od * 2);
+          }
         } else if (TALL_TILE_TYPES.has(type)) {
-          // When the same block type is directly above (north = ty-1), use a
-          // larger upward overdraw (1.3×C) so this sprite naturally covers the
-          // seam via its own transparent/opaque pixels — no extra painting needed.
+          // When same-type block is directly north (ty-1): draw with larger upward
+          // overdraw (1.3×C) and clip to just above the cell top so the lower
+          // block's side pixels don't bleed into the upper block's territory.
           const hasSameNorth = ty > 0 && getTile(grid, tx, ty - 1) === type;
-          const overflow = hasSameNorth ? C * 1.3 : TALL_OVERFLOW;
-          ctx.drawImage(tileCanvas, sx - 1, sy - overflow - 1, C + 2, C + overflow + 2);
+          if (hasSameNorth) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(sx - C, Math.round(sy - C * 0.10), C * 3, canvasH + C);
+            ctx.clip();
+            ctx.drawImage(tileCanvas, sx - 1, sy - C * 1.3 - 1, C + 2, C * 1.3 + C + 2);
+            ctx.restore();
+          } else {
+            ctx.drawImage(tileCanvas, sx - 1, sy - TALL_OVERFLOW - 1, C + 2, C + TALL_OVERFLOW + 2);
+          }
         } else {
           ctx.drawImage(tileCanvas, sx - 1, sy - 1, C + 2, C + 2);
         }
