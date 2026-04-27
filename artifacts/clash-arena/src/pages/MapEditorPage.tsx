@@ -994,7 +994,7 @@ function EditorCore({ onBack }: { onBack: () => void }) {
       <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
         <canvas
           ref={canvasRef}
-          style={{ display: "block", cursor: tool === "pan" ? (isPanning.current ? "grabbing" : "grab") : tool === "erase" ? "cell" : "crosshair" }}
+          style={{ display: "block", width: "100%", height: "100%", cursor: tool === "pan" ? (isPanning.current ? "grabbing" : "grab") : tool === "erase" ? "cell" : "crosshair" }}
           onMouseDown={onMouseDown}
           onMouseMove={onMouseMove}
           onMouseUp={onMouseUp}
