@@ -495,20 +495,9 @@ function EditorCore({ onBack }: { onBack: () => void }) {
 
           if (modelCanvas) {
             if (LINE_TILES.has(t)) {
-              // Bones (5) and Fence (6) both respect the manual direction toggle.
-              // In "auto" mode, orientation is derived from same-type neighbors.
-              let isVertical: boolean;
-              if (lineDir !== "auto") {
-                isVertical = lineDir === "v";
-              } else {
-                const tAbove = gy > 0       ? cells.current[IDX(gx, gy - 1)] : 0;
-                const tBelow = gy < GS - 1  ? cells.current[IDX(gx, gy + 1)] : 0;
-                const tLeft  = gx > 0       ? cells.current[IDX(gx - 1, gy)] : 0;
-                const tRight = gx < GS - 1  ? cells.current[IDX(gx + 1, gy)] : 0;
-                const hasVert  = (tAbove === t || tBelow === t);
-                const hasHoriz = (tLeft  === t || tRight === t);
-                isVertical = hasVert && !hasHoriz;
-              }
+              // Bones (5) and Fence (6) orientation is 100% manual — no neighbor detection.
+              // Arrow keys ← → or toolbar buttons set lineDir; "auto" defaults to horizontal.
+              const isVertical = lineDir === "v";
               const od = SOLID_OD;
               if (isVertical) {
                 ctx.save();
@@ -520,21 +509,24 @@ function EditorCore({ onBack }: { onBack: () => void }) {
                 ctx.drawImage(modelCanvas, sx - od, sy - od, cs + od * 2, cs + od * 2);
               }
             } else if (TALL_TILES.has(t)) {
-              // When same-type block is above: draw with larger odTop (1.3cs) BUT clip
-              // to just above the cell boundary so the lower block's sky/side pixels
-              // don't bleed into the upper block's territory.
+              // Fix south-side bleed: when same-type block is directly BELOW (hasSameSouth),
+              // clip this block's bottom at 73% of cell height — that is where the lower
+              // block's diamond face starts, so the seam is seamless with no south-wall peek.
+              // When a same-type block is ABOVE (hasSameNorth), extend odTop to 1.3×cs so
+              // this block's diamond covers the gap left by the upper block's clip.
               const odSide = SOLID_OD;
-              const hasSameNorth = gy > 0 && cells.current[IDX(gx, gy - 1)] === t;
-              if (hasSameNorth) {
-                const odTop = cs * 1.3;
+              const hasSameNorth = gy > 0       && cells.current[IDX(gx, gy - 1)] === t;
+              const hasSameSouth = gy < GS - 1  && cells.current[IDX(gx, gy + 1)] === t;
+              const odTop = hasSameNorth ? cs * 1.3 : cs * 0.65;
+              if (hasSameSouth) {
                 ctx.save();
                 ctx.beginPath();
-                ctx.rect(0, Math.round(sy - cs * 0.10), canvas.width, canvas.height);
+                ctx.rect(0, 0, canvas.width, Math.round(sy + cs * 0.73));
                 ctx.clip();
                 ctx.drawImage(modelCanvas, sx - odSide, sy - odTop, cs + odSide * 2, cs + odTop + odSide);
                 ctx.restore();
               } else {
-                ctx.drawImage(modelCanvas, sx - odSide, sy - cs * 0.65, cs + odSide * 2, cs * 0.65 + cs + odSide);
+                ctx.drawImage(modelCanvas, sx - odSide, sy - odTop, cs + odSide * 2, cs + odTop + odSide);
               }
             } else {
               // Barrel (type 7) is drawn without side overdraw so it stays within the cell
@@ -1080,13 +1072,12 @@ function EditorCore({ onBack }: { onBack: () => void }) {
         <ToolBtn active={tool === "brush"}     onClick={() => setTool("brush")}    label="🖌️ Кисть" />
         <ToolBtn active={tool === "fill_rect"} onClick={() => setTool("fill_rect")}label="▭ Заполнить" />
 
-        {/* Fence direction — only shown when fence tile is selected */}
+        {/* Bones/Fence direction — only shown when bones or fence tile is selected */}
         {(selectedTile === 5 || selectedTile === 6) && (
           <>
             <div style={{ width: 1, height: 28, background: "rgba(255,255,255,0.15)", flexShrink: 0 }} />
-            <ToolBtn active={lineDir === "auto"} onClick={() => setLineDir("auto")} label="🔀 Авто" />
-            <ToolBtn active={lineDir === "h"}    onClick={() => setLineDir("h")}    label="↔ Гориз." />
-            <ToolBtn active={lineDir === "v"}    onClick={() => setLineDir("v")}    label="↕ Верт." />
+            <ToolBtn active={lineDir !== "v"} onClick={() => setLineDir("h")}    label="↔ Гориз." />
+            <ToolBtn active={lineDir === "v"} onClick={() => setLineDir("v")}    label="↕ Верт." />
           </>
         )}
 
