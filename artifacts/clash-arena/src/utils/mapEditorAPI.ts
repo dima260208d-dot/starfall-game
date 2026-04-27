@@ -38,8 +38,9 @@ export interface MapSave {
   id: string;
   name: string;
   mode: EditorMode;
-  cells: number[];     // GRID_SIZE × GRID_SIZE flat, value = TileType
-  overlays: number[];  // same size, value = OverlayType (0 = none)
+  cells: number[];      // GRID_SIZE × GRID_SIZE flat, value = TileType
+  overlays: number[];   // same size, value = OverlayType (0 = none)
+  rotations?: number[]; // same size, per-cell LINE_TILE direction (0 = H, 1 = V)
   createdAt: number;
   updatedAt: number;
 }

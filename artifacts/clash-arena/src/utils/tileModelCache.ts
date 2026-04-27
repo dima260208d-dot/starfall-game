@@ -167,9 +167,12 @@ export function loadAllTileModels(): Promise<void> {
         fixMaterials(model);
 
         if (type === TileType.WATER) model.rotation.x = -Math.PI / 2;
-        // Fence faces along Z in model space; rotate 90° so the flat face shows
-        // to the isometric camera (which is in the +Z / +Y direction).
-        if (type === TileType.FENCE) model.rotation.y = Math.PI / 2;
+        // Fence: no Y rotation so the fence panel faces the camera head-on.
+        // A slight X tilt makes the fence look upright from the top-down view.
+        if (type === TileType.FENCE) {
+          model.rotation.y = 0;
+          model.rotation.x = -Math.PI / 10;
+        }
 
         const box = new THREE.Box3().setFromObject(model);
         const center = box.getCenter(new THREE.Vector3());
@@ -191,8 +194,8 @@ export function loadAllTileModels(): Promise<void> {
           scale = Math.min(scaleByXZ, scaleByY * 0.80);
           lookAtY = (maxY * scale) * 0.45;
         } else if (type === TileType.HEAL) {
-          // Barrel — scale it down so it doesn't overflow the cell width.
-          scale = Math.min(scaleByXZ * 0.55, scaleByY * 0.90);
+          // Barrel — scale up to fill ~80% of cell width.
+          scale = Math.min(scaleByXZ * 0.85, scaleByY * 0.90);
         } else if (type === TileType.FENCE || type === TileType.WOOD) {
           // These models are taller than they are wide — safe to let Y go a bit larger.
           scale = Math.min(scaleByXZ, scaleByY * 2.0);

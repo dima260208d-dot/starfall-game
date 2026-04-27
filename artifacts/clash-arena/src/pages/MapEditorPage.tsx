@@ -287,11 +287,19 @@ export default function MapEditorPage({ onBack }: Props) {
 // ── Editor core (only rendered when authed) ───────────────────────────────────
 function EditorCore({ onBack }: { onBack: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // Rotation arrow button hit-areas (canvas pixel space) for LINE_TILE hover UI
+  const rotBtnsRef = useRef<{
+    H: { x: number; y: number; w: number; h: number };
+    V: { x: number; y: number; w: number; h: number };
+    gx: number; gy: number;
+  } | null>(null);
 
   // Grid state
   const [mode, setMode] = useState<EditorMode | null>(null);
-  const cells   = useRef<number[]>(new Array(GS * GS).fill(0));
-  const overlays = useRef<number[]>(new Array(GS * GS).fill(0));
+  const cells     = useRef<number[]>(new Array(GS * GS).fill(0));
+  const overlays  = useRef<number[]>(new Array(GS * GS).fill(0));
+  // Per-cell LINE_TILE (bones=5, fence=6) rotation: 0 = horizontal, 1 = vertical
+  const rotations = useRef<number[]>(new Array(GS * GS).fill(0));
   const [, forceRedraw] = useState(0);
   const redraw = useCallback(() => forceRedraw(n => n + 1), []);
 
@@ -395,6 +403,7 @@ function EditorCore({ onBack }: { onBack: () => void }) {
       if (t === "erase") {
         cells.current[IDX(x, y)]    = 0;
         overlays.current[IDX(x, y)] = 0;
+        rotations.current[IDX(x, y)] = 0;
       } else {
         if (selectedOv !== 0) {
           overlays.current[IDX(x, y)] = selectedOv;
@@ -402,6 +411,9 @@ function EditorCore({ onBack }: { onBack: () => void }) {
         } else {
           cells.current[IDX(x, y)]    = selectedTile;
           overlays.current[IDX(x, y)] = 0;
+          if (selectedTile === 5 || selectedTile === 6) {
+            rotations.current[IDX(x, y)] = lineDir === "v" ? 1 : 0;
+          }
         }
       }
     });
@@ -421,12 +433,21 @@ function EditorCore({ onBack }: { onBack: () => void }) {
         } else {
           cells.current[IDX(x, y)] = selectedTile;
           overlays.current[IDX(x, y)] = 0;
+          if (selectedTile === 5 || selectedTile === 6) {
+            rotations.current[IDX(x, y)] = lineDir === "v" ? 1 : 0;
+          }
         }
         if (mirror !== "none") {
           mirrorCells(x, y).forEach(([mx, my]) => {
             if (mx === x && my === y) return;
             if (selectedOv !== 0) { overlays.current[IDX(mx,my)] = selectedOv; cells.current[IDX(mx,my)] = 0; }
-            else { cells.current[IDX(mx,my)] = selectedTile; overlays.current[IDX(mx,my)] = 0; }
+            else {
+              cells.current[IDX(mx,my)] = selectedTile;
+              overlays.current[IDX(mx,my)] = 0;
+              if (selectedTile === 5 || selectedTile === 6) {
+                rotations.current[IDX(mx, my)] = lineDir === "v" ? 1 : 0;
+              }
+            }
           });
         }
       }
@@ -495,9 +516,9 @@ function EditorCore({ onBack }: { onBack: () => void }) {
 
           if (modelCanvas) {
             if (LINE_TILES.has(t)) {
-              // Bones (5) and Fence (6) orientation is 100% manual — no neighbor detection.
-              // Arrow keys ← → or toolbar buttons set lineDir; "auto" defaults to horizontal.
-              const isVertical = lineDir === "v";
+              // Bones (5) and Fence (6) orientation stored per-cell in rotations.current.
+              // Arrow keys / toolbar set lineDir (default for newly placed tiles).
+              const isVertical = rotations.current[IDX(gx, gy)] === 1;
               const od = SOLID_OD;
               if (isVertical) {
                 ctx.save();
@@ -517,11 +538,11 @@ function EditorCore({ onBack }: { onBack: () => void }) {
               const odSide = SOLID_OD;
               const hasSameNorth = gy > 0       && cells.current[IDX(gx, gy - 1)] === t;
               const hasSameSouth = gy < GS - 1  && cells.current[IDX(gx, gy + 1)] === t;
-              const odTop = hasSameNorth ? cs * 1.3 : cs * 0.65;
+              const odTop = hasSameNorth ? cs * 1.0 : cs * 0.60;
               if (hasSameSouth) {
                 ctx.save();
                 ctx.beginPath();
-                ctx.rect(0, 0, canvas.width, Math.round(sy + cs * 0.73));
+                ctx.rect(0, 0, canvas.width, Math.round(sy + cs * 0.50));
                 ctx.clip();
                 ctx.drawImage(modelCanvas, sx - odSide, sy - odTop, cs + odSide * 2, cs + odTop + odSide);
                 ctx.restore();
@@ -529,8 +550,8 @@ function EditorCore({ onBack }: { onBack: () => void }) {
                 ctx.drawImage(modelCanvas, sx - odSide, sy - odTop, cs + odSide * 2, cs + odTop + odSide);
               }
             } else {
-              // Barrel (type 7) is drawn without side overdraw so it stays within the cell
-              const od = t === 3 ? BUSH_OD : t === 4 ? WATER_OD : t === 7 ? 0 : SOLID_OD;
+              // Barrel (type 7) gets a modest overdraw so it looks fuller in the cell
+              const od = t === 3 ? BUSH_OD : t === 4 ? WATER_OD : t === 7 ? cs * 0.20 : SOLID_OD;
               ctx.drawImage(modelCanvas, sx - od, sy - od, cs + od * 2, cs + od * 2);
             }
           } else {
@@ -657,7 +678,8 @@ function EditorCore({ onBack }: { onBack: () => void }) {
       ctx.strokeRect(fx0, fy0, fw, fh);
     }
 
-    // Hover highlight
+    // Hover highlight + LINE_TILE rotation arrows
+    rotBtnsRef.current = null;
     if (hovCell) {
       const sx = hovCell.x * cs - ox, sy = hovCell.y * cs - oy;
       ctx.strokeStyle = "#ffffff99";
@@ -669,6 +691,49 @@ function EditorCore({ onBack }: { onBack: () => void }) {
         ctx.strokeStyle = "#FFD54F88";
         ctx.strokeRect(msx + 1, msy + 1, cs - 2, cs - 2);
       });
+      // If hovered cell is a LINE_TILE (bones=5, fence=6), draw H/V rotation arrows above it
+      const hovT = cells.current[IDX(hovCell.x, hovCell.y)];
+      if (hovT === 5 || hovT === 6) {
+        const curRot = rotations.current[IDX(hovCell.x, hovCell.y)];
+        const btnH = Math.max(16, Math.round(cs * 0.40));
+        const btnW = Math.max(20, Math.round(cs * 0.46));
+        const gap = Math.round(cs * 0.08);
+        const totalW = btnW * 2 + gap;
+        const bx = sx + (cs - totalW) / 2;
+        const by = sy - btnH - 4;
+        const hBtn = { x: bx, y: by, w: btnW, h: btnH };
+        const vBtn = { x: bx + btnW + gap, y: by, w: btnW, h: btnH };
+        rotBtnsRef.current = { H: hBtn, V: vBtn, gx: hovCell.x, gy: hovCell.y };
+        const fontSize = Math.min(btnH * 0.65, 13);
+
+        // H button
+        ctx.fillStyle = curRot === 0 ? "rgba(76,175,80,0.88)" : "rgba(30,30,50,0.78)";
+        ctx.beginPath();
+        ctx.roundRect(hBtn.x, hBtn.y, hBtn.w, hBtn.h, 4);
+        ctx.fill();
+        ctx.strokeStyle = curRot === 0 ? "#A5D6A7" : "#555";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.fillStyle = "white";
+        ctx.font = `bold ${fontSize}px sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("↔", hBtn.x + hBtn.w / 2, hBtn.y + hBtn.h / 2);
+
+        // V button
+        ctx.fillStyle = curRot === 1 ? "rgba(76,175,80,0.88)" : "rgba(30,30,50,0.78)";
+        ctx.beginPath();
+        ctx.roundRect(vBtn.x, vBtn.y, vBtn.w, vBtn.h, 4);
+        ctx.fill();
+        ctx.strokeStyle = curRot === 1 ? "#A5D6A7" : "#555";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.fillStyle = "white";
+        ctx.font = `bold ${fontSize}px sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("↕", vBtn.x + vBtn.w / 2, vBtn.y + vBtn.h / 2);
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [forceRedraw, hovCell, fillSel, zoom.current, camX.current, camY.current, lineDir]);
@@ -729,6 +794,24 @@ function EditorCore({ onBack }: { onBack: () => void }) {
       return;
     }
     if (e.button !== 0) return;
+
+    // Check if click lands on a LINE_TILE rotation arrow button
+    if (rotBtnsRef.current) {
+      const { x: cx, y: cy } = clientToCanvas(e.clientX, e.clientY);
+      const { H, V, gx: bgx, gy: bgy } = rotBtnsRef.current;
+      const inRect = (r: { x: number; y: number; w: number; h: number }) =>
+        cx >= r.x && cx <= r.x + r.w && cy >= r.y && cy <= r.y + r.h;
+      if (inRect(H)) {
+        rotations.current[IDX(bgx, bgy)] = 0;
+        redraw();
+        return;
+      }
+      if (inRect(V)) {
+        rotations.current[IDX(bgx, bgy)] = 1;
+        redraw();
+        return;
+      }
+    }
 
     if (tool === "pan" || (tool === "place" && selectedTile === 0 && selectedOv === 0)) {
       isPanning.current = true;
@@ -884,16 +967,18 @@ function EditorCore({ onBack }: { onBack: () => void }) {
   // ── Map actions ─────────────────────────────────────────────────────────────
   const handleClear = () => {
     if (!confirm("Очистить всю карту?")) return;
-    cells.current    = new Array(GS * GS).fill(0);
-    overlays.current = new Array(GS * GS).fill(0);
+    cells.current     = new Array(GS * GS).fill(0);
+    overlays.current  = new Array(GS * GS).fill(0);
+    rotations.current = new Array(GS * GS).fill(0);
     redraw();
   };
 
   const handleRandom = () => {
     if (!mode) return;
     const gen = generateRandomMap(mode);
-    cells.current    = gen.cells;
-    overlays.current = gen.overlays;
+    cells.current     = gen.cells;
+    overlays.current  = gen.overlays;
+    rotations.current = new Array(GS * GS).fill(0);
     redraw();
     notify("Карта сгенерирована случайно");
   };
@@ -904,8 +989,9 @@ function EditorCore({ onBack }: { onBack: () => void }) {
       const map: MapSave = {
         id: currentId ?? `map_${Date.now()}`,
         name: n, mode,
-        cells:    Array.from(cells.current),
-        overlays: Array.from(overlays.current),
+        cells:     Array.from(cells.current),
+        overlays:  Array.from(overlays.current),
+        rotations: Array.from(rotations.current),
         createdAt: currentId ? (getSavedMaps().find(m => m.id === currentId)?.createdAt ?? Date.now()) : Date.now(),
         updatedAt: Date.now(),
       };
@@ -925,6 +1011,7 @@ function EditorCore({ onBack }: { onBack: () => void }) {
   const handleLoad = (map: MapSave) => {
     cells.current    = [...map.cells];
     overlays.current = [...map.overlays];
+    rotations.current = map.rotations ? [...map.rotations] : new Array(GS * GS).fill(0);
     setCurrentId(map.id);
     setSaveName(map.name);
     setMode(map.mode);
@@ -940,7 +1027,7 @@ function EditorCore({ onBack }: { onBack: () => void }) {
   };
 
   const doPublish = (map: MapSave) => {
-    publishMap({ ...map, cells: Array.from(cells.current), overlays: Array.from(overlays.current), updatedAt: Date.now() });
+    publishMap({ ...map, cells: Array.from(cells.current), overlays: Array.from(overlays.current), rotations: Array.from(rotations.current), updatedAt: Date.now() });
     setShowMaps(false);
     notify(`Карта «${map.name}» опубликована для режима ${EDITOR_MODES.find(m => m.id === map.mode)?.label}`);
   };
@@ -953,8 +1040,9 @@ function EditorCore({ onBack }: { onBack: () => void }) {
         const map: MapSave = {
           id: currentId ?? `map_${Date.now()}`,
           name: saveName, mode,
-          cells: Array.from(cells.current),
-          overlays: Array.from(overlays.current),
+          cells:     Array.from(cells.current),
+          overlays:  Array.from(overlays.current),
+          rotations: Array.from(rotations.current),
           createdAt: currentId ? Date.now() : Date.now(),
           updatedAt: Date.now(),
         };
@@ -967,8 +1055,9 @@ function EditorCore({ onBack }: { onBack: () => void }) {
             const map: MapSave = {
               id: currentId ?? `map_${Date.now()}`,
               name: saveName, mode,
-              cells: Array.from(cells.current),
-              overlays: Array.from(overlays.current),
+              cells:     Array.from(cells.current),
+              overlays:  Array.from(overlays.current),
+              rotations: Array.from(rotations.current),
               createdAt: Date.now(), updatedAt: Date.now(),
             };
             upsertMap(map);
@@ -1005,8 +1094,9 @@ function EditorCore({ onBack }: { onBack: () => void }) {
         try {
           const data = JSON.parse(e.target?.result as string);
           if (!data.cells || data.cells.length !== GS * GS) throw new Error("Неверный формат");
-          cells.current    = [...data.cells];
-          overlays.current = data.overlays?.length === GS * GS ? [...data.overlays] : new Array(GS * GS).fill(0);
+          cells.current     = [...data.cells];
+          overlays.current  = data.overlays?.length === GS * GS ? [...data.overlays] : new Array(GS * GS).fill(0);
+          rotations.current = data.rotations?.length === GS * GS ? [...data.rotations] : new Array(GS * GS).fill(0);
           if (data.mode) setMode(data.mode as EditorMode);
           if (data.name) setSaveName(data.name);
           setCurrentId(null);

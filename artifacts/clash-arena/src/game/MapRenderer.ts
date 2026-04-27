@@ -501,7 +501,7 @@ const TILE_BASE: Partial<Record<number, string>> = {
   [TileType.MOUNTAIN]:   "#506050",
   [TileType.DECORATION]: "#B8B8B8",
   [TileType.FENCE]:      "#C4A050",
-  [TileType.HEAL]:       "#9E1038",
+  // HEAL (barrel) intentionally omitted — no red base fill under barrels.
   [TileType.CACTUS]:     "#447A22",
   [TileType.WOOD]:       "#7A5850",
   [TileType.SAND_WALL]:  "#607080",
@@ -621,7 +621,9 @@ export function renderTileGrid(
   const endTY   = Math.min(grid.height - 1, Math.ceil((camY + canvasH) / C));
 
   // How far tall-block sprites extend above their grid cell.
-  const TALL_OVERFLOW = C * 0.9;
+  // Reduced from 0.9 → 0.60 to better align the visual block body with its
+  // physical collision cell (less upward bleed into the neighbouring north cell).
+  const TALL_OVERFLOW = C * 0.60;
 
   // Bush sprite dimensions (GLB canvas is 256×512, 1:2 aspect).
   const BUSH_W        = C * 1.35;
@@ -731,17 +733,27 @@ export function renderTileGrid(
           // hasSameNorth: extend odTop to 1.3×C so this block's diamond covers the gap.
           const hasSameNorth = ty > 0       && getTile(grid, tx, ty - 1) === type;
           const hasSameSouth = ty < grid.height - 1 && getTile(grid, tx, ty + 1) === type;
-          const overflow = hasSameNorth ? C * 1.3 : TALL_OVERFLOW;
+          // hasSameNorth: extend overflow so this block's diamond covers the gap left
+          // by the upper block's clip. 1.0×C → diamond at ~70% of combined sprite height,
+          // which aligns with the upper block's clip point at 0.50×C.
+          const overflow = hasSameNorth ? C * 1.0 : TALL_OVERFLOW;
           if (hasSameSouth) {
+            // Clip the upper block's south face so it doesn't bleed into the lower
+            // block's territory. Clip at 50% of cell height — just before the south
+            // wall face appears (~52%), eliminating the visible south-side seam.
             ctx.save();
             ctx.beginPath();
-            ctx.rect(sx - C, 0, C * 3, Math.round(sy + C * 0.73));
+            ctx.rect(sx - C, 0, C * 3, Math.round(sy + C * 0.50));
             ctx.clip();
             ctx.drawImage(tileCanvas, sx - 1, sy - overflow - 1, C + 2, C + overflow + 2);
             ctx.restore();
           } else {
             ctx.drawImage(tileCanvas, sx - 1, sy - overflow - 1, C + 2, C + overflow + 2);
           }
+        } else if (type === TileType.HEAL) {
+          // Barrel: render slightly larger than the raw cell so it looks substantial.
+          const healOD = Math.round(C * 0.18);
+          ctx.drawImage(tileCanvas, sx - healOD, sy - healOD, C + healOD * 2, C + healOD * 2);
         } else {
           ctx.drawImage(tileCanvas, sx - 1, sy - 1, C + 2, C + 2);
         }
