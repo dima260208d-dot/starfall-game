@@ -1,112 +1,70 @@
+/**
+ * ChestVisual — renders the chest 3D model via the singleton SpinningModel3D
+ * renderer (no extra WebGL context created per instance).
+ * CSS animations are applied to the container div for float/glow/shake effects.
+ */
+import SpinningModel3D from "./SpinningModel3D";
+import { CHEST_MODELS } from "./Chest3DViewer";
 import { CHESTS, type ChestRarity } from "../utils/chests";
 
 interface Props {
   rarity: ChestRarity;
   size?: number;
-  animated?: boolean;     // idle bobbing/glow
-  shake?: boolean;        // opening shake
-  exploding?: boolean;    // opened — burst out
+  animated?: boolean;
+  shake?: boolean;
+  exploding?: boolean;
   onClick?: () => void;
 }
 
-/**
- * Each chest tier has its own unique stylised visual built with layered divs.
- * The look scales with the size prop. All animations are CSS-driven.
- */
 export default function ChestVisual({
   rarity, size = 120, animated = true, shake = false, exploding = false, onClick,
 }: Props) {
   const def = CHESTS[rarity];
+
   const animName =
     exploding ? "chestExplode 0.7s ease-out forwards" :
     shake     ? "chestShake 0.25s ease-in-out 5"      :
-    animated  ? `chestFloat ${3 + def.tier * 0.3}s ease-in-out infinite, chestGlow ${2.5 + def.tier * 0.2}s ease-in-out infinite alternate` :
+    animated  ? `chestFloat ${3 + def.tier * 0.3}s ease-in-out infinite` :
                 undefined;
-
-  const w = size;
-  const h = size * 0.95;
 
   return (
     <div
       onClick={onClick}
       style={{
-        width: w, height: h,
+        width: size, height: size,
         position: "relative",
         cursor: onClick ? "pointer" : "default",
         animation: animName,
-        filter: `drop-shadow(0 ${size * 0.05}px ${size * 0.15}px ${def.color}88)`,
+        filter: `drop-shadow(0 ${size * 0.05}px ${size * 0.18}px ${def.color}99)`,
+        flexShrink: 0,
       }}
     >
       <ChestStyles />
 
-      {/* Outer aura ring */}
+      {/* Outer aura glow */}
       <div style={{
-        position: "absolute", inset: -size * 0.1,
+        position: "absolute", inset: -size * 0.12,
         borderRadius: "50%",
-        background: `radial-gradient(circle, ${def.color}55 0%, transparent 70%)`,
-        opacity: animated ? 0.85 : 0.5,
+        background: `radial-gradient(circle, ${def.color}55 0%, transparent 68%)`,
         animation: animated ? `chestPulse ${2 + def.tier * 0.2}s ease-in-out infinite` : undefined,
+        pointerEvents: "none",
+        zIndex: 0,
       }} />
 
-      {/* Top lid */}
-      <div style={{
-        position: "absolute",
-        left: w * 0.05, top: h * 0.05,
-        width: w * 0.9, height: h * 0.45,
-        background: `linear-gradient(180deg, ${def.color}, ${def.secondaryColor})`,
-        border: `${Math.max(2, size * 0.025)}px solid ${def.borderColor}`,
-        borderRadius: `${w * 0.45}px ${w * 0.45}px ${w * 0.05}px ${w * 0.05}px`,
-        boxShadow: `inset 0 ${size * 0.02}px ${size * 0.06}px rgba(255,255,255,0.4), inset 0 -${size * 0.02}px ${size * 0.04}px rgba(0,0,0,0.4)`,
-      }}>
-        {/* Lid strap */}
-        <div style={{
-          position: "absolute",
-          top: 0, bottom: 0, left: "50%",
-          width: size * 0.12, transform: "translateX(-50%)",
-          background: `linear-gradient(180deg, ${def.borderColor}, ${def.secondaryColor})`,
-          opacity: 0.85,
-        }} />
-        {/* Tier-specific lid ornament */}
-        <LidOrnament tier={def.tier} size={size} color={def.color} />
-      </div>
+      {/* 3D chest model — singleton renderer, safe to use in long lists */}
+      <SpinningModel3D
+        modelPath={CHEST_MODELS[rarity]}
+        size={size}
+        color={def.color}
+        ambientMult={1.8}
+        dirMult={2.2}
+        cameraPos={[0, 1.0, 3.8]}
+        lookAtPos={[0, 0.45, 0]}
+        rotSpeed={0.018}
+        style={{ display: "block", position: "relative", zIndex: 1 }}
+      />
 
-      {/* Body */}
-      <div style={{
-        position: "absolute",
-        left: w * 0.05, top: h * 0.45,
-        width: w * 0.9, height: h * 0.55,
-        background: `linear-gradient(180deg, ${def.secondaryColor}, ${def.color}cc)`,
-        border: `${Math.max(2, size * 0.025)}px solid ${def.borderColor}`,
-        borderRadius: `${w * 0.05}px ${w * 0.05}px ${w * 0.08}px ${w * 0.08}px`,
-        boxShadow: `inset 0 ${size * 0.04}px ${size * 0.06}px rgba(0,0,0,0.5), inset 0 -${size * 0.04}px ${size * 0.06}px rgba(255,255,255,0.18)`,
-      }}>
-        {/* Lock */}
-        <div style={{
-          position: "absolute",
-          top: -size * 0.045,
-          left: "50%", transform: "translateX(-50%)",
-          width: size * 0.18, height: size * 0.22,
-          borderRadius: size * 0.04,
-          background: `linear-gradient(180deg, #FFD54F, #F57F17)`,
-          border: `${Math.max(1, size * 0.015)}px solid #B71C1C`,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: size * 0.12, color: "#fff",
-          boxShadow: `0 ${size * 0.012}px ${size * 0.02}px rgba(0,0,0,0.4)`,
-        }}>
-          🔒
-        </div>
-
-        {/* Body horizontal bands */}
-        <div style={{
-          position: "absolute", top: "50%", left: 0, right: 0,
-          height: size * 0.04, background: def.borderColor, opacity: 0.65,
-        }} />
-
-        {/* Tier-specific body badge */}
-        <BodyBadge tier={def.tier} size={size} color={def.color} />
-      </div>
-
-      {/* Sparkle particles for high tiers */}
+      {/* High-tier sparkle particles */}
       {def.tier >= 4 && animated && (
         <>
           {Array.from({ length: 6 }).map((_, i) => (
@@ -121,12 +79,14 @@ export default function ChestVisual({
               animation: `chestSparkle ${1.5 + i * 0.2}s ease-in-out infinite`,
               animationDelay: `${i * 0.25}s`,
               opacity: 0,
+              zIndex: 2,
+              pointerEvents: "none",
             }} />
           ))}
         </>
       )}
 
-      {/* Legendary / Ultra-legendary crown of light */}
+      {/* Legendary+ crown of light */}
       {def.tier >= 6 && animated && (
         <div style={{
           position: "absolute", left: "50%", top: -size * 0.18,
@@ -135,9 +95,9 @@ export default function ChestVisual({
           height: size * 0.18,
           background: `radial-gradient(ellipse, ${def.color}AA 0%, transparent 70%)`,
           animation: `chestPulse ${def.tier === 7 ? 1.0 : 1.5}s ease-in-out infinite`,
+          pointerEvents: "none", zIndex: 2,
         }} />
       )}
-      {/* Ultra-legendary: extra orbiting rune ring */}
       {def.tier === 7 && animated && (
         <div style={{
           position: "absolute", left: "50%", top: "50%",
@@ -147,46 +107,9 @@ export default function ChestVisual({
           border: `${Math.max(1, size * 0.015)}px solid ${def.borderColor}88`,
           boxShadow: `0 0 ${size * 0.08}px ${def.borderColor}, inset 0 0 ${size * 0.08}px ${def.color}55`,
           animation: `chestPulse 1.2s ease-in-out infinite`,
-          pointerEvents: "none",
+          pointerEvents: "none", zIndex: 2,
         }} />
       )}
-    </div>
-  );
-}
-
-function LidOrnament({ tier, size, color }: { tier: number; size: number; color: string }) {
-  // Different gem/mark on each tier's lid
-  const ornament = ["•", "◆", "✦", "★", "♛", "✪", "⧖"][tier - 1] ?? "⧖";
-  return (
-    <div style={{
-      position: "absolute", top: "55%", left: "50%",
-      transform: "translate(-50%, -50%)",
-      fontSize: size * 0.18,
-      color: "#fff",
-      textShadow: `0 0 ${size * 0.05}px ${color}, 0 ${size * 0.01}px ${size * 0.02}px rgba(0,0,0,0.5)`,
-      fontWeight: 900,
-    }}>
-      {ornament}
-    </div>
-  );
-}
-
-function BodyBadge({ tier, size, color }: { tier: number; size: number; color: string }) {
-  return (
-    <div style={{
-      position: "absolute", bottom: size * 0.08, left: "50%",
-      transform: "translateX(-50%)",
-      padding: `${size * 0.02}px ${size * 0.06}px`,
-      borderRadius: size * 0.03,
-      background: "rgba(0,0,0,0.45)",
-      border: `1px solid ${color}`,
-      color: "#FFD700",
-      fontSize: size * 0.085,
-      fontWeight: 900,
-      letterSpacing: 1,
-      whiteSpace: "nowrap",
-    }}>
-      {"★".repeat(tier)}
     </div>
   );
 }

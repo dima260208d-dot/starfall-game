@@ -4,6 +4,7 @@ import { CHESTS, type ChestRarity, type ChestRoll } from "../utils/chests";
 import { BRAWLERS } from "../entities/BrawlerData";
 import ChestItemScene from "./ChestItemScene";
 import BrawlerRevealModal from "./BrawlerRevealModal";
+import { CoinIcon, GemIcon, PowerIcon } from "./GameIcons";
 
 interface Props {
   rarity: ChestRarity;
@@ -94,10 +95,10 @@ function Summary({ rolls, def, onClose }: { rolls: ChestRoll[]; def: ReturnType<
         ИТОГО
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center" }}>
-        {coins > 0 && <SummaryCard icon="🪙" color="#FFD700" value={coins} label="МОНЕТ" />}
-        {gems > 0  && <SummaryCard icon="💎" color="#40C4FF" value={gems}  label="КРИСТАЛЛОВ" />}
-        {power > 0 && <SummaryCard icon="⚡" color="#CE93D8" value={power} label="ОП" />}
-        {def.drops.xp > 0 && <SummaryCard icon="⭐" color="#FFD700" value={def.drops.xp} label="ОПЫТ PASS" />}
+        {coins > 0 && <SummaryCard icon={<CoinIcon size={32} />}  color="#FFD700" value={coins} label="МОНЕТ" />}
+        {gems > 0  && <SummaryCard icon={<GemIcon size={32} />}   color="#40C4FF" value={gems}  label="КРИСТАЛЛОВ" />}
+        {power > 0 && <SummaryCard icon={<PowerIcon size={32} />} color="#CE93D8" value={power} label="ОП" />}
+        {def.drops.xp > 0 && <SummaryCard icon={<span style={{ fontSize: 32 }}>⭐</span>} color="#FFD700" value={def.drops.xp} label="ОПЫТ PASS" />}
         {brawler && (
           <div style={{
             background: `linear-gradient(180deg, ${brawler.color}22 0%, rgba(0,0,0,0.55) 100%)`,
@@ -133,14 +134,14 @@ function Summary({ rolls, def, onClose }: { rolls: ChestRoll[]; def: ReturnType<
   );
 }
 
-function SummaryCard({ icon, color, value, label }: { icon: string; color: string; value: number; label: string }) {
+function SummaryCard({ icon, color, value, label }: { icon: React.ReactNode; color: string; value: number; label: string }) {
   return (
     <div style={{
       background: `rgba(0,0,0,0.4)`, border: `1.5px solid ${color}66`,
       borderRadius: 14, padding: "12px 20px",
       display: "flex", alignItems: "center", gap: 10,
     }}>
-      <span style={{ fontSize: 32, filter: `drop-shadow(0 0 8px ${color})` }}>{icon}</span>
+      <span style={{ filter: `drop-shadow(0 0 8px ${color})`, display: "flex", alignItems: "center" }}>{icon}</span>
       <div>
         <div style={{ fontSize: 24, fontWeight: 900, color, lineHeight: 1, textShadow: `0 0 10px ${color}` }}>+{value}</div>
         <div style={{ fontSize: 9, color: "rgba(255,255,255,0.45)", letterSpacing: 1, marginTop: 2 }}>{label}</div>
@@ -151,10 +152,17 @@ function SummaryCard({ icon, color, value, label }: { icon: string; color: strin
 
 // ── Flying particles during collecting ────────────────────────────────────────
 type FlyType = "coins" | "gems" | "powerPoints";
-const FLY_META: Record<FlyType, { icon: string; fx: string; fy: string }> = {
-  coins:       { icon: "🪙", fx: "45vw",  fy: "-46vh" },
-  gems:        { icon: "💎", fx: "46.5vw",fy: "-46vh" },
-  powerPoints: { icon: "⚡", fx: "48vw",  fy: "-46vh" },
+
+function FlyIcon({ type, size = 28 }: { type: FlyType; size?: number }) {
+  if (type === "coins")       return <CoinIcon size={size} />;
+  if (type === "gems")        return <GemIcon size={size} />;
+  return <PowerIcon size={size} />;
+}
+
+const FLY_FX: Record<FlyType, { fx: string; fy: string }> = {
+  coins:       { fx: "45vw",   fy: "-46vh" },
+  gems:        { fx: "46.5vw", fy: "-46vh" },
+  powerPoints: { fx: "48vw",   fy: "-46vh" },
 };
 
 function CollectOverlay({ rolls }: { rolls: ChestRoll[] }) {
@@ -177,17 +185,19 @@ function CollectOverlay({ rolls }: { rolls: ChestRoll[] }) {
   return (
     <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
       {particles.map(p => {
-        const m = FLY_META[p.type];
+        const m = FLY_FX[p.type];
         return (
           <div key={p.id} style={{
             position: "absolute", left: "50%", top: "50%",
-            fontSize: 22,
             transform: `translate(calc(-50% + ${p.ox}px), calc(-50% + ${p.oy}px))`,
             "--fx": m.fx, "--fy": m.fy,
             animation: "flyOut 0.85s ease-in forwards",
             animationDelay: `${p.delay}ms`,
             opacity: 0,
-          } as React.CSSProperties}>{m.icon}</div>
+            display: "flex", alignItems: "center", justifyContent: "center",
+          } as React.CSSProperties}>
+            <FlyIcon type={p.type} size={28} />
+          </div>
         );
       })}
     </div>

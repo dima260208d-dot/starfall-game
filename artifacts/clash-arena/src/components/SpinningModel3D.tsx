@@ -31,6 +31,7 @@ type IconEntry = {
   group: THREE.Group | null;
   canvas2d: HTMLCanvasElement;
   size: number;
+  rotSpeed: number;
 };
 
 const icons: Set<IconEntry> = new Set();
@@ -53,7 +54,7 @@ function startLoop() {
     sharedRafId = requestAnimationFrame(loop);
     const renderer = getRenderer();
     for (const entry of icons) {
-      if (entry.group) entry.group.rotation.y += 0.025;
+      if (entry.group) entry.group.rotation.y += entry.rotSpeed;
       renderer.setSize(RENDER_SIZE, RENDER_SIZE);
       renderer.render(entry.scene, entry.camera);
       const ctx = entry.canvas2d.getContext("2d");
@@ -82,6 +83,12 @@ interface Props {
   ambientMult?: number;
   dirMult?: number;
   style?: React.CSSProperties;
+  /** Optional camera position override (default [0, 0.6, 3]) */
+  cameraPos?: [number, number, number];
+  /** Optional lookAt target override (default [0, 0.2, 0]) */
+  lookAtPos?: [number, number, number];
+  /** Override rotation speed in radians/frame (default 0.025) */
+  rotSpeed?: number;
 }
 
 export default function SpinningModel3D({
@@ -91,6 +98,9 @@ export default function SpinningModel3D({
   ambientMult = 1,
   dirMult = 1,
   style,
+  cameraPos,
+  lookAtPos,
+  rotSpeed,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const entryRef = useRef<IconEntry | null>(null);
@@ -99,10 +109,14 @@ export default function SpinningModel3D({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    const [cx, cy, cz] = cameraPos ?? [0, 0.6, 3];
+    const [lx, ly, lz] = lookAtPos ?? [0, 0.2, 0];
+    const speed = rotSpeed ?? 0.025;
+
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(35, 1, 0.01, 100);
-    camera.position.set(0, 0.6, 3);
-    camera.lookAt(0, 0.2, 0);
+    camera.position.set(cx, cy, cz);
+    camera.lookAt(lx, ly, lz);
 
     scene.add(new THREE.AmbientLight(0xffffff, 1.8 * ambientMult));
     const dir = new THREE.DirectionalLight(0xffffff, 3.0 * dirMult);
@@ -115,7 +129,7 @@ export default function SpinningModel3D({
     back.position.set(-2, -1, -3);
     scene.add(back);
 
-    const entry: IconEntry = { scene, camera, group: null, canvas2d: canvas, size };
+    const entry: IconEntry = { scene, camera, group: null, canvas2d: canvas, size, rotSpeed: speed };
     entryRef.current = entry;
     icons.add(entry);
     startLoop();
