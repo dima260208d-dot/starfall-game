@@ -1,7 +1,9 @@
 import { Brawler } from "../entities/Brawler";
 import { Bot } from "../entities/Bot";
 import { BRAWLERS, getBrawlerById, pickBotStats } from "../entities/BrawlerData";
-import { createCrystalsMap, GameMap, renderMap } from "../game/MapRenderer";
+import { createCrystalsMap, createTileGridMap, GameMap, renderMap, renderTileGrid } from "../game/MapRenderer";
+import { getPublishedMap, OV } from "../utils/mapEditorAPI";
+import { TileGrid, TILE_CELL_SIZE, GRID_SIZE } from "../game/TileMap";
 import { Projectile, updateProjectiles, renderProjectiles } from "../entities/Projectile";
 import { Camera } from "../game/Camera";
 import { InputHandler } from "../game/InputHandler";
@@ -40,6 +42,9 @@ export class ClashGemGrab {
   frame = 0;
   spriteLoaded: boolean;
   private resultRecorded = false;
+  private gemCenter = { x: 1750, y: 1750 };
+  private blueBase  = { x: 600,  y: 1750 };
+  private redBase   = { x: 2900, y: 1750 };
 
   constructor(canvas: HTMLCanvasElement, playerBrawlerId: string, playerLevel: number, onAttack: () => void, onSuper: () => void, spriteLoaded: boolean) {
     this.map = createCrystalsMap();
@@ -58,6 +63,39 @@ export class ClashGemGrab {
 
     this.camera = new Camera(CAM_W, CAM_H, this.map.width, this.map.height);
     this.input = new InputHandler(canvas, onAttack, onSuper);
+
+    // ── Load published map if one exists ──────────────────────────────────
+    const pubMap = getPublishedMap("gemgrab");
+    if (pubMap && pubMap.cells && pubMap.cells.length === GRID_SIZE * GRID_SIZE) {
+      const tileGrid: TileGrid = {
+        cells: new Uint8Array(GRID_SIZE * GRID_SIZE),
+        destroyed: new Uint8Array(GRID_SIZE * GRID_SIZE),
+        width: GRID_SIZE, height: GRID_SIZE, cellSize: TILE_CELL_SIZE,
+      };
+      for (let i = 0; i < pubMap.cells.length; i++) tileGrid.cells[i] = pubMap.cells[i];
+      this.map = createTileGridMap(tileGrid, pubMap.name);
+      this.camera = new Camera(CAM_W, CAM_H, this.map.width, this.map.height);
+      if (pubMap.overlays && pubMap.overlays.length === GRID_SIZE * GRID_SIZE) {
+        const C = TILE_CELL_SIZE, ovs = pubMap.overlays;
+        let blueSpawns: Array<{x:number;y:number}> = [];
+        let redSpawns:  Array<{x:number;y:number}> = [];
+        for (let i = 0; i < ovs.length; i++) {
+          const tx = i % GRID_SIZE, ty = Math.floor(i / GRID_SIZE);
+          const wx = (tx + 0.5) * C, wy = (ty + 0.5) * C;
+          if (ovs[i] === OV.SPAWN_BLUE) blueSpawns.push({x: wx, y: wy});
+          else if (ovs[i] === OV.SPAWN_RED)  redSpawns.push({x: wx, y: wy});
+          else if (ovs[i] === OV.GEM_CENTER) this.gemCenter = {x: wx, y: wy};
+        }
+        blueSpawns = blueSpawns.sort(() => Math.random() - 0.5);
+        redSpawns  = redSpawns.sort(() => Math.random() - 0.5);
+        if (blueSpawns[0]) { this.player.x = blueSpawns[0].x; this.player.y = blueSpawns[0].y; this.blueBase = blueSpawns[0]; }
+        if (blueSpawns[1]) { this.allies[0].x = blueSpawns[1].x; this.allies[0].y = blueSpawns[1].y; }
+        if (blueSpawns[2]) { this.allies[1].x = blueSpawns[2].x; this.allies[1].y = blueSpawns[2].y; }
+        if (redSpawns[0])  { this.enemies[0].x = redSpawns[0].x; this.enemies[0].y = redSpawns[0].y; this.redBase = redSpawns[0]; }
+        if (redSpawns[1])  { this.enemies[1].x = redSpawns[1].x; this.enemies[1].y = redSpawns[1].y; }
+        if (redSpawns[2])  { this.enemies[2].x = redSpawns[2].x; this.enemies[2].y = redSpawns[2].y; }
+      }
+    }
   }
 
   handleAttack(): void {
@@ -98,7 +136,7 @@ export class ClashGemGrab {
     // Spawn gems from the center — one every 10 seconds
     this.spawnTimer -= dt;
     if (this.spawnTimer <= 0) {
-      this.gems.push({ x: 1750, y: 1750, carrier: null });
+      this.gems.push({ x: this.gemCenter.x, y: this.gemCenter.y, carrier: null });
       this.spawnTimer = 10;
     }
 
@@ -107,7 +145,7 @@ export class ClashGemGrab {
       const teamGems = bot.team === "blue" ? this.blueGems : this.redGems;
       if (teamGems >= 10) {
         // Hold position, retreat to safe area
-        const safe = bot.team === "blue" ? { x: 600, y: 1750 } : { x: 2900, y: 1750 };
+        const safe = bot.team === "blue" ? this.blueBase : this.redBase;
         bot.forcedTarget = safe;
       } else {
         bot.forcedTarget = undefined;
@@ -191,7 +229,7 @@ export class ClashGemGrab {
       } else {
         this.playerRespawnTimer -= dt;
         if (this.playerRespawnTimer <= 0) {
-          this.player.respawn(600, 1750);
+          this.player.respawn(this.blueBase.x, this.blueBase.y);
         }
       }
     }
@@ -233,9 +271,10 @@ export class ClashGemGrab {
     ctx.save();
     ctx.scale(GAME_ZOOM, GAME_ZOOM);
     renderMap(ctx, this.map, this.camera.x, this.camera.y, CAM_W, CAM_H, this.frame);
+    if (this.map.tileGrid) renderTileGrid(ctx, this.map.tileGrid, this.camera.x, this.camera.y, CAM_W, CAM_H, this.player.x, this.player.y, false);
     // Center vein indicator
-    const csx = 1750 - this.camera.x;
-    const csy = 1750 - this.camera.y;
+    const csx = this.gemCenter.x - this.camera.x;
+    const csy = this.gemCenter.y - this.camera.y;
     ctx.save();
     ctx.globalAlpha = 0.2;
     ctx.fillStyle = "#CE93D8";
@@ -263,6 +302,7 @@ export class ClashGemGrab {
     const all = [this.player, ...this.allies, ...this.enemies];
     const _friendlies = [this.player, ...this.allies].filter(b => b.alive).map(b => ({ x: b.x, y: b.y }));
     for (const b of all) b.render(ctx, this.camera.x, this.camera.y, this.spriteLoaded, this.player.team, _friendlies);
+    if (this.map.tileGrid) renderTileGrid(ctx, this.map.tileGrid, this.camera.x, this.camera.y, CAM_W, CAM_H, this.player.x, this.player.y, true);
 
     // Carried-gem badge above HP bar for every brawler holding gems
     for (const b of all) {

@@ -1,5 +1,5 @@
 import { getPlatformTileCanvas } from "../utils/platformTile";
-import { TileGrid, TileType, getTile, TILE_CELL_SIZE } from "./TileMap";
+import { TileGrid, TileType, getTile, TILE_CELL_SIZE, TILE_PROPS } from "./TileMap";
 import { getTileCanvas, TALL_TILE_TYPES, PYRAMID_TILE } from "../utils/tileModelCache";
 import { getPowerBoxCanvas } from "../utils/powerModelCache";
 import { getNeighbourMask } from "../utils/autoTile";
@@ -138,6 +138,66 @@ export function createCrystalsMap(): GameMap {
   return { width: W, height: H, walls, bushes, crates, rivers, tileSize: 60, name: "Кристальная шахта" };
 }
 
+/**
+ * Build a GameMap from a published TileGrid (used for all non-showdown modes
+ * when a published map exists in the editor). Converts non-walkable cells to
+ * wall rectangles (merged into horizontal runs for efficiency), collects
+ * bushes and water patches from the grid, and sets map.tileGrid for
+ * the isometric visual renderer.
+ */
+export function createTileGridMap(tileGrid: TileGrid, name: string): GameMap {
+  const C = TILE_CELL_SIZE;
+  const W = tileGrid.width * C;
+  const H = tileGrid.height * C;
+
+  const walls: Wall[] = [
+    { x: 0, y: 0, w: W, h: C, solid: true },
+    { x: 0, y: H - C, w: W, h: C, solid: true },
+    { x: 0, y: 0, w: C, h: H, solid: true },
+    { x: W - C, y: 0, w: C, h: H, solid: true },
+  ];
+
+  const bushes: Bush[] = [];
+  const rivers: River[] = [];
+  const crates: Crate[] = [];
+
+  for (let ty = 0; ty < tileGrid.height; ty++) {
+    let tx = 0;
+    while (tx < tileGrid.width) {
+      const t = getTile(tileGrid, tx, ty);
+      const props = TILE_PROPS[t];
+      if (props && !props.walkable) {
+        if (t === TileType.WATER) {
+          let runEnd = tx + 1;
+          while (runEnd < tileGrid.width && getTile(tileGrid, runEnd, ty) === TileType.WATER) runEnd++;
+          rivers.push({ x: tx * C, y: ty * C, w: (runEnd - tx) * C, h: C });
+          walls.push({ x: tx * C, y: ty * C, w: (runEnd - tx) * C, h: C, solid: true });
+          tx = runEnd;
+        } else {
+          let runEnd = tx + 1;
+          while (runEnd < tileGrid.width) {
+            const rt = getTile(tileGrid, runEnd, ty);
+            const rp = TILE_PROPS[rt];
+            if (!rp || rp.walkable || rt === TileType.WATER) break;
+            runEnd++;
+          }
+          walls.push({ x: tx * C, y: ty * C, w: (runEnd - tx) * C, h: C, solid: true });
+          tx = runEnd;
+        }
+      } else {
+        if (t === TileType.BUSH) {
+          bushes.push({ x: (tx + 0.5) * C, y: (ty + 0.5) * C, radius: C * 0.55 });
+        }
+        tx++;
+      }
+    }
+  }
+
+  const map: GameMap = { width: W, height: H, walls, bushes, crates, rivers, tileSize: C, name };
+  map.tileGrid = tileGrid;
+  return map;
+}
+
 // Deterministic pseudo-random noise from integer coords (stable per tile)
 function noise2(x: number, y: number): number {
   const n = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
@@ -154,7 +214,9 @@ export function renderMap(
   camY: number,
   canvasW: number,
   canvasH: number,
-  frame = 0
+  frame = 0,
+  playerX?: number,
+  playerY?: number
 ): void {
   const startTX = Math.floor(camX / map.tileSize);
   const endTX = Math.ceil((camX + canvasW) / map.tileSize);

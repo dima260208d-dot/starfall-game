@@ -1,7 +1,9 @@
 import { Brawler } from "../entities/Brawler";
 import { Bot } from "../entities/Bot";
 import { BRAWLERS, getBrawlerById, pickBotStats } from "../entities/BrawlerData";
-import { createCrystalsMap, GameMap, renderMap } from "../game/MapRenderer";
+import { createCrystalsMap, createTileGridMap, GameMap, renderMap, renderTileGrid } from "../game/MapRenderer";
+import { getPublishedMap, OV } from "../utils/mapEditorAPI";
+import { TileGrid, TILE_CELL_SIZE, GRID_SIZE } from "../game/TileMap";
 import { Projectile, updateProjectiles, renderProjectiles } from "../entities/Projectile";
 import { Camera } from "../game/Camera";
 import { InputHandler } from "../game/InputHandler";
@@ -75,6 +77,34 @@ export class ClashSiege {
     }
     this.camera = new Camera(CAM_W, CAM_H, this.map.width, this.map.height);
     this.input = new InputHandler(canvas, onAttack, onSuper);
+
+    // ── Load published map if one exists ──────────────────────────────────
+    const pubMap = getPublishedMap("siege");
+    if (pubMap && pubMap.cells && pubMap.cells.length === GRID_SIZE * GRID_SIZE) {
+      const tileGrid: TileGrid = {
+        cells: new Uint8Array(GRID_SIZE * GRID_SIZE),
+        destroyed: new Uint8Array(GRID_SIZE * GRID_SIZE),
+        width: GRID_SIZE, height: GRID_SIZE, cellSize: TILE_CELL_SIZE,
+      };
+      for (let i = 0; i < pubMap.cells.length; i++) tileGrid.cells[i] = pubMap.cells[i];
+      this.map = createTileGridMap(tileGrid, pubMap.name);
+      this.camera = new Camera(CAM_W, CAM_H, this.map.width, this.map.height);
+      if (pubMap.overlays && pubMap.overlays.length === GRID_SIZE * GRID_SIZE) {
+        const C = TILE_CELL_SIZE, ovs = pubMap.overlays;
+        let blueSpawns: Array<{x:number;y:number}> = [];
+        for (let i = 0; i < ovs.length; i++) {
+          const tx = i % GRID_SIZE, ty = Math.floor(i / GRID_SIZE);
+          const wx = (tx + 0.5) * C, wy = (ty + 0.5) * C;
+          if (ovs[i] === OV.SPAWN_BLUE)  blueSpawns.push({x: wx, y: wy});
+          else if (ovs[i] === OV.BASE_BLUE) { this.baseX = wx; this.baseY = wy; }
+        }
+        blueSpawns = blueSpawns.sort(() => Math.random() - 0.5);
+        if (blueSpawns[0]) { this.player.x = blueSpawns[0].x; this.player.y = blueSpawns[0].y; }
+        if (blueSpawns[1]) { this.allies[0].x = blueSpawns[1].x; this.allies[0].y = blueSpawns[1].y; }
+        if (blueSpawns[2]) { this.allies[1].x = blueSpawns[2].x; this.allies[1].y = blueSpawns[2].y; }
+        if (blueSpawns[3]) { this.allies[2].x = blueSpawns[3].x; this.allies[2].y = blueSpawns[3].y; }
+      }
+    }
   }
 
   handleAttack(): void {
@@ -310,6 +340,7 @@ export class ClashSiege {
     ctx.save();
     ctx.scale(GAME_ZOOM, GAME_ZOOM);
     renderMap(ctx, this.map, this.camera.x, this.camera.y, CAM_W, CAM_H, this.frame);
+    if (this.map.tileGrid) renderTileGrid(ctx, this.map.tileGrid, this.camera.x, this.camera.y, CAM_W, CAM_H, this.player.x, this.player.y, false);
 
     // Render base as a vault safe
     if (this.baseHp > 0) {
@@ -320,6 +351,7 @@ export class ClashSiege {
     const all = [this.player, ...this.allies, ...this.enemies];
     const _friendlies = [this.player, ...this.allies].filter(b => b.alive).map(b => ({ x: b.x, y: b.y }));
     for (const b of all) b.render(ctx, this.camera.x, this.camera.y, this.spriteLoaded, this.player.team, _friendlies);
+    if (this.map.tileGrid) renderTileGrid(ctx, this.map.tileGrid, this.camera.x, this.camera.y, CAM_W, CAM_H, this.player.x, this.player.y, true);
     renderProjectiles(ctx, this.projectiles, this.camera.x, this.camera.y, this.frame);
     renderEffects(ctx, this.camera.x, this.camera.y, this.frame);
     renderDamageNumbers(ctx, this.camera.x, this.camera.y);
