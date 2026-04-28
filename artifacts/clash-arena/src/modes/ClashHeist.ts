@@ -379,11 +379,21 @@ export class ClashHeist {
       const barW = W * 1.3;
       ctx.fillStyle = "rgba(0,0,0,0.7)";
       ctx.fillRect(sx - barW / 2 - 1, sy - H / 2 - 18, barW + 2, 12);
-      ctx.fillStyle = hpRatio > 0.5 ? "#4CAF50" : hpRatio > 0.25 ? "#FFB300" : "#F44336";
+      const barColor = hpRatio > 0.5 ? "#4CAF50" : hpRatio > 0.25 ? "#FFB300" : "#F44336";
+      ctx.fillStyle = barColor;
       ctx.fillRect(sx - barW / 2, sy - H / 2 - 17, barW * hpRatio, 10);
       ctx.strokeStyle = "rgba(255,255,255,0.4)";
       ctx.lineWidth = 0.5;
       ctx.strokeRect(sx - barW / 2, sy - H / 2 - 17, barW, 10);
+      // HP percentage text
+      const pct = Math.round(hpRatio * 100);
+      ctx.fillStyle = "#FFFFFF";
+      ctx.font = "bold 11px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.shadowBlur = 4;
+      ctx.fillText(`${pct}%`, sx, sy - H / 2 - 12);
+      ctx.shadowBlur = 0;
 
       ctx.restore();
     }
@@ -418,8 +428,8 @@ export class ClashHeist {
 
     ctx.fillStyle = "white";
     ctx.font = "bold 11px Arial";
-    ctx.fillText(`${Math.floor(blue.hp)}/${blue.maxHp}`, scoreX + 70, 56);
-    ctx.fillText(`${Math.floor(red.hp)}/${red.maxHp}`, scoreX + 210, 56);
+    ctx.fillText(`${Math.round(blueHp * 100)}%`, scoreX + 70, 44);
+    ctx.fillText(`${Math.round(redHp * 100)}%`, scoreX + 210, 44);
     ctx.restore();
   }
 

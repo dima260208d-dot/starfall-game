@@ -428,6 +428,15 @@ export class ClashSiege {
     ctx.strokeStyle = "rgba(255,255,255,0.4)";
     ctx.lineWidth = 0.5;
     ctx.strokeRect(sx - barW / 2, sy - H / 2 - 19, barW, 11);
+    // HP percentage text
+    const basePct = Math.round(hpRatio * 100);
+    ctx.fillStyle = "#FFFFFF";
+    ctx.font = "bold 11px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.shadowBlur = 4;
+    ctx.fillText(`${basePct}%`, sx, sy - H / 2 - 13);
+    ctx.shadowBlur = 0;
 
     ctx.restore();
   }
@@ -452,20 +461,27 @@ export class ClashSiege {
       ctx.fillText(`Следующая волна через ${Math.max(0, this.waveSpawnTimer).toFixed(1)}с`, 600, 50);
     }
 
-    ctx.fillStyle = "#FFD700";
-    ctx.font = "bold 11px Arial";
-    ctx.fillRect(1050, 10, 140, 40);
-    ctx.fillStyle = "rgba(0,0,0,0.6)";
-    ctx.fillRect(1050, 10, 140, 40);
+    ctx.fillStyle = "rgba(50,180,80,0.55)";
+    ctx.fillRect(1045, 8, 150, 50);
+    ctx.fillStyle = "rgba(0,0,0,0.65)";
+    ctx.fillRect(1045, 8, 150, 50);
+    ctx.fillStyle = "#4CAF50";
+    ctx.font = "bold 12px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("БАЗА", 1120, 22);
+    const hpRatio = Math.max(0, this.baseHp / this.baseMaxHp);
+    const hudBarColor = hpRatio > 0.5 ? "#4CAF50" : hpRatio > 0.25 ? "#FFB300" : "#F44336";
+    ctx.fillStyle = "rgba(255,255,255,0.18)";
+    ctx.fillRect(1055, 28, 130, 13);
+    ctx.fillStyle = hudBarColor;
+    ctx.fillRect(1055, 28, 130 * hpRatio, 13);
+    ctx.strokeStyle = "rgba(255,255,255,0.3)";
+    ctx.lineWidth = 0.8;
+    ctx.strokeRect(1055, 28, 130, 13);
     ctx.fillStyle = "white";
     ctx.font = "bold 12px Arial";
     ctx.textAlign = "center";
-    ctx.fillText("БАЗА", 1120, 24);
-    const hpRatio = Math.max(0, this.baseHp / this.baseMaxHp);
-    ctx.fillStyle = "rgba(255,255,255,0.2)";
-    ctx.fillRect(1060, 30, 120, 12);
-    ctx.fillStyle = hpRatio > 0.5 ? "#4CAF50" : "#FF5252";
-    ctx.fillRect(1060, 30, 120 * hpRatio, 12);
+    ctx.fillText(`${Math.round(hpRatio * 100)}%`, 1120, 50);
     ctx.restore();
   }
 

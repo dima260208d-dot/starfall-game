@@ -5,7 +5,6 @@ import { spawnDamageNumber } from "../utils/damageNumbers";
 import { spawnEffect, makeZigzag } from "../utils/effects";
 import { clamp, distance, angleTo } from "../utils/helpers";
 import { addMatchStat } from "../utils/matchStats";
-import { drawCharacterSprite, drawBrawlerImage } from "../game/sprites";
 import { setRenderersBase, getCharRenderer, CHAR_3D_IDS, type CharAnim } from "../game/miyaTopDownRenderer";
 
 // Record the base URL so lazy renderers know where to find the GLBs.
@@ -1033,48 +1032,6 @@ export class Brawler {
       }
     }
 
-    if (!drewImage) {
-      drewImage = drawBrawlerImage(
-        ctx,
-        this.stats.id,
-        sx,
-        sy + 10,
-        this.radius * 1.8,
-        this.angle,
-        alpha,
-        glowColor,
-      );
-    }
-
-    if (drewImage) {
-      // image rendered
-    } else if (spriteLoaded) {
-      drawCharacterSprite(
-        ctx,
-        this.stats.spriteRow,
-        this.stats.spriteCol,
-        sx,
-        sy,
-        this.radius * 3.5,
-        this.angle > Math.PI / 2 || this.angle < -Math.PI / 2,
-        alpha,
-        glowColor
-      );
-    } else {
-      ctx.save();
-      ctx.globalAlpha = alpha;
-      const bounce = !this.alive ? 0 : Math.sin(this.animFrame * 0.05) * 2;
-      ctx.shadowColor = this.stats.color;
-      ctx.shadowBlur = glowColor ? 20 : 8;
-      ctx.beginPath();
-      ctx.arc(sx, sy + bounce, this.radius, 0, Math.PI * 2);
-      ctx.fillStyle = this.hitFlash > 0 ? "#FFFFFF" : this.stats.color;
-      ctx.fill();
-      ctx.strokeStyle = this.stats.secondaryColor;
-      ctx.lineWidth = 3;
-      ctx.stroke();
-      ctx.restore();
-    }
 
     if (this.attackAnim > 0) {
       ctx.save();
