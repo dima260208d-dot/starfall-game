@@ -1,28 +1,31 @@
 import { useEffect, useRef, useState } from "react";
-import { CoinIcon, TrophyIcon } from "../components/GameIcons";
 import { ClashShowdown } from "../modes/ClashShowdown";
 import { ClashCrystals } from "../modes/ClashCrystals";
 import { ClashHeist } from "../modes/ClashHeist";
 import { ClashGemGrab } from "../modes/ClashGemGrab";
 import { ClashSiege } from "../modes/ClashSiege";
 import { ClashTraining } from "../modes/ClashTraining";
-import { getCurrentProfile, getControlMode } from "../utils/localStorageAPI";
+import { getCurrentProfile, getControlMode, getQuestPool } from "../utils/localStorageAPI";
+import { getMatchStats } from "../utils/matchStats";
 import { loadSpriteSheet, loadBrawlerImages } from "../game/sprites";
 import { preloadCharRenderers } from "../game/miyaTopDownRenderer";
 import { BRAWLERS } from "../entities/BrawlerData";
 import MobileControls from "../components/MobileControls";
 import MiniMap from "../components/MiniMap";
+import ResultScreen from "../components/ResultScreen";
+import type { GameParticipant } from "../types/gameResult";
 import type { GameMode } from "../App";
 
 interface GameScreenProps {
   mode: GameMode;
   brawlerId: string;
   onExit: () => void;
+  onPlayAgain?: () => void;
 }
 
 type AnyGame = ClashShowdown | ClashCrystals | ClashHeist | ClashGemGrab | ClashSiege | ClashTraining;
 
-export default function GameScreen({ mode, brawlerId, onExit }: GameScreenProps) {
+export default function GameScreen({ mode, brawlerId, onExit, onPlayAgain }: GameScreenProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameRef = useRef<AnyGame | null>(null);
   const rafRef = useRef<number>(0);
@@ -31,8 +34,21 @@ export default function GameScreen({ mode, brawlerId, onExit }: GameScreenProps)
   const [won, setWon] = useState(false);
   const [spriteLoaded, setSpriteLoaded] = useState(false);
   const [result, setResult] = useState<{ place: number; trophyDelta: number; xpGained: number } | null>(null);
+  const [participants, setParticipants] = useState<GameParticipant[]>([]);
+  const [matchStatsData, setMatchStatsData] = useState({ damageDealt: 0, healingDone: 0, superUses: 0, killCount: 0, powerCubesCollected: 0 });
   const [controlMode] = useState(getControlMode());
   const brawlerStats = BRAWLERS.find(b => b.id === brawlerId) || BRAWLERS[0];
+
+  // Snapshot quests before the game starts so we can show deltas in the result screen
+  const preQuestSnapshot = useRef<Array<{ id: string; progress: number }>>([]);
+  useEffect(() => {
+    const pool = getQuestPool();
+    if (pool) {
+      preQuestSnapshot.current = pool.activeQuests
+        .filter(q => !q.claimed)
+        .map(q => ({ id: q.id, progress: q.progress }));
+    }
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -40,8 +56,6 @@ export default function GameScreen({ mode, brawlerId, onExit }: GameScreenProps)
     Promise.all([
       loadSpriteSheet(`${base}characters.webp`),
       loadBrawlerImages(BRAWLERS.map(b => b.id), base),
-      // Await all 3D character models — downloads started in App.tsx during the
-      // loading screen, so they are usually already done or nearly done by now.
       preloadCharRenderers(base),
     ]).then(() => {
       if (mounted) setSpriteLoaded(true);
@@ -87,13 +101,38 @@ export default function GameScreen({ mode, brawlerId, onExit }: GameScreenProps)
       game.render(ctx);
 
       if (game.over) {
-        // 3-second pause before showing the result screen
+        // Capture match stats immediately when game ends (before 3s delay)
+        const ms = getMatchStats();
+        const currentGame = gameRef.current;
+
         setTimeout(() => {
           setGameOver(true);
           setWon(game.won);
+          setMatchStatsData({
+            damageDealt: ms.damageDealt ?? 0,
+            healingDone: ms.healingDone ?? 0,
+            superUses: ms.superUses ?? 0,
+            killCount: ms.killCount ?? 0,
+            powerCubesCollected: ms.powerCubesCollected ?? 0,
+          });
           const p = getCurrentProfile();
           if (p?.lastResult) {
             setResult({ place: p.lastResult.place, trophyDelta: p.lastResult.trophyDelta, xpGained: p.lastResult.xpGained });
+          }
+          // Capture participants from the game instance
+          if (currentGame && typeof (currentGame as any).getParticipants === "function") {
+            setParticipants((currentGame as any).getParticipants());
+          } else {
+            // Fallback: just player
+            const prof = getCurrentProfile();
+            setParticipants([{
+              brawlerId,
+              displayName: prof?.username || "Игрок",
+              team: "blue",
+              isPlayer: true,
+              level: level,
+              trophies: prof?.trophies ?? 0,
+            }]);
           }
         }, 3000);
         return;
@@ -111,6 +150,14 @@ export default function GameScreen({ mode, brawlerId, onExit }: GameScreenProps)
       lastTimeRef.current = 0;
     };
   }, [mode, brawlerId, spriteLoaded]);
+
+  const handlePlayAgain = () => {
+    if (onPlayAgain) {
+      onPlayAgain();
+    } else {
+      onExit();
+    }
+  };
 
   return (
     <div
@@ -177,164 +224,17 @@ export default function GameScreen({ mode, brawlerId, onExit }: GameScreenProps)
       )}
 
       {gameOver && (
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background: won ? "rgba(0,0,0,0.55)" : "rgba(0,0,0,0.92)",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            backdropFilter: "blur(10px)",
-            zIndex: 10,
-            overflow: "hidden",
-          }}
-        >
-          {won && (
-            <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
-              {Array.from({ length: 80 }).map((_, i) => {
-                const colors = ["#FFD700", "#FFEB3B", "#FFAB40", "#00E5FF", "#FFFFFF", "#FFC1E3"];
-                const color = colors[i % colors.length];
-                const left = Math.random() * 100;
-                const delay = Math.random() * 2;
-                const duration = 2.5 + Math.random() * 2.5;
-                const size = 14 + Math.random() * 18;
-                return (
-                  <span
-                    key={i}
-                    style={{
-                      position: "absolute",
-                      top: -20,
-                      left: `${left}%`,
-                      fontSize: size,
-                      color,
-                      textShadow: `0 0 10px ${color}`,
-                      animation: `starFall ${duration}s linear ${delay}s infinite`,
-                      lineHeight: 1,
-                    }}
-                  >
-                    ★
-                  </span>
-                );
-              })}
-            </div>
-          )}
-
-          <div
-            style={{
-              fontSize: 120,
-              lineHeight: 1,
-              marginBottom: 8,
-              filter: `drop-shadow(0 0 30px ${won ? "#FFD700" : "#FF5252"})`,
-              animation: won ? "trophyBounce 1.4s ease-in-out infinite" : "shake 0.6s ease-in-out 3",
-            }}
-          >
-            {won ? "🏆" : "💀"}
-          </div>
-          <div
-            style={{
-              fontSize: 72,
-              fontWeight: 900,
-              color: won ? "#FFD700" : "#FF5252",
-              textShadow: `0 0 40px ${won ? "#FFD700" : "#FF5252"}`,
-              marginBottom: 10,
-              animation: "pulse 1s ease-in-out infinite",
-              letterSpacing: 4,
-            }}
-          >
-            {won ? "ПОБЕДА!" : "ПОРАЖЕНИЕ"}
-          </div>
-          {result && (
-            <div
-              style={{
-                fontSize: 22,
-                color: "#FFFFFF",
-                marginBottom: 14,
-                fontWeight: 700,
-                letterSpacing: 1,
-                textShadow: "0 2px 8px rgba(0,0,0,0.6)",
-              }}
-            >
-              {mode === "showdown" ? `${result.place} место из 10` : ""}
-            </div>
-          )}
-          <div style={{ display: "flex", gap: 18, marginBottom: 30, flexWrap: "wrap", justifyContent: "center" }}>
-            <ResultChip
-              icon={<TrophyIcon size={28} />}
-              label="Кубки"
-              value={result ? (result.trophyDelta >= 0 ? `+${result.trophyDelta}` : `${result.trophyDelta}`) : "—"}
-              color={result && result.trophyDelta >= 0 ? "#FFD700" : "#FF7043"}
-            />
-            <ResultChip
-              icon={<CoinIcon size={28} />}
-              label="Монеты"
-              value={`+${won ? 100 : 40}`}
-              color="#FFD700"
-            />
-            <ResultChip
-              icon={<span style={{ fontSize: 26 }}>⭐</span>}
-              label="Опыт"
-              value={result ? `+${result.xpGained}` : "—"}
-              color="#7C4DFF"
-            />
-          </div>
-          <button
-            onClick={onExit}
-            style={{
-              background: "linear-gradient(135deg, #7B2FBE, #CE93D8)",
-              border: "none",
-              borderRadius: 14,
-              padding: "16px 50px",
-              color: "white",
-              fontWeight: 800,
-              fontSize: 18,
-              cursor: "pointer",
-              letterSpacing: 2,
-              boxShadow: "0 6px 30px rgba(123,47,190,0.5)",
-              zIndex: 2,
-            }}
-          >
-            ВЫЙТИ
-          </button>
-          <style>{`
-            @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
-            @keyframes trophyBounce { 0%,100% { transform: translateY(0) rotate(-5deg);} 50% { transform: translateY(-15px) rotate(5deg);} }
-            @keyframes shake { 0%,100% { transform: translateX(0);} 25% { transform: translateX(-10px);} 75% { transform: translateX(10px);} }
-            @keyframes starFall {
-              0%   { transform: translateY(-10vh) rotate(0deg) scale(0.6);   opacity: 0; }
-              10%  { opacity: 1; }
-              50%  { transform: translateY(50vh)  rotate(360deg) scale(1.1); opacity: 1; }
-              100% { transform: translateY(110vh) rotate(720deg) scale(0.7); opacity: 0; }
-            }
-          `}</style>
-        </div>
+        <ResultScreen
+          won={won}
+          mode={mode}
+          participants={participants}
+          result={result}
+          matchStats={matchStatsData}
+          preQuestSnapshot={preQuestSnapshot.current}
+          onExit={onExit}
+          onPlayAgain={handlePlayAgain}
+        />
       )}
-
-    </div>
-  );
-}
-
-function ResultChip({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string; color: string }) {
-  return (
-    <div
-      style={{
-        background: "rgba(255,255,255,0.06)",
-        border: `1px solid ${color}55`,
-        borderRadius: 14,
-        padding: "10px 18px",
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        minWidth: 130,
-        boxShadow: `0 0 20px ${color}33`,
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>{icon}</div>
-      <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
-        <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 11, letterSpacing: 1 }}>{label}</span>
-        <span style={{ color, fontSize: 20, fontWeight: 800 }}>{value}</span>
-      </div>
     </div>
   );
 }

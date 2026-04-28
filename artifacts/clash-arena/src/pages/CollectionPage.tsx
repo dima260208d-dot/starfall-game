@@ -11,6 +11,7 @@ import {
 import BrawlerViewer3D from "../components/BrawlerViewer3D";
 import BrawlerRankRewardsModal from "../components/BrawlerRankRewardsModal";
 import { sortBrawlers, type BrawlerSortKey } from "./CharacterSelect";
+import AnimatedBg from "../components/AnimatedBg";
 import { CoinIcon, PowerIcon } from "../components/GameIcons";
 
 interface CollectionPageProps {
@@ -102,14 +103,15 @@ export default function CollectionPage({ onBack }: CollectionPageProps) {
     <div
       style={{
         height: "100%",
-        background: "linear-gradient(135deg, #050020 0%, #0a0040 100%)",
         display: "flex",
         flexDirection: "column",
         fontFamily: "'Segoe UI', Arial, sans-serif",
         color: "white",
         overflow: "hidden",
+        position: "relative",
       }}
     >
+      <AnimatedBg theme="collection" brawlerColor={brawler.accentColor} style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none" }} />
       <div style={{ display: "flex", alignItems: "center", padding: "16px 24px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
         <button
           onClick={onBack}

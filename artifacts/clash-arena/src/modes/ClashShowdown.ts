@@ -9,7 +9,7 @@ import { updateDamageNumbers, renderDamageNumbers, clearDamageNumbers } from "..
 import { updateEffects, renderEffects, clearEffects } from "../utils/effects";
 import { renderMap } from "../game/MapRenderer";
 import { angleTo, autoAimAngle, distance, randomInt } from "../utils/helpers";
-import { recordGameResult, getCurrentUsername } from "../utils/localStorageAPI";
+import { recordGameResult, getCurrentUsername, getCurrentProfile } from "../utils/localStorageAPI";
 import { resetMatchStats, getMatchStats, addMatchStat } from "../utils/matchStats";
 import {
   TileGrid, TILE_CELL_SIZE, generateShowdownTileGrid,
@@ -747,6 +747,15 @@ export class ClashShowdown {
     ctx.fillText("WASD: движение | ЛКМ: атака | ПКМ/E: супер", 600, 760);
     
     ctx.restore();
+  }
+
+  getParticipants(): import("../types/gameResult").GameParticipant[] {
+    const fakeTrophies = (name: string) => 300 + ((name.charCodeAt(0) * 37 + (name.charCodeAt(1) || 5) * 13) % 1700);
+    const profile = getCurrentProfile();
+    return [
+      { brawlerId: this.player.stats.id, displayName: this.player.displayName || "Игрок", team: "ffa-player", isPlayer: true, level: this.player.level, trophies: profile?.trophies ?? 0 },
+      ...this.bots.slice(0, 9).map(b => ({ brawlerId: b.stats.id, displayName: b.displayName || "Бот", team: `ffa-${b.id}`, isPlayer: false, level: b.level, trophies: fakeTrophies(b.displayName || "B") })),
+    ];
   }
 
   destroy(): void {

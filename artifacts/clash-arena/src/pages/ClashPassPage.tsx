@@ -1,4 +1,5 @@
 import { useState } from "react";
+import AnimatedBg from "../components/AnimatedBg";
 import {
   getCurrentProfile,
   clashPassXpForLevel,
@@ -59,7 +60,8 @@ export default function ClashPassPage({ onBack }: Props) {
   };
 
   return (
-    <div style={{ minHeight: "100%", background: "linear-gradient(135deg, #050020 0%, #0a0040 100%)", padding: "30px 20px", color: "white", fontFamily: "'Segoe UI', Arial, sans-serif" }}>
+    <div style={{ minHeight: "100%", padding: "30px 20px", color: "white", fontFamily: "'Segoe UI', Arial, sans-serif", position: "relative" }}>
+      <AnimatedBg theme="starpass" style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none" }} />
       <button onClick={onBack} style={backBtn}>← Назад</button>
       <button
         onClick={() => setShowQuests(true)}

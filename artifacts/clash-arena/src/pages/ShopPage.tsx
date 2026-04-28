@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import AnimatedBg from "../components/AnimatedBg";
 import { getCurrentProfile, openBox, addGems, claimDailyBonus, buyChest, openChest, canClaimDailyLadder, unlockBrawlerWithGems } from "../utils/localStorageAPI";
 import RewardDropModal, { type RewardInfo } from "../components/RewardDropModal";
 import { CHESTS, CHEST_RARITY_ORDER, type ChestRarity, type ChestRoll } from "../utils/chests";
@@ -120,13 +121,14 @@ setMsg("+100 кристаллов добавлено!");
     <div
       style={{
         minHeight: "100%",
-        background: "linear-gradient(135deg, #050020 0%, #0a0040 100%)",
         display: "flex",
         flexDirection: "column",
         fontFamily: "'Segoe UI', Arial, sans-serif",
         color: "white",
+        position: "relative",
       }}
     >
+      <AnimatedBg theme="shop" style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none" }} />
       <style>{`
         @keyframes shake {
           0%,100% { transform: translateX(0) rotate(0deg); }

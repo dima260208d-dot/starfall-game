@@ -8,7 +8,7 @@ import { InputHandler } from "../game/InputHandler";
 import { updateDamageNumbers, renderDamageNumbers, clearDamageNumbers, spawnDamageNumber } from "../utils/damageNumbers";
 import { updateEffects, renderEffects, clearEffects } from "../utils/effects";
 import { angleTo, autoAimAngle, distance, randomInt } from "../utils/helpers";
-import { recordGameResult, getCurrentUsername } from "../utils/localStorageAPI";
+import { recordGameResult, getCurrentUsername, getCurrentProfile } from "../utils/localStorageAPI";
 import { resetMatchStats, getMatchStats } from "../utils/matchStats";
 import { renderPlayerHUD } from "./sharedHUD";
 import { getSafeCanvas, getGemCanvas } from "../utils/powerModelCache";
@@ -431,6 +431,16 @@ export class ClashHeist {
     ctx.fillText(`${Math.round(blueHp * 100)}%`, scoreX + 70, 44);
     ctx.fillText(`${Math.round(redHp * 100)}%`, scoreX + 210, 44);
     ctx.restore();
+  }
+
+  getParticipants(): import("../types/gameResult").GameParticipant[] {
+    const fakeTrophies = (name: string) => 300 + ((name.charCodeAt(0) * 37 + (name.charCodeAt(1) || 5) * 13) % 1700);
+    const profile = getCurrentProfile();
+    return [
+      { brawlerId: this.player.stats.id, displayName: this.player.displayName || "Игрок", team: "blue", isPlayer: true, level: this.player.level, trophies: profile?.trophies ?? 0 },
+      ...this.allies.map(b => ({ brawlerId: b.stats.id, displayName: b.displayName || "Бот", team: "blue", isPlayer: false, level: b.level, trophies: fakeTrophies(b.displayName || "B") })),
+      ...this.enemies.map(b => ({ brawlerId: b.stats.id, displayName: b.displayName || "Бот", team: "red", isPlayer: false, level: b.level, trophies: fakeTrophies(b.displayName || "B") })),
+    ];
   }
 
   destroy(): void { this.input.destroy(); clearDamageNumbers(); clearEffects(); }

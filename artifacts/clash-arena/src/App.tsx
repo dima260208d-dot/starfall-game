@@ -227,6 +227,9 @@ export default function App() {
           setForceMode(null);
           goWithLoad("menu", "ВОЗВРАТ В ЛОББИ");
         }}
+        onPlayAgain={() => {
+          goWithLoad("game", "ПЕРЕЗАПУСК...");
+        }}
       />
     );
   }

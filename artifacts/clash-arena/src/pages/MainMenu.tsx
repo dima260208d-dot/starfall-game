@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import AnimatedBg from "../components/AnimatedBg";
 import {
   getCurrentProfile, MAX_TROPHIES, clashPassXpForLevel, MAX_CLASHPASS_LEVEL,
   canClaimDailyLadder, getOrRollDailyQuests,
@@ -128,12 +129,13 @@ export default function MainMenu(props: MainMenuProps) {
       style={{
         height: "100%",
         width: "100%",
-        background: "radial-gradient(ellipse at center, #160048 0%, #060025 70%, #03001a 100%)",
+        background: "transparent",
         position: "relative",
         overflow: "hidden",
         fontFamily: "'Segoe UI', Arial, sans-serif",
       }}
     >
+      <AnimatedBg theme="mainmenu" style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none" }} />
       <style>{`
         @keyframes pulse { 0%,100% { transform: scale(1);} 50% { transform: scale(1.04);} }
         @keyframes shimmer {

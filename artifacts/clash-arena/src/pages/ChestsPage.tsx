@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import AnimatedBg from "../components/AnimatedBg";
 import { createPortal } from "react-dom";
 import {
   getCurrentProfile,
@@ -157,11 +158,12 @@ export default function ChestsPage({ onBack }: Props) {
   return (
     <div style={{
       minHeight: "100%",
-      background: "linear-gradient(135deg, #050020 0%, #0a0040 100%)",
       padding: "24px 18px 60px",
       color: "white",
       fontFamily: "'Segoe UI', Arial, sans-serif",
+      position: "relative",
     }}>
+      <AnimatedBg theme="chests" style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none" }} />
       <div style={{ display: "flex", alignItems: "center", marginBottom: 18, maxWidth: 1100, margin: "0 auto 18px" }}>
         <button
           onClick={onBack}
