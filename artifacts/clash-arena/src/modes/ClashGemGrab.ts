@@ -9,6 +9,7 @@ import { updateDamageNumbers, renderDamageNumbers, clearDamageNumbers } from "..
 import { updateEffects, renderEffects, clearEffects } from "../utils/effects";
 import { angleTo, autoAimAngle, distance, randomInt } from "../utils/helpers";
 import { recordGameResult, getCurrentUsername } from "../utils/localStorageAPI";
+import { resetMatchStats, getMatchStats } from "../utils/matchStats";
 import { renderPlayerHUD } from "./sharedHUD";
 
 interface Gem { x: number; y: number; carrier: Brawler | null; }
@@ -46,6 +47,7 @@ export class ClashGemGrab {
     const playerStats = getBrawlerById(playerBrawlerId) || BRAWLERS[0];
     this.player = new Brawler(playerStats, playerLevel, 600, 1750, "blue", true);
     this.player.setIdentity(getCurrentUsername() ?? "Игрок", false);
+    resetMatchStats();
 
     const allStats = pickBotStats(playerBrawlerId, 5);
     this.allies.push(new Bot(allStats[0], randomInt(1, 4), 600, 1300, "blue"));
@@ -195,11 +197,11 @@ export class ClashGemGrab {
     }
     if (this.blueCountdown < 0 && this.blueGems >= 10) {
       this.over = true; this.won = true;
-      if (!this.resultRecorded) { recordGameResult({ won: true, mode: "gemgrab", place: 1 }); this.resultRecorded = true; }
+      if (!this.resultRecorded) { const ms = getMatchStats(); recordGameResult({ won: true, mode: "gemgrab", place: 1, ...ms }); this.resultRecorded = true; }
     }
     if (this.redCountdown < 0 && this.redGems >= 10) {
       this.over = true; this.won = false;
-      if (!this.resultRecorded) { recordGameResult({ won: false, mode: "gemgrab", place: 2 }); this.resultRecorded = true; }
+      if (!this.resultRecorded) { const ms = getMatchStats(); recordGameResult({ won: false, mode: "gemgrab", place: 2, ...ms }); this.resultRecorded = true; }
     }
     updateDamageNumbers(dt);
     updateEffects(dt, [this.player, ...this.allies, ...this.enemies]);

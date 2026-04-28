@@ -10,6 +10,7 @@ import { updateEffects, renderEffects, clearEffects } from "../utils/effects";
 import { renderMap } from "../game/MapRenderer";
 import { angleTo, autoAimAngle, distance, randomInt } from "../utils/helpers";
 import { recordGameResult, getCurrentUsername } from "../utils/localStorageAPI";
+import { resetMatchStats, getMatchStats, addMatchStat } from "../utils/matchStats";
 import {
   TileGrid, TILE_CELL_SIZE, generateShowdownTileGrid,
   collidesWithTileGrid, projectileBlockedByTile,
@@ -153,6 +154,7 @@ export class ClashShowdown {
     const playerSpawn = allPositions[playerSlot];
     this.player = new Brawler(playerStats, playerLevel, playerSpawn.x, playerSpawn.y, "ffa-player", true);
     this.player.setIdentity(getCurrentUsername() ?? "Игрок", false);
+    resetMatchStats();
 
     const botPicks = pickBotStats(playerBrawlerId, totalSlots - 1);
     let botIdx = 0;
@@ -425,7 +427,8 @@ export class ClashShowdown {
       this.over = true;
       this.won = isTopFour;
       if (!this.resultRecorded) {
-        recordGameResult({ won: isTopFour, mode: "showdown", place, totalPlayers: 10 });
+        const ms = getMatchStats();
+        recordGameResult({ won: isTopFour, mode: "showdown", place, totalPlayers: 10, ...ms });
         this.resultRecorded = true;
       }
     }
@@ -435,7 +438,8 @@ export class ClashShowdown {
       this.over = true;
       this.won = true;
       if (!this.resultRecorded) {
-        recordGameResult({ won: true, mode: "showdown", place: 1, totalPlayers: 10 });
+        const ms = getMatchStats();
+        recordGameResult({ won: true, mode: "showdown", place: 1, totalPlayers: 10, ...ms });
         this.resultRecorded = true;
       }
     }
@@ -529,6 +533,7 @@ export class ClashShowdown {
             b.heal(300);
           } else if (drop.type === "powerup") {
             b.collectPowerCube();
+            if (b.isPlayer) addMatchStat("powerCubesCollected", 1);
           }
           claimed = true;
           break;

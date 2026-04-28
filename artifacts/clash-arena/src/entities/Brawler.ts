@@ -4,6 +4,7 @@ import { Projectile, createProjectile } from "./Projectile";
 import { spawnDamageNumber } from "../utils/damageNumbers";
 import { spawnEffect, makeZigzag } from "../utils/effects";
 import { clamp, distance, angleTo } from "../utils/helpers";
+import { addMatchStat } from "../utils/matchStats";
 import { drawCharacterSprite, drawBrawlerImage } from "../game/sprites";
 import { setRenderersBase, getCharRenderer, CHAR_3D_IDS, type CharAnim } from "../game/miyaTopDownRenderer";
 
@@ -304,12 +305,16 @@ export class Brawler {
       const gain = (attacker.stats.superChargePerHit / 100) * attacker.maxSuperCharge;
       attacker.superCharge = Math.min(attacker.maxSuperCharge, attacker.superCharge + gain);
       if (attacker.superCharge >= attacker.maxSuperCharge) attacker.superReady = true;
+      // Track damage for quest stats (player attacking enemy)
+      if (attacker.isPlayer) addMatchStat("damageDealt", dmg);
     }
     
     if (this.hp <= 0) {
       this.hp = 0;
       this.alive = false;
       this.deathAnim = 0;
+      // Track kill for quest stats (player killed an enemy)
+      if (attacker?.isPlayer && !this.isPlayer) addMatchStat("killCount", 1);
     }
     
     return dmg;
@@ -317,8 +322,10 @@ export class Brawler {
 
   heal(amount: number): void {
     if (!this.alive) return;
+    const actual = Math.min(this.maxHp - this.hp, amount);
     this.hp = Math.min(this.maxHp, this.hp + amount);
     spawnDamageNumber(this.x, this.y - this.radius - 10, Math.floor(amount), "heal");
+    if (this.isPlayer && actual > 0) addMatchStat("healingDone", actual);
   }
 
   addStatus(type: StatusEffect["type"], duration: number, value = 0): void {
@@ -619,6 +626,7 @@ export class Brawler {
 
   activateSuper(targets: Brawler[], map: GameMap, projectiles: Projectile[], targetX?: number, targetY?: number): void {
     if (!this.canUseSuper()) return;
+    if (this.isPlayer) addMatchStat("superUses", 1);
     this.useSuper();
 
     // Generic "super-cast" flash centered on the brawler — every super

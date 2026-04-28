@@ -9,6 +9,7 @@ import { updateDamageNumbers, renderDamageNumbers, clearDamageNumbers, spawnDama
 import { updateEffects, renderEffects, clearEffects } from "../utils/effects";
 import { angleTo, autoAimAngle, distance, randomInt } from "../utils/helpers";
 import { recordGameResult, getCurrentUsername } from "../utils/localStorageAPI";
+import { resetMatchStats, getMatchStats } from "../utils/matchStats";
 import { renderPlayerHUD } from "./sharedHUD";
 import { getSafeCanvas, getGemCanvas } from "../utils/powerModelCache";
 
@@ -58,6 +59,7 @@ export class ClashHeist {
     const playerStats = getBrawlerById(playerBrawlerId) || BRAWLERS[0];
     this.player = new Brawler(playerStats, playerLevel, 600, 1750, "blue", true);
     this.player.setIdentity(getCurrentUsername() ?? "Игрок", false);
+    resetMatchStats();
 
     const allStats = pickBotStats(playerBrawlerId, 5);
     this.allies.push(new Bot(allStats[0], randomInt(1, 4), 600, 1300, "blue"));
@@ -184,11 +186,11 @@ export class ClashHeist {
     }
     if (enemySafe.hp <= 0) {
       this.over = true; this.won = true;
-      if (!this.resultRecorded) { recordGameResult({ won: true, mode: "heist", place: 1 }); this.resultRecorded = true; }
+      if (!this.resultRecorded) { const ms = getMatchStats(); recordGameResult({ won: true, mode: "heist", place: 1, ...ms }); this.resultRecorded = true; }
     }
     if (playerSafe.hp <= 0) {
       this.over = true; this.won = false;
-      if (!this.resultRecorded) { recordGameResult({ won: false, mode: "heist", place: 2 }); this.resultRecorded = true; }
+      if (!this.resultRecorded) { const ms = getMatchStats(); recordGameResult({ won: false, mode: "heist", place: 2, ...ms }); this.resultRecorded = true; }
     }
     // Update crystal particles
     for (let i = this.crystalParticles.length - 1; i >= 0; i--) {

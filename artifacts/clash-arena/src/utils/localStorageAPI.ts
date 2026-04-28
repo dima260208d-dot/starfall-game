@@ -1,7 +1,12 @@
 import type { ChestRarity } from "./chests";
 import { CHESTS, CHEST_RARITY_ORDER, rollChestRewards, type ChestRoll } from "./chests";
 import { DAILY_LADDER, getRewardForDay } from "./dailyLadder";
-import { generateDailyQuests, isQuestsExpired, type DailyQuestsState, type QuestKind } from "./quests";
+import {
+  generateDailyQuests, isQuestsExpired,
+  buildFreshQuestPool, addDailyQuests, addWeeklyQuests,
+  isDailyExpired, isWeeklyExpired,
+  type DailyQuestsState, type QuestKind, type QuestPool, type QuestMeta,
+} from "./quests";
 import { BRAWLERS, BRAWLER_GEM_COST, CHEST_BRAWLER_DROP_CHANCE } from "../entities/BrawlerData";
 
 export interface BattleRecord {
@@ -48,8 +53,10 @@ export interface UserProfile {
   dailyLadderDay: number;            // current day (1..30, then loops back to 1)
   dailyLadderLastClaim: number;      // unix ms of last claim
 
-  // Daily quests (refresh every 24h)
+  // Daily quests (legacy, kept for backward compat)
   dailyQuests?: DailyQuestsState;
+  // New accumulated quest pool (daily + weekly, max 50)
+  questPool?: QuestPool;
 
   // Chest inventory: how many of each rarity the player owns (unopened)
   chestInventory: Record<ChestRarity, number>;
@@ -602,6 +609,12 @@ export function recordGameResult(opts: {
   totalPlayers?: number;
   enemies?: Array<{ id: string; name: string; isBot: boolean }>;
   durationSec?: number;
+  // Per-match stats for quest tracking
+  killCount?: number;
+  damageDealt?: number;
+  healingDone?: number;
+  superUses?: number;
+  powerCubesCollected?: number;
 }): { trophyDelta: number; xpGained: number; coinsEarned: number; place: number; clashPassUp: boolean } {
   const profile = getCurrentProfile();
   if (!profile) {
@@ -699,15 +712,51 @@ export function recordGameResult(opts: {
   });
 
   // Track quest progress
+  const brawlerId = profile.selectedBrawlerId;
+  const bMeta: QuestMeta = { brawlerId };
+  const modeMeta: QuestMeta = { mode };
+
   trackQuestProgress("play_games", 1);
-  if (won) trackQuestProgress("win_games", 1);
+  trackQuestProgress("play_brawler", 1, bMeta);
+
+  if (won) {
+    trackQuestProgress("win_games", 1);
+    trackQuestProgress("win_brawler", 1, bMeta);
+    // Mode-specific wins
+    if (mode === "gemgrab")   trackQuestProgress("win_mode_gemgrab",   1, modeMeta);
+    if (mode === "heist")     trackQuestProgress("win_mode_heist",     1, modeMeta);
+    if (mode === "bounty")    trackQuestProgress("win_mode_bounty",    1, modeMeta);
+    if (mode === "brawlball") trackQuestProgress("win_mode_brawlball", 1, modeMeta);
+    if (mode === "showdown")  trackQuestProgress("win_mode_showdown",  1, modeMeta);
+  }
   if (mode === "showdown") {
     trackQuestProgress("play_showdown", 1);
+    if (place <= 5) trackQuestProgress("survive_showdown", 1);
     if (place <= 3) trackQuestProgress("place_top3", 1);
+    if (place === 1) trackQuestProgress("place_top1_showdown", 1);
   } else if (mode !== "training") {
     trackQuestProgress("play_team", 1);
   }
   if (actualDelta > 0) trackQuestProgress("earn_trophies", actualDelta);
+
+  // Per-match stat quests
+  if (opts.killCount  && opts.killCount > 0) {
+    trackQuestProgress("kill_enemies", opts.killCount);
+    trackQuestProgress("kill_brawler", opts.killCount, bMeta);
+  }
+  if (opts.damageDealt && opts.damageDealt > 0) {
+    trackQuestProgress("deal_damage", opts.damageDealt);
+    trackQuestProgress("damage_brawler", opts.damageDealt, bMeta);
+  }
+  if (opts.healingDone && opts.healingDone > 0) {
+    trackQuestProgress("heal_hp", opts.healingDone);
+  }
+  if (opts.superUses && opts.superUses > 0) {
+    trackQuestProgress("use_super", opts.superUses);
+  }
+  if (opts.powerCubesCollected && opts.powerCubesCollected > 0) {
+    trackQuestProgress("collect_powercubes", opts.powerCubesCollected);
+  }
 
   return { trophyDelta: actualDelta, xpGained, coinsEarned, place, clashPassUp };
   void totalPlayers;
@@ -1035,57 +1084,75 @@ function applyReward(
 // DAILY QUESTS
 // =========================================================================
 
+// ── Quest pool helpers ────────────────────────────────────────────────────────
+function ensureQuestPool(profile: UserProfile): QuestPool {
+  let pool = profile.questPool;
+  if (!pool) {
+    pool = buildFreshQuestPool();
+    updateProfile({ questPool: pool });
+    return pool;
+  }
+  let changed = false;
+  if (isDailyExpired(pool))  { pool = addDailyQuests(pool);  changed = true; }
+  if (isWeeklyExpired(pool)) { pool = addWeeklyQuests(pool); changed = true; }
+  if (changed) updateProfile({ questPool: pool });
+  return pool;
+}
+
+// Kept for backward-compat (QuestsModal may still call this)
 export function getOrRollDailyQuests(): DailyQuestsState {
   const profile = getCurrentProfile();
   if (!profile) return generateDailyQuests();
-  if (isQuestsExpired(profile.dailyQuests)) {
-    const fresh = generateDailyQuests();
-    updateProfile({ dailyQuests: fresh });
-    return fresh;
-  }
-  return profile.dailyQuests!;
+  const pool = ensureQuestPool(profile);
+  // Return a legacy-shaped object of the first 5 non-weekly quests
+  const quests = pool.activeQuests.filter(q => !q.isWeekly).slice(0, 5);
+  return { generatedAt: pool.lastDailyRoll, quests };
 }
 
-export function trackQuestProgress(kind: QuestKind, amount: number): void {
+export function getQuestPool(): QuestPool | null {
+  const profile = getCurrentProfile();
+  if (!profile) return null;
+  return ensureQuestPool(profile);
+}
+
+export function trackQuestProgress(kind: QuestKind, amount: number, meta?: QuestMeta): void {
   const profile = getCurrentProfile();
   if (!profile || amount <= 0) return;
-  let dq = profile.dailyQuests;
-  if (isQuestsExpired(dq)) {
-    dq = generateDailyQuests();
-  }
-  if (!dq) return;
+  const pool = ensureQuestPool(profile);
   let changed = false;
-  const updated: DailyQuestsState = {
-    ...dq,
-    quests: dq.quests.map(q => {
-      if (q.kind !== kind || q.claimed) return q;
-      const newProgress = Math.min(q.target, q.progress + amount);
-      if (newProgress !== q.progress) changed = true;
-      return { ...q, progress: newProgress };
-    }),
-  };
-  if (changed || dq !== profile.dailyQuests) {
-    updateProfile({ dailyQuests: updated });
+  const updatedQuests = pool.activeQuests.map(q => {
+    if (q.kind !== kind || q.claimed) return q;
+    // Meta matching — if quest has brawlerId, caller must provide matching id
+    if (q.meta?.brawlerId && q.meta.brawlerId !== meta?.brawlerId) return q;
+    // mode meta check
+    if (q.meta?.mode && q.meta.mode !== meta?.mode) return q;
+    const newProgress = Math.min(q.target, q.progress + amount);
+    if (newProgress !== q.progress) { changed = true; return { ...q, progress: newProgress }; }
+    return q;
+  });
+  if (changed) {
+    updateProfile({ questPool: { ...pool, activeQuests: updatedQuests } });
   }
 }
 
 export function claimQuestReward(questId: string): { success: boolean; error?: string; rewardLabel?: string } {
   const profile = getCurrentProfile();
-  if (!profile || !profile.dailyQuests) return { success: false, error: "Нет квестов" };
-  const q = profile.dailyQuests.quests.find(x => x.id === questId);
+  if (!profile) return { success: false, error: "Нет квестов" };
+  const pool = ensureQuestPool(profile);
+  const q = pool.activeQuests.find(x => x.id === questId);
   if (!q) return { success: false, error: "Квест не найден" };
   if (q.claimed) return { success: false, error: "Уже получено" };
   if (q.progress < q.target) return { success: false, error: "Цель не достигнута" };
 
   applyReward(profile, q.reward.type, q.reward.amount, q.reward.chestRarity);
 
-  // Re-read profile after applyReward
   const updated = getCurrentProfile();
-  if (!updated || !updated.dailyQuests) return { success: false };
+  if (!updated) return { success: false };
+  const updPool = updated.questPool ?? pool;
   updateProfile({
-    dailyQuests: {
-      ...updated.dailyQuests,
-      quests: updated.dailyQuests.quests.map(x =>
+    questPool: {
+      ...updPool,
+      activeQuests: updPool.activeQuests.map(x =>
         x.id === questId ? { ...x, claimed: true } : x,
       ),
     },

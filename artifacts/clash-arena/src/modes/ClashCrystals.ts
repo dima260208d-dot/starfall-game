@@ -11,6 +11,7 @@ import { renderMap } from "../game/MapRenderer";
 import { angleTo, autoAimAngle, distance, randomInt } from "../utils/helpers";
 import { recordGameResult, getCurrentUsername } from "../utils/localStorageAPI";
 import { getGemCanvas } from "../utils/powerModelCache";
+import { resetMatchStats, getMatchStats } from "../utils/matchStats";
 
 export interface Crystal {
   x: number;
@@ -71,6 +72,7 @@ export class ClashCrystals {
     const playerStats = getBrawlerById(playerBrawlerId) || BRAWLERS[0];
     this.player = new Brawler(playerStats, playerLevel, 600, 1750, "blue", true);
     this.player.setIdentity(getCurrentUsername() ?? "Игрок", false);
+    resetMatchStats();
     
     const allStats = pickBotStats(playerBrawlerId, 5);
 
@@ -228,7 +230,8 @@ export class ClashCrystals {
       this.over = true;
       this.won = playerWins;
       if (!this.resultRecorded) {
-        recordGameResult({ won: playerWins, mode: "crystals", place: playerWins ? 1 : 2 });
+        const ms = getMatchStats();
+        recordGameResult({ won: playerWins, mode: "crystals", place: playerWins ? 1 : 2, ...ms });
         this.resultRecorded = true;
       }
     }

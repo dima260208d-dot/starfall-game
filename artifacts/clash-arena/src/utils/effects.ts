@@ -212,230 +212,388 @@ export function renderEffects(
   for (const e of effects) {
     const sx = e.x - camX;
     const sy = e.y - camY;
-    const lifeT = 1 - e.timer / e.maxTimer; // 0 → 1 over lifetime
+    const lifeT = 1 - e.timer / e.maxTimer;
     const fade = Math.max(0, Math.min(1, e.timer / e.maxTimer));
 
     ctx.save();
     switch (e.kind) {
+
+      // ── BURST ─────────────────────────────────────────────────────────────
       case "burst": {
-        const r = e.radius * (0.4 + lifeT * 1.2);
-        ctx.globalAlpha = fade;
-        ctx.strokeStyle = e.color;
-        ctx.lineWidth = 3;
-        ctx.shadowColor = e.color;
-        ctx.shadowBlur = 16;
-        ctx.beginPath();
-        ctx.arc(sx, sy, r, 0, Math.PI * 2);
-        ctx.stroke();
-        // Inner flash
-        ctx.globalAlpha = fade * 0.7;
-        const grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, r);
-        grad.addColorStop(0, "rgba(255,255,255,0.85)");
-        grad.addColorStop(1, "rgba(255,255,255,0)");
-        ctx.fillStyle = grad;
-        ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.fill();
-        break;
-      }
-
-      case "shockwave": {
-        const r = e.radius * (0.5 + lifeT * 1.6);
-        ctx.globalAlpha = fade * 0.85;
-        ctx.strokeStyle = e.color;
-        ctx.lineWidth = 6 * fade + 1;
-        ctx.shadowColor = e.color;
-        ctx.shadowBlur = 22;
+        const r = e.radius * (0.3 + lifeT * 1.4);
+        ctx.shadowColor = e.color; ctx.shadowBlur = 28;
+        // Outer expanding ring
+        ctx.globalAlpha = fade * 0.9;
+        ctx.strokeStyle = e.color; ctx.lineWidth = 4 * fade + 1;
         ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.stroke();
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = "rgba(255,255,255,0.9)";
-        ctx.beginPath(); ctx.arc(sx, sy, r * 0.85, 0, Math.PI * 2); ctx.stroke();
+        // Second thinner ring slightly behind
+        ctx.globalAlpha = fade * 0.5;
+        ctx.strokeStyle = "#FFFFFF"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(sx, sy, r * 0.72, 0, Math.PI * 2); ctx.stroke();
+        // Flash fill
+        ctx.globalAlpha = fade * (1 - lifeT) * 0.8;
+        const flashG = ctx.createRadialGradient(sx, sy, 0, sx, sy, r);
+        flashG.addColorStop(0, "rgba(255,255,255,0.95)");
+        flashG.addColorStop(0.4, e.color.replace(")", ",0.55)").replace("rgb(", "rgba("));
+        flashG.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = flashG;
+        ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.fill();
+        // Radial spark lines
+        ctx.globalAlpha = fade * 0.75;
+        ctx.strokeStyle = "#FFFFFF"; ctx.lineWidth = 1.5;
+        const nSpk = 8;
+        for (let i = 0; i < nSpk; i++) {
+          const a = (i / nSpk) * Math.PI * 2 + e.seed;
+          const r0 = r * 0.5;
+          const r1 = r * (0.9 + (i % 3) * 0.12);
+          ctx.beginPath();
+          ctx.moveTo(sx + Math.cos(a) * r0, sy + Math.sin(a) * r0);
+          ctx.lineTo(sx + Math.cos(a) * r1, sy + Math.sin(a) * r1);
+          ctx.stroke();
+        }
         break;
       }
 
+      // ── SHOCKWAVE ─────────────────────────────────────────────────────────
+      case "shockwave": {
+        const r = e.radius * (0.4 + lifeT * 1.8);
+        ctx.shadowColor = e.color; ctx.shadowBlur = 30;
+        // Ground ring
+        ctx.globalAlpha = fade * 0.9;
+        ctx.strokeStyle = e.color; ctx.lineWidth = 7 * fade + 1;
+        ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = "rgba(255,255,255,0.85)"; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.arc(sx, sy, r * 0.88, 0, Math.PI * 2); ctx.stroke();
+        // Secondary outer ripple
+        ctx.globalAlpha = fade * 0.45;
+        ctx.strokeStyle = e.color; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(sx, sy, r * 1.2, 0, Math.PI * 2); ctx.stroke();
+        // Fill haze
+        ctx.globalAlpha = fade * 0.15;
+        const hazeG = ctx.createRadialGradient(sx, sy, r * 0.3, sx, sy, r * 1.1);
+        hazeG.addColorStop(0, e.color.replace(")", ",0)").replace("rgb(", "rgba("));
+        hazeG.addColorStop(0.5, e.color.replace(")", ",0.35)").replace("rgb(", "rgba("));
+        hazeG.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = hazeG;
+        ctx.beginPath(); ctx.arc(sx, sy, r * 1.1, 0, Math.PI * 2); ctx.fill();
+        break;
+      }
+
+      // ── SPARK ─────────────────────────────────────────────────────────────
       case "spark": {
         const tx = (e.toX ?? e.x) - camX;
         const ty = (e.toY ?? e.y) - camY;
         const px = sx + (tx - sx) * lifeT;
         const py = sy + (ty - sy) * lifeT;
         ctx.globalAlpha = fade;
-        ctx.fillStyle = e.color;
-        ctx.shadowColor = e.color; ctx.shadowBlur = 8;
-        ctx.beginPath(); ctx.arc(px, py, e.radius * fade, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowColor = e.color; ctx.shadowBlur = 12;
+        // Glow corona
+        const cg = ctx.createRadialGradient(px, py, 0, px, py, e.radius * 2.5 * fade);
+        cg.addColorStop(0, e.color.replace(")", ",0.5)").replace("rgb(", "rgba("));
+        cg.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = cg;
+        ctx.beginPath(); ctx.arc(px, py, e.radius * 2.5 * fade, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#FFFFFF";
+        ctx.beginPath(); ctx.arc(px, py, e.radius * fade * 0.6, 0, Math.PI * 2); ctx.fill();
         break;
       }
 
+      // ── TRAIL ─────────────────────────────────────────────────────────────
       case "trail": {
         const tx = (e.toX ?? e.x) - camX;
         const ty = (e.toY ?? e.y) - camY;
         ctx.globalAlpha = fade;
-        ctx.strokeStyle = e.color;
-        ctx.lineWidth = e.radius;
         ctx.lineCap = "round";
-        ctx.shadowColor = e.color;
-        ctx.shadowBlur = 14;
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(tx, ty);
-        ctx.stroke();
+        ctx.shadowColor = e.color; ctx.shadowBlur = 18;
+        // Outer soft glow
+        ctx.strokeStyle = e.color; ctx.lineWidth = e.radius * 2.2;
+        ctx.globalAlpha = fade * 0.28;
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(tx, ty); ctx.stroke();
+        // Core
+        ctx.globalAlpha = fade;
+        ctx.lineWidth = e.radius;
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(tx, ty); ctx.stroke();
         if (e.secondary) {
           ctx.strokeStyle = e.secondary;
-          ctx.lineWidth = Math.max(1, e.radius * 0.4);
+          ctx.lineWidth = Math.max(1, e.radius * 0.38);
           ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(tx, ty); ctx.stroke();
         }
+        // Bright centre line
+        ctx.strokeStyle = "rgba(255,255,255,0.75)";
+        ctx.lineWidth = Math.max(0.8, e.radius * 0.18);
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(tx, ty); ctx.stroke();
         break;
       }
 
+      // ── TELEPORT FLASH ────────────────────────────────────────────────────
       case "teleportFlash": {
-        const r = e.radius * (0.3 + lifeT);
+        const r = e.radius * (0.2 + lifeT * 1.2);
+        ctx.shadowColor = e.color; ctx.shadowBlur = 36;
+        // Dark void background
+        ctx.globalAlpha = fade * 0.55;
+        const voidG = ctx.createRadialGradient(sx, sy, 0, sx, sy, r * 1.2);
+        voidG.addColorStop(0, "rgba(20,0,40,0.9)");
+        voidG.addColorStop(0.6, "rgba(100,0,180,0.4)");
+        voidG.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = voidG;
+        ctx.beginPath(); ctx.arc(sx, sy, r * 1.2, 0, Math.PI * 2); ctx.fill();
+        // Rotating spiral arms
         ctx.globalAlpha = fade;
-        // Expanding purple swirl made of overlapping arcs.
-        ctx.shadowColor = e.color; ctx.shadowBlur = 24;
-        for (let i = 0; i < 6; i++) {
-          const a = (i / 6) * Math.PI * 2 + frame * 0.1 + e.seed * 0.3;
-          ctx.strokeStyle = i % 2 === 0 ? e.color : "rgba(255,255,255,0.85)";
-          ctx.lineWidth = 3;
+        for (let i = 0; i < 8; i++) {
+          const a = (i / 8) * Math.PI * 2 + frame * 0.15 + e.seed * 0.4;
+          const r0 = r * 0.18;
+          const r1 = r * (0.75 + (i % 2) * 0.2);
+          ctx.strokeStyle = i % 3 === 0 ? "#FFFFFF" : (i % 3 === 1 ? e.color : "rgba(180,80,255,0.9)");
+          ctx.lineWidth = i % 2 === 0 ? 2.5 : 1.5;
           ctx.beginPath();
-          ctx.arc(sx, sy, r, a, a + Math.PI * 0.45);
+          ctx.arc(sx, sy, r * 0.8, a, a + Math.PI * (0.28 + (i % 3) * 0.08));
           ctx.stroke();
-        }
-        // Bright core
-        const grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, r * 0.6);
-        grad.addColorStop(0, "rgba(255,255,255,0.9)");
-        grad.addColorStop(1, "rgba(206,147,216,0)");
-        ctx.fillStyle = grad;
-        ctx.beginPath(); ctx.arc(sx, sy, r * 0.6, 0, Math.PI * 2); ctx.fill();
-        break;
-      }
-
-      case "snowZone": {
-        ctx.globalAlpha = fade * 0.55;
-        // Outer ring
-        const grad = ctx.createRadialGradient(sx, sy, e.radius * 0.4, sx, sy, e.radius);
-        grad.addColorStop(0, "rgba(225,245,254,0.55)");
-        grad.addColorStop(1, "rgba(2,136,209,0.05)");
-        ctx.fillStyle = grad;
-        ctx.beginPath(); ctx.arc(sx, sy, e.radius, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = "rgba(178,235,242,0.85)";
-        ctx.lineWidth = 2;
-        ctx.setLineDash([6, 4]);
-        ctx.beginPath(); ctx.arc(sx, sy, e.radius, 0, Math.PI * 2); ctx.stroke();
-        ctx.setLineDash([]);
-        // Snowflakes
-        ctx.globalAlpha = fade;
-        const count = e.particleCount ?? 14;
-        for (let i = 0; i < count; i++) {
-          const a = (i / count) * Math.PI * 2 + frame * 0.02 + e.seed;
-          const rr = e.radius * (0.2 + ((i * 37 + e.seed) % 100) / 130);
-          const px = sx + Math.cos(a + lifeT * 2) * rr;
-          const py = sy + Math.sin(a + lifeT * 2) * rr;
-          ctx.fillStyle = "#FFFFFF";
-          ctx.shadowColor = "#B3E5FC"; ctx.shadowBlur = 10;
-          ctx.beginPath(); ctx.arc(px, py, 2.4, 0, Math.PI * 2); ctx.fill();
-        }
-        break;
-      }
-
-      case "petalZone": {
-        ctx.globalAlpha = fade * 0.55;
-        const grad = ctx.createRadialGradient(sx, sy, e.radius * 0.3, sx, sy, e.radius);
-        grad.addColorStop(0, "rgba(255,138,171,0.55)");
-        grad.addColorStop(1, "rgba(233,30,140,0.06)");
-        ctx.fillStyle = grad;
-        ctx.beginPath(); ctx.arc(sx, sy, e.radius, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = "rgba(255,128,171,0.9)";
-        ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(sx, sy, e.radius, 0, Math.PI * 2); ctx.stroke();
-        // Petals
-        ctx.globalAlpha = fade;
-        const count = e.particleCount ?? 16;
-        for (let i = 0; i < count; i++) {
-          const a = (i / count) * Math.PI * 2 + frame * 0.012 + e.seed;
-          const rr = e.radius * (0.25 + ((i * 53 + e.seed) % 100) / 140);
-          const px = sx + Math.cos(a) * rr;
-          const py = sy + Math.sin(a) * rr + Math.sin(frame * 0.05 + i) * 4;
-          ctx.save();
-          ctx.translate(px, py);
-          ctx.rotate(a * 2 + frame * 0.05);
-          ctx.fillStyle = i % 2 === 0 ? "#FF80AB" : "#FCE4EC";
+          // Spoke
+          ctx.globalAlpha = fade * 0.6;
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = e.color;
           ctx.beginPath();
-          ctx.ellipse(0, 0, 5, 2.5, 0, 0, Math.PI * 2);
-          ctx.fill();
+          ctx.moveTo(sx + Math.cos(a) * r0, sy + Math.sin(a) * r0);
+          ctx.lineTo(sx + Math.cos(a) * r1, sy + Math.sin(a) * r1);
+          ctx.stroke();
+          ctx.globalAlpha = fade;
+        }
+        // Outer ring pulse
+        ctx.strokeStyle = "#FFFFFF"; ctx.lineWidth = 2;
+        ctx.globalAlpha = fade * (0.5 + Math.sin(frame * 0.4) * 0.3);
+        ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.stroke();
+        // Bright core
+        ctx.globalAlpha = fade * (1 - lifeT * 0.7);
+        const coreG = ctx.createRadialGradient(sx, sy, 0, sx, sy, r * 0.45);
+        coreG.addColorStop(0, "rgba(255,255,255,1)");
+        coreG.addColorStop(0.35, "rgba(220,130,255,0.85)");
+        coreG.addColorStop(1, "rgba(100,0,200,0)");
+        ctx.fillStyle = coreG;
+        ctx.beginPath(); ctx.arc(sx, sy, r * 0.45, 0, Math.PI * 2); ctx.fill();
+        break;
+      }
+
+      // ── SNOW ZONE ─────────────────────────────────────────────────────────
+      case "snowZone": {
+        // Ground fill
+        ctx.globalAlpha = fade * 0.45;
+        const snowFloor = ctx.createRadialGradient(sx, sy, e.radius * 0.25, sx, sy, e.radius);
+        snowFloor.addColorStop(0, "rgba(225,245,254,0.65)");
+        snowFloor.addColorStop(0.7, "rgba(79,195,247,0.25)");
+        snowFloor.addColorStop(1, "rgba(2,136,209,0)");
+        ctx.fillStyle = snowFloor;
+        ctx.beginPath(); ctx.arc(sx, sy, e.radius, 0, Math.PI * 2); ctx.fill();
+        // Concentric ice rings
+        ctx.shadowColor = "#80D8FF"; ctx.shadowBlur = 14;
+        for (let ring = 0; ring < 3; ring++) {
+          const rr = e.radius * (0.45 + ring * 0.27);
+          ctx.globalAlpha = fade * (0.7 - ring * 0.15);
+          ctx.strokeStyle = ring === 0 ? "#B3E5FC" : ring === 1 ? "rgba(129,212,250,0.75)" : "rgba(79,195,247,0.5)";
+          ctx.lineWidth = 2.5 - ring * 0.5;
+          ctx.setLineDash(ring === 1 ? [8, 5] : []);
+          ctx.beginPath(); ctx.arc(sx, sy, rr, 0, Math.PI * 2); ctx.stroke();
+          ctx.setLineDash([]);
+        }
+        // Snowflakes — now with 6-arm star shape
+        ctx.globalAlpha = fade;
+        const count = e.particleCount ?? 18;
+        for (let i = 0; i < count; i++) {
+          const drift = frame * 0.018 + e.seed;
+          const orbit = (i / count) * Math.PI * 2;
+          const spin = orbit + drift * (1 + (i % 3) * 0.3);
+          const radOff = e.radius * (0.12 + ((i * 41 + e.seed) % 100) / 130);
+          const px = sx + Math.cos(spin) * radOff;
+          const py = sy + Math.sin(spin) * radOff;
+          const fs = 1.8 + (i % 3) * 0.7;
+          ctx.fillStyle = "#FFFFFF"; ctx.strokeStyle = "#B3E5FC";
+          ctx.shadowColor = "#B3E5FC"; ctx.shadowBlur = 8;
+          // 6-arm star
+          ctx.save(); ctx.translate(px, py);
+          ctx.rotate(frame * 0.03 + i);
+          ctx.lineWidth = 1;
+          for (let arm = 0; arm < 6; arm++) {
+            const aa = (arm / 6) * Math.PI * 2;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(Math.cos(aa) * fs * 2.2, Math.sin(aa) * fs * 2.2);
+            ctx.stroke();
+          }
+          ctx.beginPath(); ctx.arc(0, 0, fs * 0.65, 0, Math.PI * 2); ctx.fill();
           ctx.restore();
         }
         break;
       }
 
-      case "poisonZone": {
-        ctx.globalAlpha = fade * 0.6;
-        const grad = ctx.createRadialGradient(sx, sy, e.radius * 0.2, sx, sy, e.radius);
-        grad.addColorStop(0, "rgba(105,240,174,0.6)");
-        grad.addColorStop(1, "rgba(46,125,50,0.05)");
-        ctx.fillStyle = grad;
+      // ── PETAL ZONE ────────────────────────────────────────────────────────
+      case "petalZone": {
+        // Soft blossom floor
+        ctx.globalAlpha = fade * 0.5;
+        const petalFloor = ctx.createRadialGradient(sx, sy, e.radius * 0.2, sx, sy, e.radius);
+        petalFloor.addColorStop(0, "rgba(255,138,171,0.65)");
+        petalFloor.addColorStop(0.6, "rgba(233,30,140,0.25)");
+        petalFloor.addColorStop(1, "rgba(194,24,91,0)");
+        ctx.fillStyle = petalFloor;
         ctx.beginPath(); ctx.arc(sx, sy, e.radius, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = "rgba(139,195,74,0.95)";
-        ctx.lineWidth = 2;
+        // Pulsing boundary ring
+        ctx.shadowColor = "#FF80AB"; ctx.shadowBlur = 18;
+        ctx.globalAlpha = fade * (0.6 + Math.sin(frame * 0.18) * 0.2);
+        ctx.strokeStyle = "#FF80AB"; ctx.lineWidth = 2.5;
         ctx.beginPath(); ctx.arc(sx, sy, e.radius, 0, Math.PI * 2); ctx.stroke();
-        // Bubbles
+        ctx.globalAlpha = fade * 0.4;
+        ctx.strokeStyle = "rgba(255,255,255,0.7)"; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(sx, sy, e.radius * 0.82, 0, Math.PI * 2); ctx.stroke();
+        // Petals — teardrop shape
         ctx.globalAlpha = fade;
-        const count = e.particleCount ?? 12;
+        const count = e.particleCount ?? 20;
+        for (let i = 0; i < count; i++) {
+          const drift = frame * 0.011;
+          const orbit = (i / count) * Math.PI * 2 + drift + e.seed;
+          const radOff = e.radius * (0.2 + ((i * 53 + e.seed) % 100) / 145);
+          const bob = Math.sin(frame * 0.055 + i * 1.3) * 5;
+          const px = sx + Math.cos(orbit) * radOff;
+          const py = sy + Math.sin(orbit) * radOff + bob;
+          const petalAngle = orbit * 1.6 + frame * 0.04;
+          ctx.save(); ctx.translate(px, py); ctx.rotate(petalAngle);
+          const pc = [
+            "rgba(255,128,171,0.95)", "rgba(252,228,236,0.9)",
+            "rgba(255,64,129,0.85)", "rgba(255,182,193,0.95)",
+          ][i % 4];
+          ctx.fillStyle = pc;
+          ctx.shadowColor = "#FF80AB"; ctx.shadowBlur = 6;
+          const pw = 5 + (i % 3), ph = 3 + (i % 2);
+          ctx.beginPath(); ctx.ellipse(0, 0, pw, ph, 0, 0, Math.PI * 2); ctx.fill();
+          // Vein
+          ctx.strokeStyle = "rgba(255,255,255,0.4)"; ctx.lineWidth = 0.7;
+          ctx.beginPath(); ctx.moveTo(-pw * 0.7, 0); ctx.lineTo(pw * 0.7, 0); ctx.stroke();
+          ctx.restore();
+        }
+        break;
+      }
+
+      // ── POISON ZONE ───────────────────────────────────────────────────────
+      case "poisonZone": {
+        // Miasma floor
+        ctx.globalAlpha = fade * 0.55;
+        const fogG = ctx.createRadialGradient(sx, sy, e.radius * 0.1, sx, sy, e.radius);
+        fogG.addColorStop(0, "rgba(105,240,174,0.65)");
+        fogG.addColorStop(0.55, "rgba(76,175,80,0.35)");
+        fogG.addColorStop(1, "rgba(27,94,32,0)");
+        ctx.fillStyle = fogG;
+        ctx.beginPath(); ctx.arc(sx, sy, e.radius, 0, Math.PI * 2); ctx.fill();
+        // Swirling fog layers (3 ellipses rotating)
+        for (let layer = 0; layer < 3; layer++) {
+          const la = frame * (0.012 + layer * 0.005) + e.seed + layer * 1.2;
+          const lw = e.radius * (0.6 + layer * 0.22);
+          const lh = e.radius * (0.3 + layer * 0.11);
+          ctx.globalAlpha = fade * (0.22 - layer * 0.05);
+          ctx.save(); ctx.translate(sx, sy); ctx.rotate(la);
+          ctx.fillStyle = `rgba(100,240,150,0.4)`;
+          ctx.beginPath(); ctx.ellipse(0, 0, lw, lh, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.restore();
+        }
+        // Boundary ring
+        ctx.globalAlpha = fade * 0.9;
+        ctx.shadowColor = "#69F0AE"; ctx.shadowBlur = 16;
+        ctx.strokeStyle = "rgba(139,195,74,0.95)"; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.arc(sx, sy, e.radius, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = "rgba(200,255,200,0.5)"; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(sx, sy, e.radius * 0.8, 0, Math.PI * 2); ctx.stroke();
+        // Rising bubbles
+        ctx.globalAlpha = fade;
+        const count = e.particleCount ?? 16;
         for (let i = 0; i < count; i++) {
           const a = (i / count) * Math.PI * 2 + e.seed;
-          const rr = e.radius * (0.15 + ((i * 73 + e.seed) % 100) / 120);
-          const wobble = Math.sin(frame * 0.06 + i + e.seed) * 4;
-          const px = sx + Math.cos(a) * rr;
-          const py = sy + Math.sin(a) * rr + wobble;
-          ctx.fillStyle = "rgba(105,240,174,0.85)";
-          ctx.shadowColor = "#69F0AE"; ctx.shadowBlur = 6;
-          ctx.beginPath(); ctx.arc(px, py, 3 + (i % 3), 0, Math.PI * 2); ctx.fill();
+          const baseRad = e.radius * (0.12 + ((i * 73 + e.seed) % 100) / 115);
+          const rise = (frame * 0.04 + i * 0.7) % 1;
+          const bx = sx + Math.cos(a) * baseRad;
+          const by = sy + Math.sin(a) * baseRad - rise * e.radius * 0.9;
+          const bs = 2.5 + (i % 4);
+          ctx.globalAlpha = fade * (1 - rise) * 0.85;
+          // Bubble body
+          const bubG = ctx.createRadialGradient(bx - bs * 0.3, by - bs * 0.3, 0, bx, by, bs);
+          bubG.addColorStop(0, "rgba(255,255,255,0.8)");
+          bubG.addColorStop(0.5, "rgba(105,240,174,0.65)");
+          bubG.addColorStop(1, "rgba(46,125,50,0.2)");
+          ctx.fillStyle = bubG;
+          ctx.beginPath(); ctx.arc(bx, by, bs, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = "rgba(200,255,200,0.6)"; ctx.lineWidth = 0.8;
+          ctx.beginPath(); ctx.arc(bx, by, bs, 0, Math.PI * 2); ctx.stroke();
         }
         break;
       }
 
+      // ── LIGHT CAGE ────────────────────────────────────────────────────────
       case "lightCage": {
-        ctx.globalAlpha = fade * 0.55;
-        // Floor ring
-        ctx.strokeStyle = "rgba(255,235,59,0.9)";
-        ctx.lineWidth = 3;
-        ctx.shadowColor = "#FFEB3B"; ctx.shadowBlur = 18;
+        ctx.shadowColor = "#FFEB3B"; ctx.shadowBlur = 24;
+        // Ground hazard fill
+        ctx.globalAlpha = fade * 0.3;
+        const cageG = ctx.createRadialGradient(sx, sy, 0, sx, sy, e.radius);
+        cageG.addColorStop(0, "rgba(255,235,59,0.4)");
+        cageG.addColorStop(0.6, "rgba(255,193,7,0.15)");
+        cageG.addColorStop(1, "rgba(255,111,0,0)");
+        ctx.fillStyle = cageG;
+        ctx.beginPath(); ctx.arc(sx, sy, e.radius, 0, Math.PI * 2); ctx.fill();
+        // Outer ring
+        ctx.globalAlpha = fade * 0.9;
+        ctx.strokeStyle = "#FFEB3B"; ctx.lineWidth = 3.5;
         ctx.beginPath(); ctx.arc(sx, sy, e.radius, 0, Math.PI * 2); ctx.stroke();
-        // Rotating arcs
+        ctx.strokeStyle = "rgba(255,255,255,0.5)"; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(sx, sy, e.radius * 0.9, 0, Math.PI * 2); ctx.stroke();
+        // Rotating plasma arcs (6 arcs, alternating colour)
         ctx.globalAlpha = fade;
-        for (let i = 0; i < 4; i++) {
-          const a = (i / 4) * Math.PI * 2 + frame * 0.08 + e.seed;
-          ctx.strokeStyle = i % 2 === 0 ? "#FFEB3B" : "#40C4FF";
-          ctx.lineWidth = 2.5;
+        for (let i = 0; i < 6; i++) {
+          const a = (i / 6) * Math.PI * 2 + frame * (0.1 + (i % 2) * 0.04) + e.seed;
+          ctx.strokeStyle = i % 3 === 0 ? "#FFEB3B" : i % 3 === 1 ? "#40C4FF" : "#FFFFFF";
+          ctx.lineWidth = 2.5 - (i % 2) * 0.5;
           ctx.beginPath();
-          ctx.arc(sx, sy, e.radius * 0.95, a, a + Math.PI * 0.35);
+          ctx.arc(sx, sy, e.radius * (0.7 + (i % 3) * 0.1), a, a + Math.PI * (0.3 + (i % 2) * 0.1));
           ctx.stroke();
         }
-        // Vertical zigzag bars at the perimeter (every 0.4s a fresh set).
-        const phase = Math.floor(frame * 0.15) + e.seed;
+        // Bolt spines from centre to ring
+        const phase = Math.floor(frame * 0.12 + e.seed) % 6;
         for (let i = 0; i < 4; i++) {
-          const a = ((i / 4) + (phase * 0.13)) * Math.PI * 2;
+          const a = ((i / 4) + phase * 0.07) * Math.PI * 2;
           const ex = sx + Math.cos(a) * e.radius;
           const ey = sy + Math.sin(a) * e.radius;
-          ctx.strokeStyle = "rgba(255,255,255,0.8)";
-          ctx.lineWidth = 1.5;
+          // Jagged 3-point bolt
+          const mid1x = sx + Math.cos(a) * e.radius * 0.35 + (Math.random() - 0.5) * 12;
+          const mid1y = sy + Math.sin(a) * e.radius * 0.35 + (Math.random() - 0.5) * 12;
+          const mid2x = sx + Math.cos(a) * e.radius * 0.68 + (Math.random() - 0.5) * 10;
+          const mid2y = sy + Math.sin(a) * e.radius * 0.68 + (Math.random() - 0.5) * 10;
+          ctx.strokeStyle = "rgba(255,255,255,0.85)"; ctx.lineWidth = 1.5;
+          ctx.globalAlpha = fade * (0.5 + Math.sin(frame * 0.3 + i) * 0.3);
           ctx.beginPath();
-          ctx.moveTo(sx + Math.cos(a) * (e.radius * 0.5), sy + Math.sin(a) * (e.radius * 0.5));
-          ctx.lineTo(ex + (Math.random() - 0.5) * 6, ey + (Math.random() - 0.5) * 6);
+          ctx.moveTo(sx, sy);
+          ctx.lineTo(mid1x, mid1y);
+          ctx.lineTo(mid2x, mid2y);
+          ctx.lineTo(ex, ey);
           ctx.stroke();
         }
         break;
       }
 
+      // ── LIGHTNING BOLT ────────────────────────────────────────────────────
       case "lightningBolt": {
         ctx.globalAlpha = fade;
-        ctx.shadowColor = e.color; ctx.shadowBlur = 14;
-        ctx.strokeStyle = "rgba(255,255,255,0.95)";
-        ctx.lineWidth = 4;
+        ctx.shadowColor = e.color; ctx.shadowBlur = 20;
         const pts = e.zigzag ?? [];
         if (pts.length > 1) {
+          // Outer glow pass
+          ctx.strokeStyle = e.color; ctx.lineWidth = 7; ctx.globalAlpha = fade * 0.35;
+          ctx.lineCap = "round"; ctx.lineJoin = "round";
           ctx.beginPath();
           ctx.moveTo(pts[0].x - camX, pts[0].y - camY);
           for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x - camX, pts[i].y - camY);
           ctx.stroke();
-          ctx.strokeStyle = e.color;
-          ctx.lineWidth = 1.5;
+          // White core
+          ctx.globalAlpha = fade;
+          ctx.strokeStyle = "rgba(255,255,255,0.98)"; ctx.lineWidth = 3.5;
+          ctx.beginPath();
+          ctx.moveTo(pts[0].x - camX, pts[0].y - camY);
+          for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x - camX, pts[i].y - camY);
+          ctx.stroke();
+          // Colour fill
+          ctx.strokeStyle = e.color; ctx.lineWidth = 1.8;
           ctx.beginPath();
           ctx.moveTo(pts[0].x - camX, pts[0].y - camY);
           for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x - camX, pts[i].y - camY);
@@ -444,135 +602,223 @@ export function renderEffects(
         break;
       }
 
+      // ── METEOR ────────────────────────────────────────────────────────────
       case "meteor": {
         if (!e.exploded) {
-          // Warning marker on the ground.
-          ctx.globalAlpha = 0.55 + Math.sin(frame * 0.3) * 0.25;
-          ctx.strokeStyle = e.color;
-          ctx.lineWidth = 3;
-          ctx.setLineDash([10, 6]);
+          const impactR = e.tickRange ?? 60;
+          // Warning ground ring — animated dashes
+          ctx.globalAlpha = 0.45 + Math.sin(frame * 0.35) * 0.35;
+          ctx.strokeStyle = e.color; ctx.lineWidth = 3;
+          ctx.shadowColor = e.color; ctx.shadowBlur = 18;
+          ctx.setLineDash([12, 7]); ctx.lineDashOffset = -frame * 1.5;
+          ctx.beginPath(); ctx.arc(sx, sy, impactR, 0, Math.PI * 2); ctx.stroke();
+          ctx.setLineDash([]); ctx.lineDashOffset = 0;
+          // Inner danger fill
+          ctx.globalAlpha = (0.12 + Math.sin(frame * 0.35) * 0.08);
+          const warnG = ctx.createRadialGradient(sx, sy, 0, sx, sy, impactR);
+          warnG.addColorStop(0, "rgba(255,100,0,0.5)");
+          warnG.addColorStop(1, "rgba(255,0,0,0)");
+          ctx.fillStyle = warnG;
+          ctx.beginPath(); ctx.arc(sx, sy, impactR, 0, Math.PI * 2); ctx.fill();
+          // Crosshair lines
+          ctx.globalAlpha = 0.45 + Math.sin(frame * 0.35) * 0.25;
+          ctx.strokeStyle = e.color; ctx.lineWidth = 1.5;
           ctx.beginPath();
-          ctx.arc(sx, sy, e.tickRange ?? 60, 0, Math.PI * 2);
+          ctx.moveTo(sx - impactR * 1.2, sy); ctx.lineTo(sx + impactR * 1.2, sy);
+          ctx.moveTo(sx, sy - impactR * 1.2); ctx.lineTo(sx, sy + impactR * 1.2);
           ctx.stroke();
-          ctx.setLineDash([]);
-          // Falling meteor — slide it from above into the marker.
-          const fall = Math.max(0, e.delay ?? 0) / 0.6;
-          const fh = e.fallHeight ?? 320;
+          // Falling rock
+          const fall = Math.max(0, e.delay ?? 0) / 0.65;
+          const fh = e.fallHeight ?? 340;
           const my = sy - fall * fh;
           ctx.globalAlpha = 1;
-          // Tail
-          const tailGrad = ctx.createLinearGradient(sx, my, sx, sy);
-          tailGrad.addColorStop(0, "rgba(255,210,0,0)");
-          tailGrad.addColorStop(1, e.color);
-          ctx.strokeStyle = tailGrad;
-          ctx.lineWidth = 8;
-          ctx.beginPath(); ctx.moveTo(sx, my); ctx.lineTo(sx, sy); ctx.stroke();
-          // Rock
-          ctx.fillStyle = e.color;
-          ctx.shadowColor = e.color; ctx.shadowBlur = 22;
-          ctx.beginPath(); ctx.arc(sx, my, 14, 0, Math.PI * 2); ctx.fill();
-          ctx.fillStyle = "#FFD740";
-          ctx.beginPath(); ctx.arc(sx - 4, my - 4, 5, 0, Math.PI * 2); ctx.fill();
-        } else {
-          // After-impact crater fade.
-          ctx.globalAlpha = fade * 0.7;
-          const grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, e.tickRange ?? 60);
-          grad.addColorStop(0, e.color);
-          grad.addColorStop(1, "rgba(0,0,0,0)");
-          ctx.fillStyle = grad;
-          ctx.beginPath(); ctx.arc(sx, sy, e.tickRange ?? 60, 0, Math.PI * 2); ctx.fill();
-        }
-        break;
-      }
-
-      case "berserkAura": {
-        ctx.globalAlpha = 0.85;
-        // Spinning fire ring around the brawler's feet.
-        for (let i = 0; i < 8; i++) {
-          const a = (i / 8) * Math.PI * 2 + frame * 0.18;
-          const rr = e.radius + Math.sin(frame * 0.25 + i) * 5;
-          const px = sx + Math.cos(a) * rr;
-          const py = sy + 8 + Math.sin(a) * rr * 0.4; // squashed circle (perspective)
-          ctx.fillStyle = i % 2 === 0 ? "#FF3D00" : "#FFAB40";
-          ctx.shadowColor = "#FF6F00"; ctx.shadowBlur = 14;
+          ctx.shadowColor = "#FF6D00"; ctx.shadowBlur = 35;
+          // Thick fire tail — multiple gradient segments
+          for (let seg = 8; seg >= 1; seg--) {
+            const t = seg / 8;
+            const tailY = my + (sy - my) * (1 - t * 0.8);
+            const tailAlpha = (1 - t) * 0.65;
+            const tailW = 6 + (1 - t) * 10;
+            ctx.globalAlpha = tailAlpha;
+            ctx.strokeStyle = t < 0.4 ? "#FFD740" : t < 0.7 ? "#FF6D00" : "rgba(180,0,0,0.5)";
+            ctx.lineWidth = tailW; ctx.lineCap = "round";
+            const nextY = my + (sy - my) * (1 - (seg - 1) / 8 * 0.8);
+            ctx.beginPath(); ctx.moveTo(sx, tailY); ctx.lineTo(sx, nextY); ctx.stroke();
+          }
+          ctx.globalAlpha = 1;
+          // Rock itself — layered circles
+          const rockG = ctx.createRadialGradient(sx - 4, my - 5, 0, sx, my, 17);
+          rockG.addColorStop(0, "#FFF9C4");
+          rockG.addColorStop(0.25, "#FFCA28");
+          rockG.addColorStop(0.55, e.color);
+          rockG.addColorStop(1, "#7B1FA2");
+          ctx.fillStyle = rockG;
+          ctx.beginPath(); ctx.arc(sx, my, 17, 0, Math.PI * 2); ctx.fill();
+          // Crack lines on rock
+          ctx.strokeStyle = "rgba(255,255,255,0.5)"; ctx.lineWidth = 1;
           ctx.beginPath();
-          ctx.moveTo(px, py - 8);
-          ctx.lineTo(px - 5, py + 4);
-          ctx.lineTo(px + 5, py + 4);
-          ctx.closePath();
-          ctx.fill();
-        }
-        // Ground ring
-        ctx.strokeStyle = "rgba(255,87,34,0.85)";
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.ellipse(sx, sy + 18, e.radius * 1.05, e.radius * 0.45, 0, 0, Math.PI * 2);
-        ctx.stroke();
-        break;
-      }
-
-      case "shieldDome": {
-        ctx.globalAlpha = 0.85;
-        // Translucent dome
-        const grad = ctx.createRadialGradient(sx, sy - 6, 4, sx, sy - 6, e.radius);
-        grad.addColorStop(0, "rgba(255,215,0,0.05)");
-        grad.addColorStop(0.7, "rgba(255,215,0,0.18)");
-        grad.addColorStop(1, "rgba(255,215,0,0.45)");
-        ctx.fillStyle = grad;
-        ctx.beginPath(); ctx.arc(sx, sy - 6, e.radius, 0, Math.PI * 2); ctx.fill();
-        // Hex pattern flicker
-        ctx.strokeStyle = "rgba(255,215,0,0.85)";
-        ctx.lineWidth = 2;
-        ctx.shadowColor = "#FFD700"; ctx.shadowBlur = 16;
-        for (let i = 0; i < 3; i++) {
-          const a = frame * 0.06 + (i / 3) * Math.PI * 2;
-          ctx.beginPath();
-          ctx.arc(sx, sy - 6, e.radius - i * 4, a, a + Math.PI * 0.6);
+          ctx.moveTo(sx - 5, my - 8); ctx.lineTo(sx + 3, my + 6);
+          ctx.moveTo(sx + 6, my - 6); ctx.lineTo(sx - 2, my + 7);
           ctx.stroke();
+        } else {
+          // Impact crater — expanding glow + ground scorch
+          ctx.globalAlpha = fade * 0.8;
+          ctx.shadowColor = e.color; ctx.shadowBlur = 40;
+          const impactR = e.tickRange ?? 60;
+          const scorchG = ctx.createRadialGradient(sx, sy, 0, sx, sy, impactR * 1.2);
+          scorchG.addColorStop(0, "rgba(255,255,200,0.9)");
+          scorchG.addColorStop(0.25, e.color.replace(")", ",0.7)").replace("rgb(", "rgba("));
+          scorchG.addColorStop(0.7, "rgba(80,0,0,0.5)");
+          scorchG.addColorStop(1, "rgba(0,0,0,0)");
+          ctx.fillStyle = scorchG;
+          ctx.beginPath(); ctx.arc(sx, sy, impactR * 1.2, 0, Math.PI * 2); ctx.fill();
+          // Shockwave ring
+          ctx.strokeStyle = "#FF6D00"; ctx.lineWidth = 4 * fade;
+          ctx.beginPath(); ctx.arc(sx, sy, impactR * (1.4 + lifeT * 0.5), 0, Math.PI * 2); ctx.stroke();
         }
         break;
       }
 
-      case "turret": {
-        // Stationary mech turret with a rotating cannon.
-        ctx.shadowColor = "#78909C"; ctx.shadowBlur = 10;
-        // Base
-        ctx.fillStyle = "#5D4037";
-        ctx.beginPath();
-        ctx.arc(sx, sy, e.radius * 0.55, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = "#CD9B39";
-        ctx.lineWidth = 3;
-        ctx.stroke();
-        // Cannon
-        const ang = frame * 0.05;
-        ctx.save();
-        ctx.translate(sx, sy);
-        ctx.rotate(ang);
-        ctx.fillStyle = "#78909C";
-        ctx.fillRect(-3, -e.radius * 0.85, 6, e.radius * 0.85);
-        ctx.fillStyle = "#FFEB3B";
-        ctx.beginPath();
-        ctx.arc(0, -e.radius * 0.85, 4, 0, Math.PI * 2);
-        ctx.fill();
+      // ── BERSERK AURA ──────────────────────────────────────────────────────
+      case "berserkAura": {
+        ctx.shadowColor = "#FF3D00"; ctx.shadowBlur = 28;
+        // Ground scorch ellipse
+        ctx.globalAlpha = 0.55;
+        const groundG = ctx.createRadialGradient(sx, sy + 16, 0, sx, sy + 16, e.radius * 1.3);
+        groundG.addColorStop(0, "rgba(255,87,34,0.6)");
+        groundG.addColorStop(0.6, "rgba(255,30,0,0.2)");
+        groundG.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = groundG;
+        ctx.save(); ctx.translate(sx, sy + 16);
+        ctx.scale(1, 0.38);
+        ctx.beginPath(); ctx.arc(0, 0, e.radius * 1.3, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
-        // Range hint (fades in/out)
-        ctx.globalAlpha = 0.18 + Math.sin(frame * 0.08) * 0.05;
-        ctx.strokeStyle = "#FFEB3B";
-        ctx.lineWidth = 1;
-        ctx.setLineDash([4, 6]);
+        // Ground ring
+        ctx.globalAlpha = 0.8;
+        ctx.strokeStyle = "rgba(255,87,34,0.9)"; ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.arc(sx, sy, e.tickRange ?? 250, 0, Math.PI * 2);
+        ctx.ellipse(sx, sy + 18, e.radius * 1.1, e.radius * 0.45, 0, 0, Math.PI * 2);
         ctx.stroke();
-        ctx.setLineDash([]);
-        // Lifetime sweep
+        // Flame particles (12 of them)
+        for (let i = 0; i < 12; i++) {
+          const a = (i / 12) * Math.PI * 2 + frame * 0.2;
+          const rr = e.radius * (0.75 + Math.sin(frame * 0.3 + i * 1.1) * 0.22);
+          const fx = sx + Math.cos(a) * rr;
+          const fy = sy + 8 + Math.sin(a) * rr * 0.42;
+          const fh = 10 + (i % 4) * 3;
+          ctx.globalAlpha = 0.9;
+          // Flame teardrop
+          ctx.save(); ctx.translate(fx, fy);
+          ctx.rotate(a + Math.PI * 1.5);
+          const flameG = ctx.createLinearGradient(0, 0, 0, -fh);
+          flameG.addColorStop(0, i % 2 === 0 ? "#FF3D00" : "#FF6D00");
+          flameG.addColorStop(0.5, "#FF9800");
+          flameG.addColorStop(1, "rgba(255,235,59,0.5)");
+          ctx.fillStyle = flameG;
+          ctx.shadowColor = "#FF6D00"; ctx.shadowBlur = 16;
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.quadraticCurveTo(fh * 0.4, -fh * 0.5, 0, -fh);
+          ctx.quadraticCurveTo(-fh * 0.4, -fh * 0.5, 0, 0);
+          ctx.fill(); ctx.restore();
+        }
+        // Inner bright ring
+        ctx.globalAlpha = 0.6 + Math.sin(frame * 0.35) * 0.2;
+        ctx.strokeStyle = "#FFCA28"; ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(sx, sy + 14, e.radius * 0.65, e.radius * 0.27, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        break;
+      }
+
+      // ── SHIELD DOME ───────────────────────────────────────────────────────
+      case "shieldDome": {
+        const cy = sy - 8;
+        ctx.shadowColor = "#FFD700"; ctx.shadowBlur = 28;
+        // Dome interior fill
+        ctx.globalAlpha = 0.7;
+        const domeG = ctx.createRadialGradient(sx, cy - e.radius * 0.3, e.radius * 0.05, sx, cy, e.radius);
+        domeG.addColorStop(0, "rgba(255,245,100,0.08)");
+        domeG.addColorStop(0.65, "rgba(255,215,0,0.18)");
+        domeG.addColorStop(0.88, "rgba(255,215,0,0.4)");
+        domeG.addColorStop(1, "rgba(255,180,0,0.65)");
+        ctx.fillStyle = domeG;
+        ctx.beginPath(); ctx.arc(sx, cy, e.radius, 0, Math.PI * 2); ctx.fill();
+        // Outer rim
+        ctx.strokeStyle = "#FFD700"; ctx.lineWidth = 3;
+        ctx.globalAlpha = 0.9 + Math.sin(frame * 0.2) * 0.05;
+        ctx.beginPath(); ctx.arc(sx, cy, e.radius, 0, Math.PI * 2); ctx.stroke();
+        // Hex facet arcs — 6 arcs rotating at different rates
+        ctx.globalAlpha = 0.8;
+        for (let i = 0; i < 6; i++) {
+          const a = frame * (0.06 + (i % 2) * 0.02) + (i / 6) * Math.PI * 2 + e.seed * 0.5;
+          const arcR = e.radius * (0.55 + (i % 3) * 0.15);
+          ctx.strokeStyle = i % 3 === 0 ? "rgba(255,215,0,0.85)" : i % 3 === 1 ? "rgba(255,255,150,0.65)" : "rgba(255,165,0,0.5)";
+          ctx.lineWidth = 1.8 - (i % 3) * 0.4;
+          ctx.beginPath(); ctx.arc(sx, cy, arcR, a, a + Math.PI * (0.35 + (i % 2) * 0.15)); ctx.stroke();
+        }
+        // Specular top highlight
+        ctx.globalAlpha = 0.35 - lifeT * 0.15;
+        const topSpec = ctx.createRadialGradient(sx - e.radius * 0.22, cy - e.radius * 0.38, 0, sx, cy, e.radius * 0.55);
+        topSpec.addColorStop(0, "rgba(255,255,255,0.7)");
+        topSpec.addColorStop(1, "rgba(255,255,255,0)");
+        ctx.fillStyle = topSpec;
+        ctx.beginPath(); ctx.arc(sx, cy, e.radius * 0.55, 0, Math.PI * 2); ctx.fill();
+        break;
+      }
+
+      // ── TURRET ────────────────────────────────────────────────────────────
+      case "turret": {
         const lifeFrac = Math.max(0, e.timer / e.maxTimer);
+        ctx.shadowColor = "#FFEB3B"; ctx.shadowBlur = 14;
+        // Shadow
+        ctx.globalAlpha = 0.35;
+        ctx.fillStyle = "rgba(0,0,0,0.5)";
+        ctx.beginPath(); ctx.ellipse(sx, sy + e.radius * 0.62, e.radius * 0.72, e.radius * 0.28, 0, 0, Math.PI * 2); ctx.fill();
         ctx.globalAlpha = 1;
-        ctx.strokeStyle = "#FFEB3B";
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(sx, sy, e.radius * 0.7, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * lifeFrac);
-        ctx.stroke();
+        // Platform / base plate
+        ctx.fillStyle = "#3E2723"; ctx.strokeStyle = "#5D4037"; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.arc(sx, sy, e.radius * 0.62, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        // Armour ring
+        ctx.strokeStyle = "#BF8A30"; ctx.lineWidth = 3.5;
+        ctx.beginPath(); ctx.arc(sx, sy, e.radius * 0.55, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = "#FFD54F"; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.arc(sx, sy, e.radius * 0.46, 0, Math.PI * 2); ctx.stroke();
+        // Rotating cannon body
+        const ang = frame * 0.06;
+        ctx.save(); ctx.translate(sx, sy); ctx.rotate(ang);
+        // Cannon barrel
+        const barrelG = ctx.createLinearGradient(-4, 0, 4, 0);
+        barrelG.addColorStop(0, "#546E7A");
+        barrelG.addColorStop(0.5, "#B0BEC5");
+        barrelG.addColorStop(1, "#546E7A");
+        ctx.fillStyle = barrelG;
+        ctx.fillRect(-4, -e.radius * 0.9, 8, e.radius * 0.9);
+        // Muzzle ring
+        ctx.fillStyle = "#FFEB3B";
+        ctx.shadowColor = "#FFEB3B"; ctx.shadowBlur = 10;
+        ctx.beginPath(); ctx.arc(0, -e.radius * 0.9, 5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#FF6F00";
+        ctx.beginPath(); ctx.arc(0, -e.radius * 0.9, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+        // Centre hub
+        const hubG = ctx.createRadialGradient(sx - 2, sy - 2, 0, sx, sy, e.radius * 0.22);
+        hubG.addColorStop(0, "#FFECB3");
+        hubG.addColorStop(0.5, "#CD9B39");
+        hubG.addColorStop(1, "#3E2723");
+        ctx.fillStyle = hubG;
+        ctx.beginPath(); ctx.arc(sx, sy, e.radius * 0.22, 0, Math.PI * 2); ctx.fill();
+        // Range hint ring
+        ctx.globalAlpha = 0.14 + Math.sin(frame * 0.09) * 0.04;
+        ctx.strokeStyle = "#FFEB3B"; ctx.lineWidth = 1;
+        ctx.setLineDash([5, 7]);
+        ctx.beginPath(); ctx.arc(sx, sy, e.tickRange ?? 250, 0, Math.PI * 2); ctx.stroke();
+        ctx.setLineDash([]);
+        // Lifetime sweep arc (countdown)
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = "#FFEB3B"; ctx.lineWidth = 3.5;
+        ctx.shadowColor = "#FFEB3B"; ctx.shadowBlur = 10;
+        ctx.beginPath(); ctx.arc(sx, sy, e.radius * 0.74, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * lifeFrac); ctx.stroke();
         break;
       }
     }

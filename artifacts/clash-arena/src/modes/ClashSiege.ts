@@ -9,6 +9,7 @@ import { updateDamageNumbers, renderDamageNumbers, clearDamageNumbers, spawnDama
 import { updateEffects, renderEffects, clearEffects } from "../utils/effects";
 import { angleTo, autoAimAngle, distance, randomInt } from "../utils/helpers";
 import { recordGameResult, getCurrentUsername } from "../utils/localStorageAPI";
+import { resetMatchStats, getMatchStats } from "../utils/matchStats";
 import { renderPlayerHUD } from "./sharedHUD";
 import { getSafeCanvas } from "../utils/powerModelCache";
 
@@ -60,6 +61,7 @@ export class ClashSiege {
     const playerStats = getBrawlerById(playerBrawlerId) || BRAWLERS[0];
     this.player = new Brawler(playerStats, playerLevel, 1750, 1900, "blue", true);
     this.player.setIdentity(getCurrentUsername() ?? "Игрок", false);
+    resetMatchStats();
     // Spawn 3 allied bots to defend the base together with the player
     const allyStats = BRAWLERS.filter(b => b.id !== playerBrawlerId);
     const allyPos: Array<{ x: number; y: number }> = [
@@ -134,7 +136,7 @@ export class ClashSiege {
       if (this.waveSpawnTimer <= 0) {
         if (this.wave > this.maxWaves) {
           this.over = true; this.won = true;
-          if (!this.resultRecorded) { recordGameResult({ won: true, mode: "siege", place: 1 }); this.resultRecorded = true; }
+          if (!this.resultRecorded) { const ms = getMatchStats(); recordGameResult({ won: true, mode: "siege", place: 1, ...ms }); this.resultRecorded = true; }
           return;
         }
         this.spawnWave();
@@ -247,7 +249,7 @@ export class ClashSiege {
     }
     if (this.baseHp <= 0) {
       this.over = true; this.won = false;
-      if (!this.resultRecorded) { recordGameResult({ won: false, mode: "siege", place: 2 }); this.resultRecorded = true; }
+      if (!this.resultRecorded) { const ms = getMatchStats(); recordGameResult({ won: false, mode: "siege", place: 2, ...ms }); this.resultRecorded = true; }
     }
     // Update crystal particles
     for (let i = this.crystalParticles.length - 1; i >= 0; i--) {

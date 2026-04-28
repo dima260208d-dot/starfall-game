@@ -120,115 +120,281 @@ export function renderProjectiles(
 
     const sx = proj.x - camX;
     const sy = proj.y - camY;
+    const angle = Math.atan2(proj.vy, proj.vx);
+    const speed = Math.hypot(proj.vx, proj.vy);
 
     ctx.save();
-    ctx.shadowColor = proj.color;
-    ctx.shadowBlur = 14;
 
-    // Motion trail behind every projectile (cheap and adds smoothness).
-    {
-      const len = Math.hypot(proj.vx, proj.vy);
-      if (len > 1) {
-        const trailLen = Math.min(34, len * 0.08);
-        const tx = sx - (proj.vx / len) * trailLen;
-        const ty = sy - (proj.vy / len) * trailLen;
-        const trailGrad = ctx.createLinearGradient(tx, ty, sx, sy);
-        trailGrad.addColorStop(0, "rgba(255,255,255,0)");
-        trailGrad.addColorStop(1, proj.color);
-        ctx.strokeStyle = trailGrad;
-        ctx.lineWidth = Math.max(2, proj.radius * 0.9);
+    // ── Long motion trail (every projectile type) ─────────────────────────
+    if (speed > 1) {
+      const trailLen = Math.min(60, speed * 0.12);
+      const segments = 6;
+      for (let s = segments; s >= 1; s--) {
+        const t = s / segments;
+        const tx = sx - Math.cos(angle) * trailLen * t;
+        const ty = sy - Math.sin(angle) * trailLen * t;
+        const alpha = (1 - t) * 0.55;
+        const w = Math.max(1.5, proj.radius * (1 - t * 0.6));
+        ctx.strokeStyle = proj.color;
+        ctx.globalAlpha = alpha;
+        ctx.lineWidth = w;
         ctx.lineCap = "round";
-        ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(sx, sy); ctx.stroke();
+        ctx.beginPath();
+        const t2 = (s - 1) / segments;
+        const tx2 = sx - Math.cos(angle) * trailLen * t2;
+        const ty2 = sy - Math.sin(angle) * trailLen * t2;
+        ctx.moveTo(tx2, ty2); ctx.lineTo(tx, ty); ctx.stroke();
       }
+      ctx.globalAlpha = 1;
     }
 
     switch (proj.type) {
+      // ── SHURIKEN ────────────────────────────────────────────────────────
       case "shuriken": {
         ctx.translate(sx, sy);
-        ctx.rotate(frame * 0.3);
-        ctx.fillStyle = proj.color;
+        ctx.rotate(frame * 0.35);
+        // Outer glow
+        ctx.shadowColor = proj.color; ctx.shadowBlur = 22;
+        // 4-blade star
         for (let i = 0; i < 4; i++) {
           ctx.save();
           ctx.rotate((i * Math.PI) / 2);
+          const bladeGrad = ctx.createLinearGradient(0, -proj.radius * 1.8, 0, proj.radius * 1.8);
+          bladeGrad.addColorStop(0, "#FFFFFF");
+          bladeGrad.addColorStop(0.3, proj.color);
+          bladeGrad.addColorStop(1, "rgba(80,80,120,0.5)");
+          ctx.fillStyle = bladeGrad;
           ctx.beginPath();
-          ctx.moveTo(0, -proj.radius * 1.5);
-          ctx.lineTo(proj.radius * 0.5, 0);
-          ctx.lineTo(0, proj.radius * 1.5);
-          ctx.lineTo(-proj.radius * 0.5, 0);
+          ctx.moveTo(0, -proj.radius * 1.8);
+          ctx.quadraticCurveTo(proj.radius * 0.7, -proj.radius * 0.3, proj.radius * 0.55, 0);
+          ctx.quadraticCurveTo(proj.radius * 0.7, proj.radius * 0.3, 0, proj.radius * 1.8);
+          ctx.quadraticCurveTo(-proj.radius * 0.7, proj.radius * 0.3, -proj.radius * 0.55, 0);
+          ctx.quadraticCurveTo(-proj.radius * 0.7, -proj.radius * 0.3, 0, -proj.radius * 1.8);
           ctx.closePath();
           ctx.fill();
           ctx.restore();
         }
+        // Centre gem
+        const cGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, proj.radius * 0.45);
+        cGrad.addColorStop(0, "#FFFFFF");
+        cGrad.addColorStop(1, proj.color);
+        ctx.fillStyle = cGrad;
+        ctx.beginPath(); ctx.arc(0, 0, proj.radius * 0.45, 0, Math.PI * 2); ctx.fill();
         break;
       }
+
+      // ── SNOWBALL ─────────────────────────────────────────────────────────
       case "snowball": {
-        ctx.beginPath();
-        ctx.arc(sx, sy, proj.radius, 0, Math.PI * 2);
-        ctx.fillStyle = "#B3E5FC";
-        ctx.fill();
-        ctx.strokeStyle = "#E1F5FE";
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        ctx.fillStyle = "rgba(255,255,255,0.5)";
-        ctx.beginPath();
-        ctx.arc(sx - proj.radius * 0.3, sy - proj.radius * 0.3, proj.radius * 0.3, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.shadowColor = "#80D8FF"; ctx.shadowBlur = 20;
+        // Outer glow shell
+        const glow = ctx.createRadialGradient(sx, sy, proj.radius * 0.5, sx, sy, proj.radius * 2.2);
+        glow.addColorStop(0, "rgba(179,229,252,0.35)");
+        glow.addColorStop(1, "rgba(2,136,209,0)");
+        ctx.fillStyle = glow;
+        ctx.beginPath(); ctx.arc(sx, sy, proj.radius * 2.2, 0, Math.PI * 2); ctx.fill();
+        // Main ball gradient
+        const ballGrad = ctx.createRadialGradient(sx - proj.radius * 0.32, sy - proj.radius * 0.32, proj.radius * 0.05, sx, sy, proj.radius);
+        ballGrad.addColorStop(0, "#FFFFFF");
+        ballGrad.addColorStop(0.35, "#B3E5FC");
+        ballGrad.addColorStop(1, "#0288D1");
+        ctx.fillStyle = ballGrad;
+        ctx.beginPath(); ctx.arc(sx, sy, proj.radius, 0, Math.PI * 2); ctx.fill();
+        // Sparkle crystal accents
+        ctx.strokeStyle = "rgba(255,255,255,0.85)"; ctx.lineWidth = 1.5;
+        for (let i = 0; i < 4; i++) {
+          const a = (i / 4) * Math.PI * 2 + frame * 0.04;
+          const rx = sx + Math.cos(a) * proj.radius * 0.55;
+          const ry = sy + Math.sin(a) * proj.radius * 0.55;
+          ctx.beginPath();
+          ctx.moveTo(rx - 2, ry); ctx.lineTo(rx + 2, ry);
+          ctx.moveTo(rx, ry - 2); ctx.lineTo(rx, ry + 2);
+          ctx.stroke();
+        }
+        // Specular highlight
+        const spec = ctx.createRadialGradient(sx - proj.radius * 0.38, sy - proj.radius * 0.38, 0, sx - proj.radius * 0.38, sy - proj.radius * 0.38, proj.radius * 0.42);
+        spec.addColorStop(0, "rgba(255,255,255,0.85)");
+        spec.addColorStop(1, "rgba(255,255,255,0)");
+        ctx.fillStyle = spec;
+        ctx.beginPath(); ctx.arc(sx - proj.radius * 0.38, sy - proj.radius * 0.38, proj.radius * 0.42, 0, Math.PI * 2); ctx.fill();
         break;
       }
+
+      // ── FIREBALL ─────────────────────────────────────────────────────────
       case "fireball": {
-        const grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, proj.radius * 1.5);
-        grad.addColorStop(0, "#FFFF00");
-        grad.addColorStop(0.5, "#FF6600");
-        grad.addColorStop(1, "rgba(255,0,0,0)");
-        ctx.beginPath();
-        ctx.arc(sx, sy, proj.radius * 1.5, 0, Math.PI * 2);
-        ctx.fillStyle = grad;
-        ctx.fill();
+        ctx.shadowColor = "#FF6D00"; ctx.shadowBlur = 30;
+        // Outer haze
+        const haze = ctx.createRadialGradient(sx, sy, 0, sx, sy, proj.radius * 3.2);
+        haze.addColorStop(0, "rgba(255,87,34,0.28)");
+        haze.addColorStop(1, "rgba(255,0,0,0)");
+        ctx.fillStyle = haze;
+        ctx.beginPath(); ctx.arc(sx, sy, proj.radius * 3.2, 0, Math.PI * 2); ctx.fill();
+        // Flame body — 3 overlapping radial gradients offset slightly for flicker
+        const offsets = [
+          { ox: Math.cos(frame * 0.22) * 3, oy: Math.sin(frame * 0.33) * 3, sc: 1.7 },
+          { ox: Math.cos(frame * 0.31 + 2) * 2, oy: Math.sin(frame * 0.25 + 1) * 2, sc: 1.3 },
+          { ox: 0, oy: 0, sc: 1.0 },
+        ];
+        for (const o of offsets) {
+          const fg = ctx.createRadialGradient(sx + o.ox, sy + o.oy, 0, sx + o.ox, sy + o.oy, proj.radius * o.sc);
+          fg.addColorStop(0, "#FFFFFF");
+          fg.addColorStop(0.18, "#FFF176");
+          fg.addColorStop(0.45, "#FF6D00");
+          fg.addColorStop(1, "rgba(183,28,28,0)");
+          ctx.fillStyle = fg;
+          ctx.beginPath(); ctx.arc(sx + o.ox, sy + o.oy, proj.radius * o.sc, 0, Math.PI * 2); ctx.fill();
+        }
+        // Ember sparks orbiting
+        for (let i = 0; i < 6; i++) {
+          const a = (i / 6) * Math.PI * 2 + frame * 0.14;
+          const er = proj.radius * (0.8 + Math.sin(frame * 0.3 + i) * 0.25);
+          const ex = sx + Math.cos(a) * er;
+          const ey = sy + Math.sin(a) * er;
+          ctx.fillStyle = i % 2 === 0 ? "#FFD740" : "#FF6D00";
+          ctx.beginPath(); ctx.arc(ex, ey, 2.5, 0, Math.PI * 2); ctx.fill();
+        }
         break;
       }
+
+      // ── DAGGER ───────────────────────────────────────────────────────────
       case "dagger": {
         ctx.translate(sx, sy);
-        ctx.rotate(Math.atan2(proj.vy, proj.vx));
-        ctx.fillStyle = proj.color;
+        ctx.rotate(angle);
+        ctx.shadowColor = proj.color; ctx.shadowBlur = 18;
+        const dLen = proj.radius * 2.8;
+        // Shadow/depth layer
+        ctx.fillStyle = "rgba(0,0,0,0.4)";
         ctx.beginPath();
-        ctx.moveTo(proj.radius * 1.5, 0);
-        ctx.lineTo(-proj.radius * 0.5, -proj.radius * 0.4);
-        ctx.lineTo(-proj.radius * 0.5, proj.radius * 0.4);
-        ctx.closePath();
-        ctx.fill();
+        ctx.moveTo(dLen, 2);
+        ctx.lineTo(-proj.radius * 0.8, -proj.radius * 0.55 + 2);
+        ctx.lineTo(-proj.radius * 0.8, proj.radius * 0.55 + 2);
+        ctx.closePath(); ctx.fill();
+        // Blade gradient
+        const bladeGrad = ctx.createLinearGradient(-proj.radius, 0, dLen, 0);
+        bladeGrad.addColorStop(0, "#90CAF9");
+        bladeGrad.addColorStop(0.4, "#E3F2FD");
+        bladeGrad.addColorStop(0.7, proj.color);
+        bladeGrad.addColorStop(1, "#FFFFFF");
+        ctx.fillStyle = bladeGrad;
+        ctx.beginPath();
+        ctx.moveTo(dLen, 0);
+        ctx.lineTo(-proj.radius * 0.8, -proj.radius * 0.52);
+        ctx.lineTo(-proj.radius * 0.8, proj.radius * 0.52);
+        ctx.closePath(); ctx.fill();
+        // Edge highlight
+        ctx.strokeStyle = "rgba(255,255,255,0.75)";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(dLen, 0);
+        ctx.lineTo(-proj.radius * 0.8, -proj.radius * 0.52);
+        ctx.stroke();
+        // Guard
+        ctx.fillStyle = "#78909C";
+        ctx.fillRect(-proj.radius * 0.9, -proj.radius * 0.7, proj.radius * 0.28, proj.radius * 1.4);
+        ctx.fillStyle = "#B0BEC5";
+        ctx.fillRect(-proj.radius * 0.88, -proj.radius * 0.68, proj.radius * 0.12, proj.radius * 0.55);
         break;
       }
+
+      // ── BEAM ─────────────────────────────────────────────────────────────
       case "beam": {
+        const bLen = proj.range * 0.9;
+        const ex = sx + Math.cos(angle) * bLen;
+        const ey = sy + Math.sin(angle) * bLen;
+        // Outer wide soft glow
         ctx.strokeStyle = proj.color;
-        ctx.lineWidth = 8;
+        ctx.lineWidth = proj.radius * 2.8;
         ctx.lineCap = "round";
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(
-          sx + Math.cos(Math.atan2(proj.vy, proj.vx)) * proj.range,
-          sy + Math.sin(Math.atan2(proj.vy, proj.vx)) * proj.range
-        );
-        ctx.stroke();
-        ctx.strokeStyle = "rgba(255,255,255,0.5)";
-        ctx.lineWidth = 3;
-        ctx.stroke();
+        ctx.globalAlpha = 0.18;
+        ctx.shadowColor = proj.color; ctx.shadowBlur = 24;
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+        // Mid beam
+        ctx.globalAlpha = 0.55;
+        ctx.lineWidth = proj.radius * 1.4;
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+        // Core
+        ctx.globalAlpha = 1;
+        ctx.lineWidth = proj.radius * 0.55;
+        ctx.strokeStyle = "#FFFFFF";
+        ctx.shadowBlur = 10;
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+        // Edge detail line
+        ctx.strokeStyle = proj.color;
+        ctx.lineWidth = proj.radius * 0.22;
+        ctx.globalAlpha = 0.8;
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+        // Muzzle flash at origin
+        const mFlash = ctx.createRadialGradient(sx, sy, 0, sx, sy, proj.radius * 2.5);
+        mFlash.addColorStop(0, "rgba(255,255,255,0.9)");
+        mFlash.addColorStop(0.5, proj.color.replace(")", ",0.6)").replace("rgb", "rgba"));
+        mFlash.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.globalAlpha = 0.75;
+        ctx.fillStyle = mFlash;
+        ctx.beginPath(); ctx.arc(sx, sy, proj.radius * 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
         break;
       }
+
+      // ── CHAIN ────────────────────────────────────────────────────────────
+      case "chain": {
+        ctx.shadowColor = proj.color; ctx.shadowBlur = 22;
+        // Outer lightning aura
+        const chainGlow = ctx.createRadialGradient(sx, sy, 0, sx, sy, proj.radius * 2.5);
+        chainGlow.addColorStop(0, "rgba(255,235,59,0.5)");
+        chainGlow.addColorStop(1, "rgba(255,193,7,0)");
+        ctx.fillStyle = chainGlow;
+        ctx.beginPath(); ctx.arc(sx, sy, proj.radius * 2.5, 0, Math.PI * 2); ctx.fill();
+        // Rotating hex / clock arcs
+        ctx.translate(sx, sy);
+        for (let i = 0; i < 3; i++) {
+          const a = (i / 3) * Math.PI * 2 + frame * 0.2;
+          ctx.strokeStyle = i % 2 === 0 ? proj.color : "#FFFFFF";
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.arc(0, 0, proj.radius * (0.85 + i * 0.2), a, a + Math.PI * 0.4);
+          ctx.stroke();
+        }
+        // Core
+        const coreG = ctx.createRadialGradient(0, 0, 0, 0, 0, proj.radius * 0.6);
+        coreG.addColorStop(0, "#FFFFFF");
+        coreG.addColorStop(1, proj.color);
+        ctx.fillStyle = coreG;
+        ctx.beginPath(); ctx.arc(0, 0, proj.radius * 0.6, 0, Math.PI * 2); ctx.fill();
+        break;
+      }
+
+      // ── BULLET (default) ──────────────────────────────────────────────────
       default: {
-        ctx.beginPath();
-        ctx.arc(sx, sy, proj.radius, 0, Math.PI * 2);
-        ctx.fillStyle = proj.color;
-        ctx.fill();
+        ctx.shadowColor = proj.color; ctx.shadowBlur = 22;
+        // Outer glow corona
+        const corona = ctx.createRadialGradient(sx, sy, 0, sx, sy, proj.radius * 2.8);
+        corona.addColorStop(0, proj.color.replace(")", ",0.4)").replace("rgb", "rgba"));
+        corona.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = corona;
+        ctx.beginPath(); ctx.arc(sx, sy, proj.radius * 2.8, 0, Math.PI * 2); ctx.fill();
+        // Main bullet body
+        const bGrad = ctx.createRadialGradient(sx - proj.radius * 0.3, sy - proj.radius * 0.3, 0, sx, sy, proj.radius);
+        bGrad.addColorStop(0, "#FFFFFF");
+        bGrad.addColorStop(0.4, proj.color);
+        bGrad.addColorStop(1, "rgba(0,0,0,0.3)");
+        ctx.fillStyle = bGrad;
+        ctx.beginPath(); ctx.arc(sx, sy, proj.radius, 0, Math.PI * 2); ctx.fill();
+        // Rim
+        ctx.strokeStyle = "rgba(255,255,255,0.55)";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.arc(sx, sy, proj.radius * 0.85, 0, Math.PI * 2); ctx.stroke();
       }
     }
 
-    // Homing projectile: draw targeting ring
+    // ── Homing targeting ring ──────────────────────────────────────────────
     if (proj.homing) {
-      ctx.beginPath();
-      ctx.arc(sx, sy, proj.radius * 1.6, 0, Math.PI * 2);
-      ctx.strokeStyle = "rgba(255, 160, 0, 0.7)";
+      ctx.globalAlpha = 0.7 + Math.sin(frame * 0.25) * 0.2;
+      ctx.strokeStyle = "#FFA726";
       ctx.lineWidth = 2;
-      ctx.stroke();
+      ctx.shadowColor = "#FFA726"; ctx.shadowBlur = 12;
+      ctx.setLineDash([5, 4]);
+      ctx.beginPath(); ctx.arc(sx, sy, proj.radius * 2.0, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
     }
 
     ctx.restore();
