@@ -384,9 +384,9 @@ export class ClashShowdown {
       this.gasDoubleTimer = 30;
     }
     
-    // Continuous shrink, fixed center — never disappears
+    // Continuous shrink at 70% of original speed, fixed center — never disappears
     if (this.gas.safeRadius > 150) {
-      this.gas.safeRadius = Math.max(150, this.gas.safeRadius - 22 * dt);
+      this.gas.safeRadius = Math.max(150, this.gas.safeRadius - 6.6 * dt);
     }
     
     for (const b of allBrawlers) {

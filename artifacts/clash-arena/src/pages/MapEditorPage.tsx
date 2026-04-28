@@ -849,12 +849,9 @@ function EditorCore({ onBack }: { onBack: () => void }) {
     setHovCell({ x: gx, y: gy });
 
     if (isPanning.current) {
-      const c = canvasRef.current!;
-      const rect = c.getBoundingClientRect();
-      const scaleX = c.width / rect.width;
-      const scaleY = c.height / rect.height;
-      camX.current -= (e.clientX - lastMouse.current.x) * scaleX;
-      camY.current -= (e.clientY - lastMouse.current.y) * scaleY;
+      // camX/camY live in CSS-pixel space — no DPR scaling here.
+      camX.current -= (e.clientX - lastMouse.current.x);
+      camY.current -= (e.clientY - lastMouse.current.y);
       clampCam();
       lastMouse.current = { x: e.clientX, y: e.clientY };
       redraw();
@@ -935,30 +932,20 @@ function EditorCore({ onBack }: { onBack: () => void }) {
         camY.current = wy * zoom.current - cmy;
         clampCam();
       }
-      // Pan with two fingers
+      // Pan with two fingers — CSS-pixel deltas only
       if (pa && pb) {
-        const c = canvasRef.current!;
-        const rect = c.getBoundingClientRect();
-        const scaleX = c.width / rect.width;
-        const scaleY = c.height / rect.height;
         const prevMid = { x: (pa.clientX + pb.clientX) / 2, y: (pa.clientY + pb.clientY) / 2 };
         const curMid  = { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 };
-        camX.current -= (curMid.x - prevMid.x) * scaleX;
-        camY.current -= (curMid.y - prevMid.y) * scaleY;
+        camX.current -= (curMid.x - prevMid.x);
+        camY.current -= (curMid.y - prevMid.y);
         clampCam();
       }
       redraw();
     } else if (e.touches.length === 1) {
       const t = e.touches[0];
       if (isPanning.current) {
-        const c = canvasRef.current!;
-        const rect = c.getBoundingClientRect();
-        const scaleX = c.width / rect.width;
-        const scaleY = c.height / rect.height;
-        const dx = t.clientX - lastMouse.current.x;
-        const dy = t.clientY - lastMouse.current.y;
-        camX.current -= dx * scaleX;
-        camY.current -= dy * scaleY;
+        camX.current -= (t.clientX - lastMouse.current.x);
+        camY.current -= (t.clientY - lastMouse.current.y);
         lastMouse.current = { x: t.clientX, y: t.clientY };
         clampCam();
         redraw();

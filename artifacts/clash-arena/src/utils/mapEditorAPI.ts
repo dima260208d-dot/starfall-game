@@ -107,8 +107,8 @@ function overlay(ovs: number[], x: number, y: number): number {
 }
 
 function isWalkable(t: number): boolean {
-  // GRASS=0, BUSH=3, HEAL=7, WATER=4 (slow), plus any overlay-only cell
-  return t === 0 || t === 3 || t === 7 || t === 4;
+  // GRASS=0, BUSH=3, HEAL=7 — water and walls are impassable for BFS
+  return t === 0 || t === 3 || t === 7;
 }
 
 function bfsConnected(cells: number[], starts: [number, number][]): boolean {
@@ -229,49 +229,180 @@ export function validateMap(cells: number[], ovs: number[], mode: EditorMode): V
 }
 
 // ── Random map generation ─────────────────────────────────────────────────────
+// Brawl-Stars–style: left–right symmetric, BFS-connected, clear zones around overlays
 export function generateRandomMap(mode: EditorMode): { cells: number[]; overlays: number[] } {
+  const HALF = GS / 2; // 30
+  const rand = (a: number, b: number) => Math.floor(Math.random() * (b - a + 1)) + a;
+
+  // Solid block types that walls/obstacles can be
+  const WALL_TYPES = [1, 2, 5, 6]; // box, crate, fence, rope-fence
+  const DECO_TYPES = [3, 3, 9];    // bush, bush, barrel
+
+  // Protected cells (cannot be blocked), filled later
+  const protectedCells = new Set<number>();
+  const protect = (x: number, y: number, r = 3) => {
+    for (let dy = -r; dy <= r; dy++)
+      for (let dx = -r; dx <= r; dx++) {
+        const nx = x + dx, ny = y + dy;
+        if (nx >= 0 && ny >= 0 && nx < GS && ny < GS)
+          protectedCells.add(ny * GS + nx);
+      }
+  };
+
+  // ── Overlay layout per mode ──────────────────────────────────────────────
+  // Positions are for the LEFT half; right half is mirrored at GS-1-x.
+  type OvEntry = { x: number; y: number; ov: number; mirrorOv?: number };
+
+  const overlayEntries: OvEntry[] = [];
+  const addPair = (lx: number, ly: number, lovType: number, rovType: number) => {
+    overlayEntries.push({ x: lx, y: ly, ov: lovType, mirrorOv: rovType });
+  };
+
+  const CX = HALF - 1, CY = HALF - 1; // center-ish (29,29)
+
+  if (mode === "showdown") {
+    // 10 spawn points spread around the map
+    const raw: [number,number][] = [
+      [5,5],[5,CY],[5,GS-6],
+      [CX,5],[CX,GS-6],
+      [GS-6,5],[GS-6,CY],[GS-6,GS-6],
+      [CX-8,CY-8],[CX+8,CY+8],
+    ];
+    raw.forEach(([x,y]) => overlayEntries.push({ x, y, ov: OV.SPAWN_SD }));
+  } else {
+    // 3 blue spawns (left), 3 red spawns (mirror)
+    const spawnYs = [CY - 4, CY, CY + 4];
+    spawnYs.forEach(sy => addPair(3, sy, OV.SPAWN_BLUE, OV.SPAWN_RED));
+
+    if (mode === "gemgrab") {
+      overlayEntries.push({ x: CX, y: CY, ov: OV.GEM_CENTER });
+    }
+    if (mode === "heist") {
+      addPair(7, CY, OV.SAFE_BLUE, OV.SAFE_RED);
+    }
+    if (mode === "siege") {
+      addPair(5, CY, OV.BASE_BLUE, OV.BASE_RED);
+    }
+    if (mode === "bounty") {
+      // No extra overlays beyond spawns
+    }
+    if (mode === "brawlball") {
+      // Goals on top/bottom edges of center
+      overlayEntries.push({ x: CX, y: 5,      ov: OV.GOAL_BLUE });
+      overlayEntries.push({ x: CX, y: GS - 6, ov: OV.GOAL_RED  });
+    }
+  }
+
+  // Mark all overlay positions as protected (5×5 clear zone)
+  for (const e of overlayEntries) {
+    protect(e.x, e.y, 4);
+    if (e.mirrorOv !== undefined) protect(GS - 1 - e.x, e.y, 4);
+  }
+
+  // ── Build the left half using random cluster shapes ──────────────────────
+  function tryGenerate(): { cells: number[]; overlays: number[] } | null {
+    const cells = new Array<number>(GS * GS).fill(0);
+    const ovs   = new Array<number>(GS * GS).fill(0);
+
+    const setCell = (x: number, y: number, t: number) => {
+      if (x < 0 || y < 0 || x >= GS || y >= GS) return;
+      if (protectedCells.has(y * GS + x)) return;
+      cells[y * GS + x] = t;
+    };
+
+    // ── Scatter clusters on left half only (x < HALF) ────────────────────
+    const clusterCount = rand(28, 45);
+    for (let i = 0; i < clusterCount; i++) {
+      const x = rand(2, HALF - 3);
+      const y = rand(2, GS - 3);
+      const isWall = Math.random() < 0.65;
+      const t = isWall
+        ? WALL_TYPES[rand(0, WALL_TYPES.length - 1)]
+        : DECO_TYPES[rand(0, DECO_TYPES.length - 1)];
+      const w = rand(1, isWall ? 4 : 2);
+      const h = rand(1, isWall ? 3 : 2);
+      for (let dy = 0; dy < h; dy++)
+        for (let dx = 0; dx < w; dx++)
+          setCell(x + dx, y + dy, t);
+    }
+
+    // ── Add a few water patches (left half only) ──────────────────────────
+    if (Math.random() < 0.5) {
+      const wx = rand(HALF - 12, HALF - 4), wy = rand(4, GS - 8);
+      const ww = rand(2, 4), wh = rand(2, 3);
+      for (let dy = 0; dy < wh; dy++)
+        for (let dx = 0; dx < ww; dx++)
+          setCell(wx + dx, wy + dy, 4); // WATER
+    }
+
+    // ── Mirror left half → right half ────────────────────────────────────
+    for (let y = 0; y < GS; y++) {
+      for (let x = 0; x < HALF; x++) {
+        const t = cells[y * GS + x];
+        if (t !== 0) {
+          const rx = GS - 1 - x;
+          if (!protectedCells.has(y * GS + rx)) cells[y * GS + rx] = t;
+        }
+      }
+    }
+
+    // ── Place overlays ────────────────────────────────────────────────────
+    for (const e of overlayEntries) {
+      cells[e.y * GS + e.x] = 0;
+      ovs[e.y * GS + e.x] = e.ov;
+      if (e.mirrorOv !== undefined) {
+        const rx = GS - 1 - e.x;
+        cells[e.y * GS + rx] = 0;
+        ovs[e.y * GS + rx] = e.mirrorOv;
+      }
+    }
+
+    // ── BFS connectivity check ────────────────────────────────────────────
+    const keyPoints: [number,number][] = overlayEntries.map(e => [e.x, e.y] as [number,number]);
+    if (mode === "showdown") {
+      // only use SD spawns
+    }
+    if (keyPoints.length >= 2 && !bfsConnected(cells, keyPoints)) return null;
+
+    return { cells: Array.from(cells), overlays: Array.from(ovs) };
+  }
+
+  // Retry up to 20 times until BFS passes
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const result = tryGenerate();
+    if (result) return result;
+  }
+  // Last-resort fallback: open map with only overlays
   const cells = new Array<number>(GS * GS).fill(0);
   const ovs   = new Array<number>(GS * GS).fill(0);
-
-  const rand = (a: number, b: number) => Math.floor(Math.random() * (b - a + 1)) + a;
-  const set  = (x: number, y: number, t: number) => { if (x>=0&&y>=0&&x<GS&&y<GS) cells[y*GS+x] = t; };
-  const setOv = (x: number, y: number, v: number) => { if (x>=0&&y>=0&&x<GS&&y<GS) ovs[y*GS+x] = v; };
-
-  // Scatter random blocks
-  const BLOCK_TYPES = [1,1,2,2,3,3,4,5,6,9,10,11,12];
-  for (let i = 0; i < 400; i++) {
-    const x = rand(1, GS-2), y = rand(1, GS-2);
-    const t = BLOCK_TYPES[rand(0, BLOCK_TYPES.length - 1)];
-    const size = rand(1, 3);
-    for (let dy = 0; dy < size; dy++) for (let dx = 0; dx < size; dx++) set(x+dx, y+dy, t);
+  for (const e of overlayEntries) {
+    ovs[e.y * GS + e.x] = e.ov;
+    if (e.mirrorOv !== undefined) ovs[e.y * GS + (GS - 1 - e.x)] = e.mirrorOv;
   }
+  return { cells, overlays: ovs };
+}
 
-  // Clear center area
-  const cx = 30, cy = 30;
-  for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) set(cx+dx, cy+dy, 0);
+// ── Auto-seed default published maps (called once at app startup) ─────────────
+const SEED_VERSION_KEY = "clash_seed_v3";
+export function autoSeedDefaultMaps(): void {
+  if (localStorage.getItem(SEED_VERSION_KEY)) return; // already seeded
 
-  // Place mode-specific overlays
-  if (mode === "showdown") {
-    const spots: [number,number][] = [
-      [5,5],[55,5],[5,55],[55,55],[30,5],[30,55],[5,30],[55,30]
-    ];
-    const count = rand(6, 8);
-    for (let i = 0; i < count; i++) {
-      const [x,y] = spots[i];
-      set(x,y,0); setOv(x,y,OV.SPAWN_SD);
-    }
-  } else {
-    // Team modes: spawns on left/right halves
-    const bl: [number,number][] = [[5,28],[5,30],[5,32]];
-    const rl: [number,number][] = [[55,28],[55,30],[55,32]];
-    bl.forEach(([x,y]) => { set(x,y,0); setOv(x,y,OV.SPAWN_BLUE); });
-    rl.forEach(([x,y]) => { set(x,y,0); setOv(x,y,OV.SPAWN_RED); });
-
-    if (mode === "gemgrab") { set(cx,cy,0); setOv(cx,cy,OV.GEM_CENTER); }
-    if (mode === "heist")   { set(8,30,0); setOv(8,30,OV.SAFE_BLUE); set(52,30,0); setOv(52,30,OV.SAFE_RED); }
-    if (mode === "siege")   { set(6,30,0); setOv(6,30,OV.BASE_BLUE); set(54,30,0); setOv(54,30,OV.BASE_RED); }
-    if (mode === "brawlball"){ set(cx,10,0); setOv(cx,10,OV.GOAL_BLUE); set(cx,50,0); setOv(cx,50,OV.GOAL_RED); }
+  const modes: EditorMode[] = ["showdown","gemgrab","heist","bounty","brawlball","siege"];
+  for (const mode of modes) {
+    if (getPublishedMap(mode)) continue; // don't overwrite user-published maps
+    const { cells, overlays } = generateRandomMap(mode);
+    const map: MapSave = {
+      id: `default_${mode}`,
+      name: `Default ${mode}`,
+      mode,
+      cells,
+      overlays,
+      rotations: new Array(GS * GS).fill(0),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    upsertMap(map);
+    publishMap(map);
   }
-
-  return { cells: Array.from(cells), overlays: Array.from(ovs) };
+  localStorage.setItem(SEED_VERSION_KEY, "1");
 }

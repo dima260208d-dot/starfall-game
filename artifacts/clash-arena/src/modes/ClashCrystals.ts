@@ -10,6 +10,7 @@ import { updateEffects, renderEffects, clearEffects } from "../utils/effects";
 import { renderMap } from "../game/MapRenderer";
 import { angleTo, autoAimAngle, distance, randomInt } from "../utils/helpers";
 import { recordGameResult, getCurrentUsername } from "../utils/localStorageAPI";
+import { getGemCanvas } from "../utils/powerModelCache";
 
 export interface Crystal {
   x: number;
@@ -387,35 +388,12 @@ export class ClashCrystals {
     
     const allBrawlers = [this.player, ...this.allies, ...this.enemies];
     const _friendlies = [this.player, ...this.allies].filter(b => b.alive).map(b => ({ x: b.x, y: b.y }));
+    // Update crystalCount on each brawler so it renders as a badge above the name
+    for (const b of allBrawlers) {
+      b.crystalCount = this.crystals.filter(c => c.carrier?.id === b.id).length;
+    }
     for (const b of allBrawlers) {
       b.render(ctx, this.camera.x, this.camera.y, this.spriteLoaded, this.player.team, _friendlies);
-    }
-
-    // Carried-crystal badge above the HP bar for every carrier
-    for (const b of allBrawlers) {
-      if (!b.alive) continue;
-      const carried = this.crystals.filter(c => c.carrier?.id === b.id).length;
-      if (carried <= 0) continue;
-      const sx = b.x - this.camera.x;
-      const sy = b.y - this.camera.y - b.radius - 38;
-      ctx.save();
-      ctx.fillStyle = "rgba(0,0,0,0.75)";
-      ctx.strokeStyle = "#00E5FF";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(sx, sy, 14, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-      ctx.fillStyle = "#00E5FF";
-      ctx.font = "10px Arial";
-      ctx.textAlign = "left";
-      ctx.textBaseline = "middle";
-      ctx.fillText("💎", sx - 11, sy);
-      ctx.fillStyle = "white";
-      ctx.font = "bold 13px Arial";
-      ctx.textAlign = "center";
-      ctx.fillText(`${carried}`, sx + 4, sy + 1);
-      ctx.restore();
     }
 
     renderProjectiles(ctx, this.projectiles, this.camera.x, this.camera.y, this.frame);
@@ -450,53 +428,57 @@ export class ClashCrystals {
   }
 
   private renderCrystals(ctx: CanvasRenderingContext2D): void {
-    for (const crystal of this.crystals) {
-      if (crystal.carrier) continue;
+    const gem = getGemCanvas();
+    const SZ = 32; // world-space draw size
 
-      const sx = crystal.x - this.camera.x;
-      const sy = crystal.y - this.camera.y;
-      
+    function drawGemFallback(ctx: CanvasRenderingContext2D, sx: number, sy: number, r: number): void {
       ctx.save();
       ctx.shadowColor = "#00BCD4";
-      ctx.shadowBlur = 15;
-      
+      ctx.shadowBlur = 14;
       ctx.fillStyle = "#00E5FF";
       ctx.beginPath();
-      ctx.moveTo(sx, sy - 15);
-      ctx.lineTo(sx + 10, sy);
-      ctx.lineTo(sx, sy + 15);
-      ctx.lineTo(sx - 10, sy);
+      ctx.moveTo(sx, sy - r); ctx.lineTo(sx + r * 0.7, sy);
+      ctx.lineTo(sx, sy + r); ctx.lineTo(sx - r * 0.7, sy);
       ctx.closePath();
       ctx.fill();
-      
-      ctx.fillStyle = "rgba(255,255,255,0.5)";
+      ctx.fillStyle = "rgba(255,255,255,0.45)";
       ctx.beginPath();
-      ctx.moveTo(sx - 3, sy - 8);
-      ctx.lineTo(sx + 3, sy - 2);
-      ctx.lineTo(sx - 1, sy + 5);
-      ctx.closePath();
+      ctx.moveTo(sx - r * 0.2, sy - r * 0.55); ctx.lineTo(sx + r * 0.3, sy - r * 0.05);
+      ctx.lineTo(sx - r * 0.05, sy + r * 0.35); ctx.closePath();
       ctx.fill();
       ctx.restore();
     }
-    
+
+    for (const crystal of this.crystals) {
+      if (crystal.carrier) continue;
+      const sx = crystal.x - this.camera.x;
+      const sy = crystal.y - this.camera.y;
+      if (gem) {
+        ctx.save();
+        ctx.shadowColor = "#00BCD4";
+        ctx.shadowBlur = 14;
+        ctx.drawImage(gem, sx - SZ / 2, sy - SZ / 2, SZ, SZ);
+        ctx.restore();
+      } else {
+        drawGemFallback(ctx, sx, sy, 14);
+      }
+    }
+
+    // Carried crystals float above their carriers (small size, orbiting)
     for (const crystal of this.crystals) {
       if (!crystal.carrier) continue;
-      
       const sx = crystal.x - this.camera.x;
       const sy = crystal.y - this.camera.y - 30;
-      
-      ctx.save();
-      ctx.shadowColor = "#00BCD4";
-      ctx.shadowBlur = 20;
-      ctx.fillStyle = "#00E5FF";
-      ctx.beginPath();
-      ctx.moveTo(sx, sy - 10);
-      ctx.lineTo(sx + 7, sy);
-      ctx.lineTo(sx, sy + 10);
-      ctx.lineTo(sx - 7, sy);
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
+      const s = SZ * 0.55;
+      if (gem) {
+        ctx.save();
+        ctx.shadowColor = "#00BCD4";
+        ctx.shadowBlur = 12;
+        ctx.drawImage(gem, sx - s / 2, sy - s / 2, s, s);
+        ctx.restore();
+      } else {
+        drawGemFallback(ctx, sx, sy, 9);
+      }
     }
   }
 

@@ -6,6 +6,7 @@ const SZ = 128; // sprite render resolution
 let boxCanvas:  HTMLCanvasElement | null = null;
 let jarCanvas:  HTMLCanvasElement | null = null;
 let safeCanvas: HTMLCanvasElement | null = null;
+let gemCanvas:  HTMLCanvasElement | null = null;
 let loadPromise: Promise<void> | null = null;
 
 function getBaseUrl(): string {
@@ -112,6 +113,7 @@ function loadAndRender(
 export function getPowerBoxCanvas(): HTMLCanvasElement | null { return boxCanvas; }
 export function getPowerJarCanvas(): HTMLCanvasElement | null { return jarCanvas; }
 export function getSafeCanvas():     HTMLCanvasElement | null { return safeCanvas; }
+export function getGemCanvas():      HTMLCanvasElement | null { return gemCanvas; }
 
 export function loadPowerModels(): Promise<void> {
   if (loadPromise) return loadPromise;
@@ -127,6 +129,9 @@ export function loadPowerModels(): Promise<void> {
     catch { /* leave null → Canvas fallback */ }
 
     try { safeCanvas = await loadAndRender(renderer, `${base}/models/safe.glb`, "front-low"); }
+    catch { /* leave null → Canvas fallback */ }
+
+    try { gemCanvas  = await loadAndRender(renderer, `${base}/models/gem.glb`, "front"); }
     catch { /* leave null → Canvas fallback */ }
   })();
   return loadPromise;

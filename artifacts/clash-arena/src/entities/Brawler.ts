@@ -98,6 +98,10 @@ export class Brawler {
   posHistory: Array<{ x: number; y: number }> = [];
   private _posHistoryTimer: number = 0;
 
+  // ── Per-mode badge (e.g. crystals carried, power cubes) ──────────────────
+  // Set by game modes each frame; rendered above the name label.
+  crystalCount: number = 0;
+
   constructor(stats: BrawlerStats, level: number, x: number, y: number, team: Team, isPlayer = false) {
     this.id = `brawler_${Math.random().toString(36).slice(2)}`;
     this.stats = stats;
@@ -241,6 +245,9 @@ export class Brawler {
 
   move(dx: number, dy: number, dt: number): void {
     if (!this.alive) return;
+    
+    // Stun freezes all movement
+    if (this.statusEffects.some(e => e.type === "stun")) return;
     
     let spd = this.speed * 60;
     
@@ -1098,35 +1105,6 @@ export class Brawler {
       this.renderSuperBar(ctx, sx, sy);
     }
 
-    if (this.alive && this.powerCubes > 0) {
-      // Spinning mini-jar icon above HP bar
-      const jarR = 7;
-      const jarY = sy - this.radius - 55;
-      ctx.save();
-      ctx.shadowColor = "#E040FB";
-      ctx.shadowBlur = 8;
-      // Jar body
-      const jGrad = ctx.createLinearGradient(sx - jarR, jarY - jarR, sx + jarR, jarY + jarR);
-      jGrad.addColorStop(0, "#CE93D8");
-      jGrad.addColorStop(1, "#7B1FA2");
-      ctx.fillStyle = jGrad;
-      ctx.beginPath();
-      ctx.roundRect(sx - jarR * 0.7, jarY - jarR, jarR * 1.4, jarR * 2, jarR * 0.4);
-      ctx.fill();
-      // Gold lid
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = "#FFD700";
-      ctx.fillRect(sx - jarR * 0.5, jarY - jarR - 2, jarR, 3);
-      // Count label
-      ctx.fillStyle = "#FFD700";
-      ctx.font = "bold 10px Arial";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.shadowColor = "rgba(0,0,0,0.9)";
-      ctx.shadowBlur = 4;
-      ctx.fillText(`×${this.powerCubes}`, sx + jarR * 1.6, jarY);
-      ctx.restore();
-    }
   }
 
   private renderNameLabel(ctx: CanvasRenderingContext2D, sx: number, sy: number, viewerTeam?: string): void {
@@ -1140,7 +1118,6 @@ export class Brawler {
     ctx.shadowBlur = 4;
 
     if (this.isBot) {
-      // Yellow "БОТ" tag, then a duller name beside it.
       const tag = "БОТ";
       const nm = ` ${this.displayName}`;
       const tagW = ctx.measureText(tag).width;
@@ -1161,6 +1138,79 @@ export class Brawler {
       ctx.fillText(this.displayName, sx, labelY);
     }
     ctx.restore();
+
+    // ── Badges above the name ──────────────────────────────────────────────
+    // Stack up from labelY - 2: powerCubes (jars) and crystalCount
+    let badgeTop = labelY - 14;
+
+    if (this.powerCubes > 0) {
+      // Mini jar + count
+      const jarR = 6;
+      ctx.save();
+      ctx.shadowColor = "#E040FB";
+      ctx.shadowBlur = 6;
+      // pill background
+      const pillW = 36, pillH = 14;
+      ctx.fillStyle = "rgba(0,0,0,0.68)";
+      ctx.beginPath();
+      ctx.roundRect(sx - pillW / 2, badgeTop - pillH / 2, pillW, pillH, 5);
+      ctx.fill();
+      // jar body
+      const jGrad = ctx.createLinearGradient(sx - pillW * 0.4, badgeTop - jarR, sx - pillW * 0.4 + jarR * 1.4, badgeTop + jarR);
+      jGrad.addColorStop(0, "#CE93D8");
+      jGrad.addColorStop(1, "#7B1FA2");
+      ctx.fillStyle = jGrad;
+      ctx.beginPath();
+      ctx.roundRect(sx - pillW * 0.42, badgeTop - jarR * 0.85, jarR * 1.3, jarR * 1.7, jarR * 0.35);
+      ctx.fill();
+      // jar lid
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "#FFD700";
+      ctx.fillRect(sx - pillW * 0.42, badgeTop - jarR * 0.85 - 2, jarR * 1.3, 2.5);
+      // count
+      ctx.fillStyle = "#FFE082";
+      ctx.font = "bold 10px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(`×${this.powerCubes}`, sx + pillW * 0.13, badgeTop);
+      ctx.restore();
+      badgeTop -= 16;
+    }
+
+    if (this.crystalCount > 0) {
+      // Mini crystal + count
+      ctx.save();
+      ctx.shadowColor = "#00E5FF";
+      ctx.shadowBlur = 6;
+      const pillW = 34, pillH = 14;
+      ctx.fillStyle = "rgba(0,0,0,0.68)";
+      ctx.beginPath();
+      ctx.roundRect(sx - pillW / 2, badgeTop - pillH / 2, pillW, pillH, 5);
+      ctx.fill();
+      // diamond shape
+      const cs = 5;
+      const cx0 = sx - pillW * 0.25, cy0 = badgeTop;
+      ctx.fillStyle = "#00E5FF";
+      ctx.beginPath();
+      ctx.moveTo(cx0, cy0 - cs); ctx.lineTo(cx0 + cs * 0.7, cy0);
+      ctx.lineTo(cx0, cy0 + cs); ctx.lineTo(cx0 - cs * 0.7, cy0);
+      ctx.closePath();
+      ctx.fill();
+      // highlight
+      ctx.fillStyle = "rgba(255,255,255,0.45)";
+      ctx.beginPath();
+      ctx.moveTo(cx0 - cs * 0.2, cy0 - cs * 0.6); ctx.lineTo(cx0 + cs * 0.3, cy0 - cs * 0.1);
+      ctx.lineTo(cx0 - cs * 0.05, cy0 + cs * 0.4); ctx.closePath();
+      ctx.fill();
+      // count
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "#80DEEA";
+      ctx.font = "bold 10px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(`×${this.crystalCount}`, sx + pillW * 0.15, badgeTop);
+      ctx.restore();
+    }
   }
 
   private renderAmmoBar(ctx: CanvasRenderingContext2D, sx: number, sy: number, viewerTeam?: string): void {

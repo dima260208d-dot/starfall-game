@@ -87,13 +87,15 @@ export default function GameScreen({ mode, brawlerId, onExit }: GameScreenProps)
       game.render(ctx);
 
       if (game.over) {
-        setGameOver(true);
-        setWon(game.won);
-        // Pull result snapshot saved by the mode via recordGameResult.
-        const p = getCurrentProfile();
-        if (p?.lastResult) {
-          setResult({ place: p.lastResult.place, trophyDelta: p.lastResult.trophyDelta, xpGained: p.lastResult.xpGained });
-        }
+        // 3-second pause before showing the result screen
+        setTimeout(() => {
+          setGameOver(true);
+          setWon(game.won);
+          const p = getCurrentProfile();
+          if (p?.lastResult) {
+            setResult({ place: p.lastResult.place, trophyDelta: p.lastResult.trophyDelta, xpGained: p.lastResult.xpGained });
+          }
+        }, 3000);
         return;
       }
 
@@ -254,7 +256,7 @@ export default function GameScreen({ mode, brawlerId, onExit }: GameScreenProps)
                 textShadow: "0 2px 8px rgba(0,0,0,0.6)",
               }}
             >
-              {mode === "showdown" ? `${result.place} место из 8` : (won ? "1 место" : "2 место")}
+              {mode === "showdown" ? `${result.place} место из 10` : ""}
             </div>
           )}
           <div style={{ display: "flex", gap: 18, marginBottom: 30, flexWrap: "wrap", justifyContent: "center" }}>

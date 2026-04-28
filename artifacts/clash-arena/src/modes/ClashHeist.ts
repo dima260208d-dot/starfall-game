@@ -10,7 +10,7 @@ import { updateEffects, renderEffects, clearEffects } from "../utils/effects";
 import { angleTo, autoAimAngle, distance, randomInt } from "../utils/helpers";
 import { recordGameResult, getCurrentUsername } from "../utils/localStorageAPI";
 import { renderPlayerHUD } from "./sharedHUD";
-import { getSafeCanvas } from "../utils/powerModelCache";
+import { getSafeCanvas, getGemCanvas } from "../utils/powerModelCache";
 
 interface Safe {
   x: number;
@@ -274,6 +274,7 @@ export class ClashHeist {
   }
 
   private renderCrystalParticles(ctx: CanvasRenderingContext2D): void {
+    const gem = getGemCanvas();
     for (const p of this.crystalParticles) {
       const sx = p.x - this.camera.x;
       const sy = p.y - this.camera.y;
@@ -282,27 +283,27 @@ export class ClashHeist {
       ctx.translate(sx, sy);
       ctx.rotate(p.angle);
       ctx.globalAlpha = alpha;
-      ctx.shadowColor = p.color;
-      ctx.shadowBlur = 8;
-      ctx.fillStyle = p.color;
-      // Draw diamond/crystal shape
       const s = p.size;
-      ctx.beginPath();
-      ctx.moveTo(0, -s);
-      ctx.lineTo(s * 0.5, 0);
-      ctx.lineTo(0, s);
-      ctx.lineTo(-s * 0.5, 0);
-      ctx.closePath();
-      ctx.fill();
-      // Inner highlight
-      ctx.fillStyle = "rgba(255,255,255,0.4)";
-      ctx.beginPath();
-      ctx.moveTo(0, -s * 0.5);
-      ctx.lineTo(s * 0.2, 0);
-      ctx.lineTo(0, s * 0.25);
-      ctx.lineTo(-s * 0.2, 0);
-      ctx.closePath();
-      ctx.fill();
+      if (gem) {
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 8;
+        ctx.drawImage(gem, -s, -s, s * 2, s * 2);
+      } else {
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 8;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.moveTo(0, -s); ctx.lineTo(s * 0.5, 0);
+        ctx.lineTo(0, s); ctx.lineTo(-s * 0.5, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = "rgba(255,255,255,0.4)";
+        ctx.beginPath();
+        ctx.moveTo(0, -s * 0.5); ctx.lineTo(s * 0.2, 0);
+        ctx.lineTo(0, s * 0.25); ctx.lineTo(-s * 0.2, 0);
+        ctx.closePath();
+        ctx.fill();
+      }
       ctx.restore();
     }
   }
